@@ -2,7 +2,10 @@
 from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam, SteamStream
 from Evaporator import Evaporator
-from evaporator_functions import initial_brix_profile, pressure_profile_initial, shortcut_evaporator_steam, convert_inHg_vacuum_to_psia, convert_psig_to_psia
+from evaporator_functions import (initial_brix_profile, pressure_profile_initial, 
+                                  shortcut_evaporator_steam, convert_inHg_vacuum_to_psia, 
+                                  convert_psig_to_psia, convert_psia_to_psig, 
+                                  convert_psia_to_inHgVac)
 import time
 from statistics import stdev
 
@@ -42,7 +45,9 @@ class EvaporatorSet:
     
     def build_effects(self):
         """Builds the evaporator effects objects and stores them in a list"""
-
+        print(f"Steam initial guess: {self.steam_initial_guess:,.1f} lb/hr")
+        print(f"Brix profile: {[f'{b:.1f}' for b in self.initial_brix_profile]}")
+        print(f"Pressure profile: {[f'{p:.2f}' for p in self.pressure_profile_initial]}")
         self.evaporator_list = [Evaporator(
             juice_side_in=self.juice_in,
             calandria_side=self.supply_steam,
@@ -91,14 +96,12 @@ class EvaporatorSet:
 
     def solve_for_steam(self):
         """Trial and error method to get the actual required steam flow rate"""
-        self.update_steam_flow(self.steam_initial_guess)
-        #print(f"Initial guess: {self.steam_initial_guess:,.2f} lb/hr gives a brix value of {self.evaporator_list[-1].juice_side_out.brix:,.2f}")
-        #print(f"Target Brix out: {self.target_brix_out:,.2f}")
-        #print(f"Current Difference: {self.brix_target_difference:,.2f}")
+        # warm start: use current steam if already set, fall back to shortcut guess
+        x_n_min_1 = self.supply_steam.flow_lb_per_hr if self.supply_steam.flow_lb_per_hr > 0 else self.steam_initial_guess
+        self.update_steam_flow(x_n_min_1)
         max_iterations = 100
         tolerance = 0.0001 # higher or lower brix target difference
         current_iteration = 0
-        x_n_min_1 = self.steam_initial_guess
         f_x_n_min_1 = self.target_brix_out - self.evaporator_list[-1].juice_side_out.brix
         x_n = x_n_min_1 * 1.02
         while abs(self.brix_target_difference) >= tolerance and current_iteration < max_iterations:
@@ -111,13 +114,13 @@ class EvaporatorSet:
             #print(f"Current guess: {x_n_min_1:,.2f} lb/hr | Difference: {self.brix_target_difference:,.4f} | Iteration: {current_iteration}")
             current_iteration += 1
         
-        if self.brix_target_difference <= tolerance:
+        if abs(self.brix_target_difference) <= tolerance:
             pass # incase you want to take the # out of the print line
-            #print(f"Convergence succesful! Final guess: {x_n:,.2f} lb/hr | Difference: {self.brix_target_difference:,.4f} | Iteration: {current_iteration}")
-        elif self.brix_target_difference > tolerance:
+            #print(f"Convergence succesful! Final guess: {x_n_min_1:,.2f} lb/hr | Difference: {self.brix_target_difference:,.4f} | Iteration: {current_iteration}")
+        else:
             #pass # incase you want to take the # out of the print line
-            print(f"XXX Failure to converge! XXX : Final guess: {x_n:,.2f} lb/hr | Difference: {self.brix_target_difference:,.6f} | Iteration: {current_iteration}")
-        self.update_steam_flow(x_n) # update effects to final conditions, this does throw the brix slightly out of final tolerance
+            print(f"XXX Failure to converge! XXX : Final guess: {x_n_min_1:,.2f} lb/hr | Difference: {self.brix_target_difference:,.6f} | Iteration: {current_iteration}")
+        self.update_steam_flow(x_n_min_1)  # apply last evaluated converged value, not the next extrapolation
 
     def adjust_pressure_profile(self):
         """Adjust the pressure profile based on the average_u_ratio / current body u_ratio"""
@@ -131,10 +134,11 @@ class EvaporatorSet:
         # adjust the pressures now
         pressure_iteration = 0
         max_pressure_iterations = 100
-        while stdev(u_ratio_list) > 0.000001 and pressure_iteration < max_pressure_iterations:
+        while stdev(u_ratio_list) > 0.0001 and pressure_iteration < max_pressure_iterations:
 
             for i in range(self.number_of_effects - 1): # don't change last effect pressure
                 self.evaporator_list[i].vapor_pressure_psia *= (average_u_ratio / u_ratio_list[i])**0.1
+                self.evaporator_list[i + 1].calandria_side.P_psia = self.evaporator_list[i].vapor_pressure_psia
             self.update_set()
             self.solve_for_steam()
             
@@ -152,6 +156,7 @@ class EvaporatorSet:
         """Manually set the presure profile for testing purposes"""
         for i in range(self.number_of_effects - 1):
             self.evaporator_list[i].vapor_pressure_psia = pressure_list[i]
+            self.evaporator_list[i + 1].calandria_side.P_psia = pressure_list[i]
         self.update_set()
         self.solve_for_steam()
 
@@ -182,6 +187,24 @@ class EvaporatorSet:
             print(f"\n \n Evaporator {i+1} Details:\n {'-'*50} \n")
             self.evaporator_list[i].display_properties()
         print(f"\n {'-'*5} Steam Required for Set: {self.supply_steam.flow_lb_per_hr:,.2f} lb/hr {'-'*5} \n")
+
+    def show_summary(self):
+        print(f"\nSteam Required: {self.supply_steam.flow_lb_per_hr:,.2f} lb/hr")
+        print(f"Flow of Entering Juice: {self.juice_in.flow_lb_per_hr:,.2f} lb/hr:  Brix of Entering Juice: {self.juice_in.brix}")
+
+        print(f"Steam Pressure: {self.supply_steam.P_psia} psia.    {convert_psia_to_psig(self.supply_steam.P_psia):.2f} psig")
+        for i in range(self.number_of_effects):
+            if self.evaporator_list[i].vapor_pressure_psia > 14.696:
+                press_print = convert_psia_to_psig(self.evaporator_list[i].vapor_pressure_psia)
+                units = 'psig'
+            else:
+                press_print = convert_psia_to_inHgVac(self.evaporator_list[i].vapor_pressure_psia)
+                units = 'inHg Vac'
+
+            string_1 = f"Pressure in effect {i+1}: {self.evaporator_list[i].vapor_pressure_psia:.2f} psia.    {press_print:.2f} {units}"
+            string_2 = f"Brix Leaving effect {i+1}: {self.evaporator_list[i].juice_side_out.brix:.2f}"
+            string_3 = f"Flow Leaving effect {i+1}: {self.evaporator_list[i].juice_side_out.flow_lb_per_hr:,.2f} lb/hr"
+            print(f"{string_1} | {string_2} | {string_3}")
 
     def check_material_balance(self):
         """Checks the material balance of the system"""
@@ -244,23 +267,25 @@ class EvaporatorSet:
                 print(f"Energy Balance OK in effect {i+1}")
 
 
-test_set = EvaporatorSet(
-    juice_in=SugarStream(brix=12, purity=90, flow_lb_per_hr=200_000, temp_deg_F=225, pressure_psia=60, level_ft=0),
-    supply_steam=EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0),
-    last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
-    target_brix_out=60,
-    effect_areas_ft2=[7750, 6250, 3125, 3125],
-    vapor_bleeds=[8959+3895+28108, 22120],
-    dessin_coefficient=20000,
-    liquid_level_ft=2
-)
+if __name__ == "__main__":
+    test_set = EvaporatorSet(
+        juice_in=SugarStream(brix=12, purity=90, flow_lb_per_hr=200_000, temp_deg_F=225, pressure_psia=60, level_ft=0),
+        supply_steam=EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0),
+        last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
+        target_brix_out=60,
+        effect_areas_ft2=[8800, 3100, 3100],
+        vapor_bleeds=[31357+3895+28108],
+        dessin_coefficient=18000,
+        liquid_level_ft=2
+    )
 
-start_time = time.time()
-test_set.manually_set_pressures([23.252, 16.698, 9.769]) # for trouble shooting
-#test_set.adjust_pressure_profile()
-test_set.show_me_evaporator_details()
-test_set.check_material_balance()
-test_set.check_energy_balance()
-end_time = time.time()
-execution_time = end_time - start_time
-print(f"Execution time: {execution_time:.8f} seconds")
+    start_time = time.time()
+    # test_set.manually_set_pressures([23.252, 16.698, 9.769]) # for trouble shooting
+    test_set.adjust_pressure_profile()
+    test_set.show_me_evaporator_details()
+    test_set.check_material_balance()
+    test_set.check_energy_balance()
+    test_set.show_summary()
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time:.8f} seconds")
