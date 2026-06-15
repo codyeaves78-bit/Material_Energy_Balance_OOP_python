@@ -68,6 +68,20 @@ def initial_brix_profile(juice_in_lb_per_hr: float, brix_in: float, brix_out: fl
         brix_list.append((solids_lb_per_hr / current_flow) * 100)
     return brix_list
 
+def sat_pressure_from_temp(temp_deg_F: float) -> float:
+    """Inverse of sat_steam_temp: saturation pressure (psia) from temperature (°F). Valid ~100-300°F."""
+    return (4.29243
+            - 0.117802      * temp_deg_F
+            + 0.001330114   * temp_deg_F**2
+            - 0.00000679176 * temp_deg_F**3
+            + 0.0000000199634 * temp_deg_F**4)
+
+def convert_psia_to_psig(pressure_psia: float) -> float:
+    return pressure_psia - 14.696
+
+def convert_psia_to_inHgVac(pressure_psia: float) -> float:
+    return 29.92 - (29.92 * pressure_psia / 14.696)
+
 def convert_psig_to_psia(pressure_psig: float):
     """Convert pressure from psig to psia"""
     psia = pressure_psig + 14.696
@@ -87,3 +101,14 @@ def pressure_profile_initial(supply_steam_pressure_psia: float, last_effect_pres
     for i in range(number_of_effects):
         pressure_list.append(pressure_list[i] - delta_p)
     return pressure_list
+
+def convert_psia_to_psig(pressure_psia: float):
+    """Convert pressure from psia to psig"""
+    psig = pressure_psia - 14.696
+    return psig
+
+def convert_psia_to_inHgVac(pressure_psia: float):
+    """Convert pressure from psia to inHg Vac"""
+    inHg_abs = pressure_psia / 0.491154
+    inHg_vac = 29.9213596 - inHg_abs
+    return inHg_vac
