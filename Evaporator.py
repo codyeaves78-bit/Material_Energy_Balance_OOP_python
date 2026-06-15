@@ -121,23 +121,26 @@ class Evaporator:
     def condensate_out(self):
         return self.calandria_side.flow_lb_per_hr
     
-    def _update_juice_side_out(self):
+    def _update_juice_side_out(self, lbs_evap):
         """Update the juice_side_out properties based on the current calculations"""
-        self.juice_side_out.brix = self.brix_out
-        self.juice_side_out.flow_lb_per_hr = self.juice_side_in.flow_lb_per_hr - self.lbs_evaporated_per_hr
+        flow_out = self.juice_side_in.flow_lb_per_hr - lbs_evap
+        solids   = self.juice_side_in.flow_lb_per_hr * self.juice_side_in.brix / 100
+        self.juice_side_out.brix = solids / flow_out * 100 if flow_out > 0 else self.juice_side_in.brix
+        self.juice_side_out.flow_lb_per_hr = flow_out
         self.juice_side_out.pressure_psia = self.vapor_pressure_psia
         self.juice_side_out.level_ft = self.liquid_level_ft
         self.juice_side_out.current_temp_to_bpe_plus_vapor_temp()
 
-    def _update_vapor_out(self):
+    def _update_vapor_out(self, lbs_evap):
         """Update the vapor_out properties based on the current calculations"""
         self.vapor_out.P_psia = self.vapor_pressure_psia
-        self.vapor_out.flow_lb_per_hr = self.lbs_evaporated_per_hr
+        self.vapor_out.flow_lb_per_hr = lbs_evap
 
     def solve(self):
-        """convinient method to call the _update_vapor_out and _update_juice_side_out methods"""
-        self._update_vapor_out()
-        self._update_juice_side_out()
+        """Compute evaporation once and push to vapor_out and juice_side_out"""
+        lbs_evap = self.lbs_evaporated_per_hr
+        self._update_vapor_out(lbs_evap)
+        self._update_juice_side_out(lbs_evap)
 
     def __repr__(self):
         return (f"Evaporator(juice_side_in={self.juice_side_in}, calandria_side={self.calandria_side}, "
