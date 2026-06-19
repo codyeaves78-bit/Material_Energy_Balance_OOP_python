@@ -128,26 +128,36 @@ class EvaporatorSet:
         print(f"Initial pressure profiel: {self.pressure_profile_initial}")
         u_dessin_list = [evaporator.dessin_U for evaporator in self.evaporator_list]
         u_calc_list = [evaporator.heat_xfer_U for evaporator in self.evaporator_list]
-        u_ratio_list = [u_calc / u_dessin for u_calc, u_dessin in zip(u_calc_list, u_dessin_list)]
+        u_ratio_list = [float(u_calc / u_dessin) for u_calc, u_dessin in zip(u_calc_list, u_dessin_list)]
         average_u_ratio = sum(u_ratio_list) / len(u_ratio_list) # u_calc / u_dessin
-        
+
         # adjust the pressures now
         pressure_iteration = 0
         max_pressure_iterations = 100
+        # guard: stdev requires finite values; bail out if physics are invalid
+        if not all(u == u and u != float('inf') and u != float('-inf') for u in u_ratio_list):
+            print("Warning: non-finite U ratio encountered before pressure loop, skipping adjustment.")
+            return
         while stdev(u_ratio_list) > 0.0001 and pressure_iteration < max_pressure_iterations:
 
             for i in range(self.number_of_effects - 1): # don't change last effect pressure
-                self.evaporator_list[i].vapor_pressure_psia *= (average_u_ratio / u_ratio_list[i])**0.1
+                ratio = average_u_ratio / u_ratio_list[i]
+                if ratio > 0:  # skip adjustment if ratio is non-positive (avoids nan from negative base)
+                    self.evaporator_list[i].vapor_pressure_psia *= ratio**0.1
                 self.evaporator_list[i + 1].calandria_side.P_psia = self.evaporator_list[i].vapor_pressure_psia
             self.update_set()
             self.solve_for_steam()
-            
+
             # update lists and average
             u_dessin_list = [evaporator.dessin_U for evaporator in self.evaporator_list]
             u_calc_list = [evaporator.heat_xfer_U for evaporator in self.evaporator_list]
-            u_ratio_list = [u_calc / u_dessin for u_calc, u_dessin in zip(u_calc_list, u_dessin_list)]
+            u_ratio_list = [float(u_calc / u_dessin) for u_calc, u_dessin in zip(u_calc_list, u_dessin_list)]
             average_u_ratio = sum(u_ratio_list) / len(u_ratio_list) # u_calc / u_dessin
             pressure_iteration += 1
+            # bail out if nan/inf crept in during iteration
+            if not all(u == u and u != float('inf') and u != float('-inf') for u in u_ratio_list):
+                print("Warning: non-finite U ratio encountered during pressure adjustment, stopping early.")
+                break
         current_pressure_list = [evaporator.vapor_pressure_psia for evaporator in self.evaporator_list]
         print(f"Current pressure profile: {current_pressure_list} | Iterations to complete: {pressure_iteration}")
         print(f"U ratio list: {u_ratio_list}")

@@ -75,3 +75,12 @@ class SugarStream:
         }
         params.update(overrides)
         return cls(**params)
+
+if __name__ == "__main__":
+    # Example usage
+    my_stream = SugarStream(brix=14, purity=90, flow_lb_per_hr=1_500_000, temp_deg_F=235, pressure_psia=50, level_ft=2)
+    my_stream.display_properties()
+    print(f'\n')
+    my_stream.pressure_psia = 10
+    my_stream.display_properties()
+    

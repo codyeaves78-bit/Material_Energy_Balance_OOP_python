@@ -1,6 +1,3 @@
-This is still a developing project, below is what I have so far
-
-
 # Multiple Effect Evaporator — Material & Energy Balance
 
 Python OOP implementation of Harold Birkett's multiple-effect evaporator calculation method for raw sugar factories. Solves the simultaneous material and energy balance across any number of effects, with support for vapor bleeds, a pre-evaporator stage, and automatic pressure profile optimization using the Dessin heat transfer coefficient.
@@ -98,4 +95,3 @@ Runs 13 cases (3-, 4-, and 5-effect sets with and without vapor bleeds and pre-e
 | Heat duty | BTU/hr |
 | Heating surface | ft² |
 | Brix | % (mass dissolved solids / total mass) |
-
