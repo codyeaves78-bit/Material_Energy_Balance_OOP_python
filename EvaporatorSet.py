@@ -45,9 +45,9 @@ class EvaporatorSet:
     
     def build_effects(self):
         """Builds the evaporator effects objects and stores them in a list"""
-        print(f"Steam initial guess: {self.steam_initial_guess:,.1f} lb/hr")
-        print(f"Brix profile: {[f'{b:.1f}' for b in self.initial_brix_profile]}")
-        print(f"Pressure profile: {[f'{p:.2f}' for p in self.pressure_profile_initial]}")
+        # print(f"Steam initial guess: {self.steam_initial_guess:,.1f} lb/hr")
+        # print(f"Brix profile: {[f'{b:.1f}' for b in self.initial_brix_profile]}")
+        # print(f"Pressure profile: {[f'{p:.2f}' for p in self.pressure_profile_initial]}")
         self.evaporator_list = [Evaporator(
             juice_side_in=self.juice_in,
             calandria_side=self.supply_steam,
@@ -125,7 +125,7 @@ class EvaporatorSet:
     def adjust_pressure_profile(self):
         """Adjust the pressure profile based on the average_u_ratio / current body u_ratio"""
         self.update_set()
-        print(f"Initial pressure profiel: {self.pressure_profile_initial}")
+        # print(f"Initial pressure profiel: {self.pressure_profile_initial}")
         u_dessin_list = [evaporator.dessin_U for evaporator in self.evaporator_list]
         u_calc_list = [evaporator.heat_xfer_U for evaporator in self.evaporator_list]
         u_ratio_list = [float(u_calc / u_dessin) for u_calc, u_dessin in zip(u_calc_list, u_dessin_list)]
@@ -159,8 +159,8 @@ class EvaporatorSet:
                 print("Warning: non-finite U ratio encountered during pressure adjustment, stopping early.")
                 break
         current_pressure_list = [evaporator.vapor_pressure_psia for evaporator in self.evaporator_list]
-        print(f"Current pressure profile: {current_pressure_list} | Iterations to complete: {pressure_iteration}")
-        print(f"U ratio list: {u_ratio_list}")
+        # print(f"Current pressure profile: {current_pressure_list} | Iterations to complete: {pressure_iteration}")
+        # print(f"U ratio list: {u_ratio_list}")
 
     def manually_set_pressures(self, pressure_list):
         """Manually set the presure profile for testing purposes"""
@@ -169,11 +169,32 @@ class EvaporatorSet:
             self.evaporator_list[i + 1].calandria_side.P_psia = pressure_list[i]
         self.update_set()
         self.solve_for_steam()
+    @property
+    def total_hs(self):
+        return sum(self.effect_areas_ft2)
+    
+    @property
+    def hs_num_eff_ratio(self):
+        return self.total_hs / self.number_of_effects
+    
+    @property
+    def delta_P_set(self):
+        return self.supply_steam.P_psia - self.last_effect_pressure_psia
+    
+    @property
+    def weight_for_init_distr(self):
+        return self.hs_num_eff_ratio * self.delta_P_set
 
     @property
     def brix_target_difference(self):
         return self.target_brix_out - self.evaporator_list[-1].juice_side_out.brix
     
+    @property
+    def U_ratio_avg(self):
+        u_rat_list = [self.evaporator_list[i].U_ratio for i in range(self.number_of_effects)]
+        u_avg = sum(u_rat_list) / self.number_of_effects
+        return u_avg
+
     def show_brix_list_actual(self):
         print(f"Brix of Entering Juice: {self.juice_in.brix}")
         for i in range(self.number_of_effects):
@@ -213,8 +234,12 @@ class EvaporatorSet:
 
             string_1 = f"Pressure in effect {i+1}: {self.evaporator_list[i].vapor_pressure_psia:.2f} psia.    {press_print:.2f} {units}"
             string_2 = f"Brix Leaving effect {i+1}: {self.evaporator_list[i].juice_side_out.brix:.2f}"
-            string_3 = f"Flow Leaving effect {i+1}: {self.evaporator_list[i].juice_side_out.flow_lb_per_hr:,.2f} lb/hr"
-            print(f"{string_1} | {string_2} | {string_3}")
+            string_3 = f"Syrup Out {i+1}: {self.evaporator_list[i].juice_side_out.flow_lb_per_hr:,.0f} lb/hr"
+            string_4 = f"Evaporated: {self.evaporator_list[i].lbs_evaporated_per_hr:,.0f}"
+            string_5 = f"Vapor Bleed: {self.evaporator_list[i].vapor_bleed.flow_lb_per_hr:,.0f}"
+            string_6 = f"Steam in: {self.evaporator_list[i].calandria_side.flow_lb_per_hr:,.0f}"
+            print(f"{string_1:<52} | {string_2:<30} | {string_3:<30} | {string_4:<22} | {string_5:<22} | {string_6}")
+        print(f"Average U Ratio: {self.U_ratio_avg:.3f}")
 
     def check_material_balance(self):
         """Checks the material balance of the system"""

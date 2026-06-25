@@ -35,7 +35,10 @@ def solve_multi_set(
     bleed_toggles: list = None,
     set_names: list = None,
     excel_path: str = None,
+    scenario_label: str = None,
     verbose: bool = True,
+    pre_evaporator=None,
+    bleed_overrides: dict = None,
 ) -> list:
     """
     Distribute total juice among multiple EvaporatorSet instances so that each
@@ -75,7 +78,8 @@ def solve_multi_set(
     bleed_distribution: dict = {}
     if vapor_demands:
         bleed_distribution = compute_vapor_bleed_distribution(
-            evaporator_sets, online, vapor_demands, resolved_toggles, verbose=verbose
+            evaporator_sets, online, vapor_demands, resolved_toggles,
+            verbose=verbose, bleed_overrides=bleed_overrides,
         )
 
     def _apply_full_solve(fractions: list) -> None:
@@ -131,6 +135,7 @@ def solve_multi_set(
             _export_to_excel(
                 evaporator_sets, online, final_fractions, total_juice_flow_lb_per_hr,
                 vapor_demands or {}, resolved_toggles, bleed_distribution, excel_path, set_names,
+                scenario_label, pre=pre_evaporator,
             )
         return final_fractions
 
@@ -216,6 +221,7 @@ def solve_multi_set(
         _export_to_excel(
             evaporator_sets, online, final_fractions, total_juice_flow_lb_per_hr,
             vapor_demands or {}, resolved_toggles, bleed_distribution, excel_path, set_names,
+            scenario_label, pre=pre_evaporator,
         )
 
     return final_fractions
@@ -273,6 +279,7 @@ def compute_vapor_bleed_distribution(
     vapor_demands: dict,
     bleed_toggles: list,
     verbose: bool = True,
+    bleed_overrides: dict = None,
 ) -> dict:
     """
     Distribute total vapor bleed demands across active sets by heating-surface share.
@@ -288,6 +295,9 @@ def compute_vapor_bleed_distribution(
     bleed_toggles : list[list[bool]]
         bleed_toggles[i][k] — True if set i participates in effect-(k+1) bleeding.
         Use _resolve_bleed_toggles() to fill in defaults before calling here.
+    bleed_overrides : dict, optional  {effect_number: {set_index: lb_per_hr}}
+        Per-set bleed allocations that bypass area-weighted distribution for
+        that effect.  Used during U-ratio-based V1 redistribution.
 
     Returns
     -------
@@ -307,31 +317,36 @@ def compute_vapor_bleed_distribution(
         k = effect_num - 1  # 0-indexed into vapor_bleeds / effect_areas_ft2
         distribution[effect_num] = {i: 0.0 for i in range(num_total)}
 
-        participating = [
-            i for i, (es, on) in enumerate(zip(evaporator_sets, online))
-            if on
-            and k < es.number_of_effects - 1
-            and k < len(bleed_toggles[i])
-            and bleed_toggles[i][k]
-        ]
+        if bleed_overrides and effect_num in bleed_overrides:
+            # Use caller-supplied per-set allocations (U-ratio redistribution)
+            for i, flow in bleed_overrides[effect_num].items():
+                distribution[effect_num][i] = flow
+        else:
+            participating = [
+                i for i, (es, on) in enumerate(zip(evaporator_sets, online))
+                if on
+                and k < es.number_of_effects - 1
+                and k < len(bleed_toggles[i])
+                and bleed_toggles[i][k]
+            ]
 
-        if not participating:
-            if total_demand > 0 and verbose:
-                print(
-                    f"WARNING: no active sets can supply V{effect_num} "
-                    f"demand of {total_demand:,.0f} lb/hr"
-                )
-            continue
+            if not participating:
+                if total_demand > 0 and verbose:
+                    print(
+                        f"WARNING: no active sets can supply V{effect_num} "
+                        f"demand of {total_demand:,.0f} lb/hr"
+                    )
+                continue
 
-        total_area = sum(evaporator_sets[i].effect_areas_ft2[k] for i in participating)
-        if total_area <= 0:
-            if verbose:
-                print(f"WARNING: total area for V{effect_num} is zero; bleed unallocated.")
-            continue
+            total_area = sum(evaporator_sets[i].effect_areas_ft2[k] for i in participating)
+            if total_area <= 0:
+                if verbose:
+                    print(f"WARNING: total area for V{effect_num} is zero; bleed unallocated.")
+                continue
 
-        for i in participating:
-            share = evaporator_sets[i].effect_areas_ft2[k] / total_area
-            distribution[effect_num][i] = total_demand * share
+            for i in participating:
+                share = evaporator_sets[i].effect_areas_ft2[k] / total_area
+                distribution[effect_num][i] = total_demand * share
 
     # Write back to each set's vapor_bleeds list AND to the live Evaporator objects.
     # Also warn if any assigned bleed exceeds that effect's current vapor production —
@@ -367,9 +382,13 @@ def _export_to_excel(
     bleed_distribution: dict,
     path: str,
     set_names: list,
+    scenario_label: str = None,
+    pre=None,
 ) -> None:
-    """Write a multi-sheet Excel workbook: distribution summary, per-effect engineering
-    detail, vapor bleed allocation, and an embedded PFD diagram for every online set."""
+    """Write an Excel workbook: distribution summary, per-effect engineering detail,
+    vapor bleed allocation, and an embedded PFD diagram for every online set.
+    If scenario_label is provided it appears in the report title row.
+    If pre (a PreEvaporator) is provided, a Pre detail sheet and PFD are added."""
     try:
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -437,6 +456,12 @@ def _export_to_excel(
         for idx, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(idx)].width = w
 
+    def _vac_fmt(psia: float) -> str:
+        """psig above atmosphere; inches-Hg vacuum below."""
+        if psia >= 14.696:
+            return f"{psia - 14.696:.2f} psig"
+        return f'{29.92 - 29.92 * psia / 14.696:.2f}" Hg Vac'
+
     stamp = datetime.now().strftime("%Y-%m-%d  %H:%M")
     wb = openpyxl.Workbook()
 
@@ -448,7 +473,10 @@ def _export_to_excel(
     ws1.sheet_view.showGridLines = False
 
     ws1.merge_cells("A1:J1")
-    title_cell(ws1["A1"], "Multi-Set Evaporator  —  Distribution Summary")
+    _report_title = "Multi-Set Evaporator  —  Distribution Summary"
+    if scenario_label:
+        _report_title = f"{scenario_label}  |  {_report_title}"
+    title_cell(ws1["A1"], _report_title)
     ws1["A2"] = (
         f"Total juice feed: {total_juice_flow_lb_per_hr:,.0f} lb/hr      Generated: {stamp}"
     )
@@ -467,6 +495,22 @@ def _export_to_excel(
     tot_juice = 0.0
     tot_steam = 0.0
     tot_water = 0.0
+
+    if pre is not None:
+        pre_econ = (pre.vapor_bleed_lb_per_hr / pre.exhaust_required_lb_per_hr
+                    if pre.exhaust_required_lb_per_hr > 0 else 0.0)
+        dat_alt(ws1.cell(r, 1),  "Pre Evaporator",               row_idx=0, left=True)
+        dat_alt(ws1.cell(r, 2),  "ONLINE",                       row_idx=0, center=True)
+        dat_alt(ws1.cell(r, 3),  1,                              row_idx=0, center=True)
+        dat_alt(ws1.cell(r, 4),  pre.juice_in.flow_lb_per_hr,    "#,##0",  row_idx=0)
+        dat_alt(ws1.cell(r, 5),  "—",                            row_idx=0, center=True)
+        dat_alt(ws1.cell(r, 6),  pre.exhaust_required_lb_per_hr, "#,##0",  row_idx=0)
+        dat_alt(ws1.cell(r, 7),  pre.juice_out.brix,             "0.00",   row_idx=0)
+        dat_alt(ws1.cell(r, 8),  pre.vapor_bleed_lb_per_hr,      "#,##0",  row_idx=0)
+        dat_alt(ws1.cell(r, 9),  pre_econ,                       "0.000",  row_idx=0)
+        dat_alt(ws1.cell(r, 10), "—",                            row_idx=0, center=True)
+        r += 1
+
     for i, (es, on, frac) in enumerate(zip(evaporator_sets, online, fractions)):
         ri = r - 5  # 0-based for alternating
         dat_alt(ws1.cell(r, 1), set_names[i],       row_idx=ri, left=True)
@@ -512,7 +556,7 @@ def _export_to_excel(
     ws2 = wb.create_sheet(title="Effect Details")
     ws2.sheet_view.showGridLines = False
 
-    ws2.merge_cells("A1:Q1")
+    ws2.merge_cells("A1:U1")
     title_cell(ws2["A1"], "Per-Effect Engineering Detail")
     ws2["A2"] = f"Generated: {stamp}"
     ws2["A2"].font = Font(italic=True, color="555555")
@@ -521,17 +565,58 @@ def _export_to_excel(
         "Effect #", "Area\n(ft²)",
         "Steam/Vapor In\n(lb/hr)", "Steam P\n(psia)", "Steam T\n(°F)",
         "ΔT\n(°F)",
-        "Juice In\n(lb/hr)", "Juice In\n(°Brix)",
+        "Juice In\n(lb/hr)", "Juice In\n(°Brix)", "Juice In\n(°F)",
         "Juice Out\n(lb/hr)", "Juice Out\n(°Brix)", "Juice Out\n(°F)",
         "BPE\n(°F)", "Vapor Out\n(lb/hr)", "Vapor Bleed\n(lb/hr)",
+        "Vapor P\n(psia)", "Vapor P\n(psig / \" Hg Vac)", "Vapor T\n(°F)",
         "U calc\n(BTU/hr·ft²·°F)", "U Dessin\n(BTU/hr·ft²·°F)", "U Ratio",
     ]
-    N_EFF_COLS = len(EFF_HDRS)  # 17
+    N_EFF_COLS = len(EFF_HDRS)  # 21
 
     cur = 4
+
+    if pre is not None:
+        ws2.merge_cells(f"A{cur}:U{cur}")
+        sub_hdr(ws2.cell(cur, 1),
+            f"Pre Evaporator  —  ONLINE  |  "
+            f"Juice In: {pre.juice_in.flow_lb_per_hr:,.0f} lb/hr  |  Effects: 1"
+        )
+        ws2.row_dimensions[cur].height = 20
+        cur += 1
+
+        for col, h in enumerate(EFF_HDRS, 1):
+            hdr(ws2.cell(cur, col), h)
+        ws2.row_dimensions[cur].height = 36
+        cur += 1
+
+        bpe_pre = pre.liquid_temp_deg_F - pre.vapor_temp_deg_F
+        dt_pre  = pre.supply_steam.sat_temp_deg_F - pre.liquid_temp_deg_F
+        dat_alt(ws2.cell(cur, 1),  1,                                row_idx=0, center=True)
+        dat_alt(ws2.cell(cur, 2),  pre.area_ft2,                     "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 3),  pre.exhaust_required_lb_per_hr,   "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 4),  pre.supply_steam.P_psia,          "0.00",   row_idx=0)
+        dat_alt(ws2.cell(cur, 5),  pre.supply_steam.sat_temp_deg_F,  "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 6),  dt_pre,                           "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 7),  pre.juice_in.flow_lb_per_hr,      "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 8),  pre.juice_in.brix,                "0.00",   row_idx=0)
+        dat_alt(ws2.cell(cur, 9),  pre.juice_in.temp_deg_F,          "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 10), pre.juice_out.flow_lb_per_hr,     "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 11), pre.juice_out.brix,               "0.00",   row_idx=0)
+        dat_alt(ws2.cell(cur, 12), pre.juice_out.temp_deg_F,         "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 13), bpe_pre,                          "0.00",   row_idx=0)
+        dat_alt(ws2.cell(cur, 14), pre.vapor_bleed_lb_per_hr,        "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 15), pre.vapor_bleed_lb_per_hr,        "#,##0",  row_idx=0)
+        dat_alt(ws2.cell(cur, 16), pre.vapor_pressure_psia,          "0.00",   row_idx=0)
+        dat_alt(ws2.cell(cur, 17), _vac_fmt(pre.vapor_pressure_psia), row_idx=0, left=True)
+        dat_alt(ws2.cell(cur, 18), pre.vapor_temp_deg_F,             "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 19), "—",                              row_idx=0, center=True)
+        dat_alt(ws2.cell(cur, 20), pre.dessin_U,                     "0.0",    row_idx=0)
+        dat_alt(ws2.cell(cur, 21), "—",                              row_idx=0, center=True)
+        cur += 2  # blank row after Pre section
+
     for i, (es, on, frac) in enumerate(zip(evaporator_sets, online, fractions)):
         # Set banner spanning all columns
-        ws2.merge_cells(f"A{cur}:Q{cur}")
+        ws2.merge_cells(f"A{cur}:U{cur}")
         flow_str = f"{frac * total_juice_flow_lb_per_hr:,.0f} lb/hr" if on else "OFFLINE"
         sub_hdr(
             ws2.cell(cur, 1),
@@ -570,15 +655,19 @@ def _export_to_excel(
             dat_alt(ws2.cell(cur, 6),  dt,                       "0.0",    row_idx=ri)
             dat_alt(ws2.cell(cur, 7),  jin.flow_lb_per_hr,       "#,##0",  row_idx=ri)
             dat_alt(ws2.cell(cur, 8),  jin.brix,                 "0.00",   row_idx=ri)
-            dat_alt(ws2.cell(cur, 9),  jout.flow_lb_per_hr,      "#,##0",  row_idx=ri)
-            dat_alt(ws2.cell(cur, 10), jout.brix,                "0.00",   row_idx=ri)
-            dat_alt(ws2.cell(cur, 11), jout.temp_deg_F,          "0.0",    row_idx=ri)
-            dat_alt(ws2.cell(cur, 12), evap.bpe_juice,           "0.00",   row_idx=ri)
-            dat_alt(ws2.cell(cur, 13), evap.vapor_out.flow_lb_per_hr, "#,##0", row_idx=ri)
-            dat_alt(ws2.cell(cur, 14), evap.vapor_bleed.flow_lb_per_hr, "#,##0", row_idx=ri)
-            dat_alt(ws2.cell(cur, 15), evap.heat_xfer_U,         "0.0",    row_idx=ri)
-            dat_alt(ws2.cell(cur, 16), evap.dessin_U,            "0.0",    row_idx=ri)
-            dat_alt(ws2.cell(cur, 17), evap.U_ratio,             "0.0000", row_idx=ri)
+            dat_alt(ws2.cell(cur, 9),  jin.temp_deg_F,           "0.0",    row_idx=ri)
+            dat_alt(ws2.cell(cur, 10), jout.flow_lb_per_hr,      "#,##0",  row_idx=ri)
+            dat_alt(ws2.cell(cur, 11), jout.brix,                "0.00",   row_idx=ri)
+            dat_alt(ws2.cell(cur, 12), jout.temp_deg_F,          "0.0",    row_idx=ri)
+            dat_alt(ws2.cell(cur, 13), evap.bpe_juice,           "0.00",   row_idx=ri)
+            dat_alt(ws2.cell(cur, 14), evap.vapor_out.flow_lb_per_hr,   "#,##0",  row_idx=ri)
+            dat_alt(ws2.cell(cur, 15), evap.vapor_bleed.flow_lb_per_hr, "#,##0",  row_idx=ri)
+            dat_alt(ws2.cell(cur, 16), evap.vapor_pressure_psia,        "0.00",   row_idx=ri)
+            dat_alt(ws2.cell(cur, 17), _vac_fmt(evap.vapor_pressure_psia), row_idx=ri, left=True)
+            dat_alt(ws2.cell(cur, 18), evap.vapor_temperature,          "0.0",    row_idx=ri)
+            dat_alt(ws2.cell(cur, 19), evap.heat_xfer_U,                "0.0",    row_idx=ri)
+            dat_alt(ws2.cell(cur, 20), evap.dessin_U,                   "0.0",    row_idx=ri)
+            dat_alt(ws2.cell(cur, 21), evap.U_ratio,                    "0.0000", row_idx=ri)
             set_area  += evap.area_ft2
             set_steam += c1.flow_lb_per_hr
             set_water += evap.lbs_evaporated_per_hr
@@ -592,11 +681,11 @@ def _export_to_excel(
         tot(ws2.cell(cur, 1),  f"{set_names[i]} Total", left=True)
         tot(ws2.cell(cur, 2),  set_area,  "#,##0")
         tot(ws2.cell(cur, 3),  set_steam, "#,##0")
-        tot(ws2.cell(cur, 13), set_water, "#,##0")
-        tot(ws2.cell(cur, 14), set_bleed, "#,##0")
+        tot(ws2.cell(cur, 14), set_water, "#,##0")
+        tot(ws2.cell(cur, 15), set_bleed, "#,##0")
         cur += 2  # blank row between sets
 
-    col_w(ws2, [10, 10, 18, 12, 12, 10, 15, 13, 15, 13, 13, 10, 15, 15, 18, 18, 12])
+    col_w(ws2, [10, 10, 18, 12, 12, 10, 15, 13, 12, 15, 13, 13, 10, 15, 15, 12, 18, 12, 18, 18, 12])
 
     # ==================================================================
     # Sheet 3 — Vapor Bleed Distribution
@@ -623,11 +712,16 @@ def _export_to_excel(
             total_demand = vapor_demands[effect_num]
             k = effect_num - 1  # 0-indexed
 
+            # Pre contributes V1 only; reconstruct true total demand for the banner
+            pre_contributes = (pre is not None and effect_num == 1)
+            pre_area_v1     = pre.area_ft2 if pre_contributes else 0.0
+            display_demand  = total_demand + (pre.vapor_bleed_lb_per_hr if pre_contributes else 0.0)
+
             ws3.merge_cells(f"A{cur}:F{cur}")
             sub_hdr(
                 ws3.cell(cur, 1),
                 f"V{effect_num}  —  Effect {effect_num} Vapor     "
-                f"Total Demand: {total_demand:,.0f} lb/hr",
+                f"Total Demand: {display_demand:,.0f} lb/hr",
             )
             cur += 1
 
@@ -647,10 +741,25 @@ def _export_to_excel(
                 sum(evaporator_sets[i].effect_areas_ft2[k] for i in participating)
                 if participating else 0.0
             )
+            total_area = part_area_sum + pre_area_v1  # used for all share calculations
 
             sum_area  = 0.0
             sum_bleed = 0.0
             ri = 0
+
+            # Pre Evaporator row (V1 only)
+            if pre_contributes:
+                pre_share = pre_area_v1 / total_area if total_area > 0 else 0.0
+                dat_alt(ws3.cell(cur, 1), "Pre Evaporator",              row_idx=ri, left=True)
+                dat_alt(ws3.cell(cur, 2), "ONLINE",                      row_idx=ri, center=True)
+                dat_alt(ws3.cell(cur, 3), pre_area_v1,        "#,##0",   row_idx=ri)
+                dat_alt(ws3.cell(cur, 4), "Yes",                         row_idx=ri, center=True)
+                dat_alt(ws3.cell(cur, 5), pre_share,          "0.0%",    row_idx=ri)
+                dat_alt(ws3.cell(cur, 6), pre.vapor_bleed_lb_per_hr, "#,##0", row_idx=ri)
+                sum_area  += pre_area_v1
+                sum_bleed += pre.vapor_bleed_lb_per_hr
+                cur += 1
+                ri  += 1
 
             for i, (es, on) in enumerate(zip(evaporator_sets, online)):
                 dat_alt(ws3.cell(cur, 1), set_names[i], row_idx=ri, left=True)
@@ -662,7 +771,7 @@ def _export_to_excel(
                     area       = es.effect_areas_ft2[k]
                     contrib    = i in participating
                     bleed_flow = bleed_distribution.get(effect_num, {}).get(i, 0.0)
-                    share      = (area / part_area_sum) if (contrib and part_area_sum > 0) else 0.0
+                    share      = (area / total_area) if (contrib and total_area > 0) else 0.0
                     dat_alt(ws3.cell(cur, 3), area,       "#,##0", row_idx=ri)
                     dat_alt(ws3.cell(cur, 4), "Yes" if contrib else "No",
                             row_idx=ri, center=True)
@@ -689,7 +798,69 @@ def _export_to_excel(
     col_w(ws3, [16, 10, 18, 14, 16, 22])
 
     # ==================================================================
-    # PFD diagram sheets — one per online set
+    # Pre Evaporator detail sheet (no matplotlib dependency)
+    # ==================================================================
+    if pre is not None:
+        ws_pre = wb.create_sheet(title="Pre Evaporator")
+        ws_pre.sheet_view.showGridLines = False
+        ws_pre.merge_cells("A1:C1")
+        title_cell(ws_pre["A1"], "Pre Evaporator  —  Engineering Detail", size=13)
+        ws_pre["A2"] = f"Status: ONLINE      Generated: {stamp}"
+        ws_pre["A2"].font = Font(italic=True, color="555555")
+
+        PRE_ROWS = [
+            ("JUICE IN",            None,  None),
+            ("  Flow",              pre.juice_in.flow_lb_per_hr,       "lb/hr"),
+            ("  Brix",              pre.juice_in.brix,                  "°Brix"),
+            ("  Purity",            pre.juice_in.purity,                "%"),
+            ("  Temperature",       pre.juice_in.temp_deg_F,            "°F"),
+            ("SUPPLY STEAM",        None,  None),
+            ("  Pressure",          pre.supply_steam.P_psia,            "psia"),
+            ("  Sat Temp",          pre.supply_steam.sat_temp_deg_F,    "°F"),
+            ("  Flow Used",         pre.exhaust_required_lb_per_hr,     "lb/hr"),
+            ("V1 VAPOR BLEED",      None,  None),
+            ("  Flow",              pre.vapor_bleed_lb_per_hr,          "lb/hr"),
+            ("  Pressure (psia)",   pre.vapor_pressure_psia,            "psia"),
+            ("  Pressure (2nd)",    _vac_fmt(pre.vapor_pressure_psia),  ""),
+            ("  Temperature",       pre.vapor_temp_deg_F,               "°F"),
+            ("JUICE OUT",           None,  None),
+            ("  Flow",              pre.juice_out.flow_lb_per_hr,       "lb/hr"),
+            ("  Brix",              pre.juice_out.brix,                 "°Brix"),
+            ("  Temperature",       pre.juice_out.temp_deg_F,           "°F"),
+            ("PERFORMANCE",         None,  None),
+            ("  Heat Duty",         pre.heat_duty_btu_per_hr,           "BTU/hr"),
+            ("  U Dessin",          pre.dessin_U,                       "BTU/hr·ft²·°F"),
+            ("  Heating Area",      pre.area_ft2,                       "ft²"),
+            ("  Liquid Level",      pre.liquid_level_ft,                "ft"),
+        ]
+
+        for col, hdr_txt in enumerate(["Parameter", "Value", "Units"], 1):
+            hdr(ws_pre.cell(4, col), hdr_txt)
+
+        for ri, (param, val, unit) in enumerate(PRE_ROWS):
+            row = 5 + ri
+            is_header = val is None
+            c_param = ws_pre.cell(row, 1)
+            c_val   = ws_pre.cell(row, 2)
+            c_unit  = ws_pre.cell(row, 3)
+            if is_header:
+                sub_hdr(c_param, param)
+                for c in (c_val, c_unit):
+                    c.fill   = _fill(_MID)
+                    c.border = _bd()
+            else:
+                fmt = "#,##0" if isinstance(val, float) and val > 100 else "0.00##"
+                dat_alt(c_param, param, row_idx=ri, left=True)
+                dat_alt(c_val,   val,   fmt if isinstance(val, float) else None, row_idx=ri,
+                        left=isinstance(val, str))
+                dat_alt(c_unit,  unit,  row_idx=ri, left=True)
+
+        ws_pre.column_dimensions["A"].width = 24
+        ws_pre.column_dimensions["B"].width = 18
+        ws_pre.column_dimensions["C"].width = 20
+
+    # ==================================================================
+    # PFD diagram sheets — one per online set + Pre (matplotlib optional)
     # ==================================================================
     try:
         import io as _io
@@ -721,6 +892,25 @@ def _export_to_excel(
             except Exception as exc:
                 ws_d.cell(3, 1).value = f"Diagram not available: {exc}"
 
+        if pre is not None:
+            from evaporator_diagram import plot_pre_diagram as _plot_pre_pfd
+            ws_ppfd = wb.create_sheet(title="Pre Evaporator PFD")
+            ws_ppfd.sheet_view.showGridLines = False
+            ws_ppfd.merge_cells("A1:M1")
+            title_cell(ws_ppfd["A1"], "Pre Evaporator  —  Process Flow Diagram", size=12)
+            try:
+                fig = _plot_pre_pfd(pre, pre_name="Pre Evaporator", show=False)
+                buf = _io.BytesIO()
+                fig.savefig(buf, format="png", dpi=110, bbox_inches="tight")
+                buf.seek(0)
+                img = XLImage(buf)
+                img.width  = 1000
+                img.height = 760
+                ws_ppfd.add_image(img, "A2")
+                _plt.close(fig)
+            except Exception as exc:
+                ws_ppfd.cell(3, 1).value = f"Diagram not available: {exc}"
+
     except Exception as exc:
         print(f"WARNING: PFD diagram export skipped — {exc}")
 
@@ -733,15 +923,27 @@ def _export_to_excel(
 # Tests 1-set / 2-set / 3-set / 4-set configurations with bleeds ON / OFF / mixed.
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
+    import os
+    import re
     import time
     from SugarStream import SugarStream
     from SteamStream import EvaporatorSteam
     from evaporator_functions import convert_inHg_vacuum_to_psia, convert_psig_to_psia
+    from PreEvaporator import PreEvaporator
+
+    _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Excel File Outputs")
 
     total_juice = 1_500_000   # lb/hr  (~750 tph clear juice)
     exh_psia    = convert_psig_to_psia(15)
     last_psia   = convert_inHg_vacuum_to_psia(25)
-    demands     = {1: 150_000, 2: 80_000}   # lb/hr total V1 / V2 demand
+    prim_heater_demand = 90_000
+    sec_heater_demand = 90_000
+    pan_demand = 180_000
+
+    demands     = {1: pan_demand + sec_heater_demand, 2: prim_heater_demand}   # lb/hr total V1 / V2 demand
+
+    _PRE_AREA     = 35_000
+    _SET_V1_AREAS = [25000, 12000, 11000, 15000]   # first-effect area of each set
 
     NAMES = [
         "Set 1 (4-eff 25k ft²)",
@@ -750,12 +952,14 @@ if __name__ == "__main__":
         "Set 4 (4-eff 15k ft²)",
     ]
 
-    def make_sets():
+    def make_sets(juice_brix=14, juice_temp_deg_F=225, juice_flow_per_set=None):
         """Return 4 freshly-constructed EvaporatorSet instances."""
+        if juice_flow_per_set is None:
+            juice_flow_per_set = total_juice / 4
         def juice():
             return SugarStream(
-                brix=14, purity=90, flow_lb_per_hr=total_juice / 4,
-                temp_deg_F=225, pressure_psia=60, level_ft=0,
+                brix=juice_brix, purity=90, flow_lb_per_hr=juice_flow_per_set,
+                temp_deg_F=juice_temp_deg_F, pressure_psia=60, level_ft=0,
             )
         def steam():
             return EvaporatorSteam(P_psia=exh_psia, flow_lb_per_hr=0)
@@ -787,45 +991,98 @@ if __name__ == "__main__":
             ),
         ]
 
+    def make_pre(vapor_bleed_lb_per_hr):
+        """Pre evaporator (35 000 ft²) on exhaust steam. Bleeds V1 only."""
+        return PreEvaporator(
+            juice_in=SugarStream(
+                brix=14, purity=90, flow_lb_per_hr=total_juice,
+                temp_deg_F=225, pressure_psia=60, level_ft=0,
+            ),
+            supply_steam=EvaporatorSteam(P_psia=exh_psia, flow_lb_per_hr=0),
+            vapor_bleed_lb_per_hr=vapor_bleed_lb_per_hr,
+            area_ft2=_PRE_AREA,
+            dessin_coefficient=18_000,
+            liquid_level_ft=2,
+        )
+
     # Bleed toggle profiles  (one list per set; length = number_of_effects - 1)
     # Set 1: 4-eff → 3 slots  |  Set 2: 4-eff → 3 slots
     # Set 3: 3-eff → 2 slots  |  Set 4: 4-eff → 3 slots
     BLEEDS_ON  = [[True,  True,  True],  [True,  True,  True],  [True,  True],  [True,  True,  True]]
     BLEEDS_OFF = [[False, False, False], [False, False, False], [False, False], [False, False, False]]
     # MIX: all sets share V1; only S1 and S4 (big surface) supply V2.
-    # S1 and S4 are always in different 2-set pairings so at least one is
-    # online, keeping V2 feasible.  V1 shared by everyone avoids over-assigning
-    # a single small set when others are offline.
     BLEEDS_MIX = [[True,  True,  False], [True,  False, False], [True,  False],  [True,  True,  False]]
 
-    # (online mask, bleed toggles, scenario label, excel path or None)
-    scenarios = [
+    # ---------------------------------------------------------------------------
+    # USER-SPECIFIED BLEED FRACTIONS
+    # ---------------------------------------------------------------------------
+    # Each base scenario has two optional fraction dicts:
+    #   fracs_on  — used when Pre is ON   (include 'pre' key for Pre's share)
+    #   fracs_off — used when Pre is OFF  (set keys only)
+    #
+    # Format:  {effect_number: {participant: fraction, ...}, ...}
+    #   effect_number : 1 = V1, 2 = V2, 3 = V3, ...
+    #   participant   : 'pre' for the Pre evaporator (preON only)
+    #                   0 = S1, 1 = S2, 2 = S3, 3 = S4  (set indices)
+    #   fraction      : share of the total demand for that effect (0.0–1.0)
+    #
+    # Rules:
+    #   • Fractions for all participants in an effect should sum to 1.0.
+    #   • Only specify fractions for ONLINE sets (offline sets → omit).
+    #   • Any effect not listed uses area-weighted distribution (default).
+    #   • Set None for either dict to use area-weighted for all effects.
+    #
+    # Example — 2 sets (S1+S2) online, Pre ON, bleeds ON:
+    #   fracs_on  = {1: {'pre': 0.20, 0: 0.50, 1: 0.30},   # V1 split
+    #                2: {0: 0.60, 1: 0.40}}                  # V2 split
+    #   fracs_off = {1: {0: 0.60, 1: 0.40},                 # V1 split (no pre)
+    #                2: {0: 0.60, 1: 0.40}}                  # V2 split
+    # ---------------------------------------------------------------------------
+    fracs_on_3sets = {1: {'pre': 0.9, 0: 0.04, 1: 0.03, 2: 0.03}, 2: {0: 0.6, 1: 0.25, 2: 0.25}} # V1 and V2 split respectively
+    fracs_off_3sets = {1: {0: 0.6, 1: 0.25, 2: 0.25}, 2: {0: 0.6, 1: 0.25, 2: 0.25}} # for no pre
+    fracs_on_4sets = {1: {'pre': 0.9, 0: 0.03, 1: 0.02, 2: 0.02, 3: .03}, 2: {0: 0.5, 1: 0.2, 2: 0.2, 3: 0.1}} # V1 and V2 split respectively
+    # Base scenarios: (online mask, bleed toggles, label, fracs_on, fracs_off).
+    # Each base is expanded into Pre ON and Pre OFF variants, both get Excel files.
+    # Set fracs_on / fracs_off to None to use area-weighted distribution (default).
+    _BASE = [
         # ── 1 set online ──────────────────────────────────────────────────
-        ([True,  False, False, False], BLEEDS_ON,  "1-set  S1 only          bleeds ON",  None),
-        ([False, True,  False, False], BLEEDS_ON,  "1-set  S2 only          bleeds ON",  None),
-        ([False, False, True,  False], BLEEDS_ON,  "1-set  S3 only          bleeds ON",  None),
-        ([False, False, False, True ], BLEEDS_ON,  "1-set  S4 only          bleeds ON",  None),
-        ([True,  False, False, False], BLEEDS_OFF, "1-set  S1 only          bleeds OFF", None),
+        ([True,  False, False, False], BLEEDS_ON,  "1-set  S1 only          bleeds ON",  None, None),
+        ([False, True,  False, False], BLEEDS_ON,  "1-set  S2 only          bleeds ON",  None, None),
+        ([False, False, True,  False], BLEEDS_ON,  "1-set  S3 only          bleeds ON",  None, None),
+        ([False, False, False, True ], BLEEDS_ON,  "1-set  S4 only          bleeds ON",  None, None),
+        ([True,  False, False, False], BLEEDS_OFF, "1-set  S1 only          bleeds OFF", None, None),
         # ── 2 sets online ─────────────────────────────────────────────────
-        ([True,  True,  False, False], BLEEDS_ON,  "2-sets S1+S2            bleeds ON",  None),
-        ([True,  False, True,  False], BLEEDS_ON,  "2-sets S1+S3 (diff eff) bleeds ON",  None),
-        ([True,  False, False, True ], BLEEDS_ON,  "2-sets S1+S4            bleeds ON",  None),
-        ([False, True,  True,  False], BLEEDS_ON,  "2-sets S2+S3            bleeds ON",  None),
-        ([False, False, True,  True ], BLEEDS_ON,  "2-sets S3+S4 (diff eff) bleeds ON",  None),
-        ([True,  True,  False, False], BLEEDS_OFF, "2-sets S1+S2            bleeds OFF", None),
-        ([True,  True,  False, False], BLEEDS_MIX, "2-sets S1+S2            bleeds MIX", None),
+        ([True,  True,  False, False], BLEEDS_ON,  "2-sets S1+S2            bleeds ON",  {1: {'pre': 0.90, 0: 0.070, 1: 0.030}, 2: {0: 0.60, 1: 0.40}}, {1: {0: 0.60, 1: 0.40}, 2: {0: 0.60, 1: 0.40}} ),
+        ([True,  False, True,  False], BLEEDS_ON,  "2-sets S1+S3 (diff eff) bleeds ON",  None, None),
+        ([True,  False, False, True ], BLEEDS_ON,  "2-sets S1+S4            bleeds ON",  None, None),
+        ([False, True,  True,  False], BLEEDS_ON,  "2-sets S2+S3            bleeds ON",  None, None),
+        ([False, False, True,  True ], BLEEDS_ON,  "2-sets S3+S4 (diff eff) bleeds ON",  None, None),
+        ([True,  True,  False, False], BLEEDS_OFF, "2-sets S1+S2            bleeds OFF", None, None),
+        ([True,  True,  False, False], BLEEDS_MIX, "2-sets S1+S2            bleeds MIX", None, None),
         # ── 3 sets online ─────────────────────────────────────────────────
-        ([True,  True,  True,  False], BLEEDS_ON,  "3-sets S1+S2+S3         bleeds ON",  None),
-        ([True,  True,  False, True ], BLEEDS_ON,  "3-sets S1+S2+S4         bleeds ON",  None),
-        ([True,  False, True,  True ], BLEEDS_ON,  "3-sets S1+S3+S4         bleeds ON",  None),
-        ([False, True,  True,  True ], BLEEDS_ON,  "3-sets S2+S3+S4         bleeds ON",  None),
-        ([True,  True,  True,  False], BLEEDS_OFF, "3-sets S1+S2+S3         bleeds OFF", None),
-        ([True,  True,  True,  False], BLEEDS_MIX, "3-sets S1+S2+S3         bleeds MIX", None),
+        ([True,  True,  True,  False], BLEEDS_ON,  "3-sets S1+S2+S3         bleeds ON",  fracs_on_3sets, None),
+        ([True,  True,  False, True ], BLEEDS_ON,  "3-sets S1+S2+S4         bleeds ON",  None, None),
+        ([True,  False, True,  True ], BLEEDS_ON,  "3-sets S1+S3+S4         bleeds ON",  None, None),
+        ([False, True,  True,  True ], BLEEDS_ON,  "3-sets S2+S3+S4         bleeds ON",  None, None),
+        ([True,  True,  True,  False], BLEEDS_OFF, "3-sets S1+S2+S3         bleeds OFF", None, None),
+        ([True,  True,  True,  False], BLEEDS_MIX, "3-sets S1+S2+S3         bleeds MIX", None, None),
         # ── 4 sets online ─────────────────────────────────────────────────
-        ([True,  True,  True,  True ], BLEEDS_ON,  "4-sets all              bleeds ON",  "balance_all_bleeds_on.xlsx"),
-        ([True,  True,  True,  True ], BLEEDS_OFF, "4-sets all              bleeds OFF", "balance_all_bleeds_off.xlsx"),
-        ([True,  True,  True,  True ], BLEEDS_MIX, "4-sets all              bleeds MIX", "balance_all_bleeds_mix.xlsx"),
+        ([True,  True,  True,  True ], BLEEDS_ON,  "4-sets all              bleeds ON",  fracs_on_4sets, None),
+        ([True,  True,  True,  True ], BLEEDS_OFF, "4-sets all              bleeds OFF", None, None),
+        ([True,  True,  True,  True ], BLEEDS_MIX, "4-sets all              bleeds MIX", None, None),
     ]
+
+    # Expand each base scenario into Pre ON and Pre OFF variants; every scenario
+    # gets its own Excel file, named from the label.
+    scenarios = []
+    for online, toggles, label, fracs_on, fracs_off in _BASE:
+        for pre_on in (True, False):
+            pre_tag    = "preON" if pre_on else "preOFF"
+            full_label = f"[{pre_tag}] {label}"
+            slug       = re.sub(r'[^a-z0-9]+', '_', label.strip().lower()).strip('_')
+            xls        = os.path.join(_HERE, f"{pre_tag}_{slug}.xlsx")
+            fracs      = fracs_on if pre_on else fracs_off
+            scenarios.append((online, toggles, full_label, xls, pre_on, fracs))
 
     PASS_SPREAD = 0.08    # U-ratio spread threshold for a "pass"; 3-eff vs 4-eff
                           # sets settle at genuinely different U ratios (~0.03-0.07)
@@ -838,19 +1095,73 @@ if __name__ == "__main__":
     print("=" * 72)
 
     results = []
-    for online, toggles, label, xls in scenarios:
-        sets = make_sets()
-        t0   = time.time()
+    for online, toggles, label, xls, pre_on, fracs in scenarios:
+
+        # ── Pre evaporator ────────────────────────────────────────────────
+        if pre_on:
+            # Use user-specified Pre V1 fraction if provided, else area-weighted.
+            if fracs and 1 in fracs and 'pre' in fracs[1]:
+                pre_v1_bleed = demands.get(1, 0) * fracs[1]['pre']
+            else:
+                v1_hs_sets = sum(
+                    _SET_V1_AREAS[i]
+                    for i, on in enumerate(online)
+                    if on and i < len(toggles) and toggles[i] and toggles[i][0]
+                )
+                total_v1_hs  = _PRE_AREA + v1_hs_sets
+                pre_v1_bleed = demands.get(1, 0) * _PRE_AREA / total_v1_hs if total_v1_hs > 0 else 0.0
+
+            pre           = make_pre(pre_v1_bleed)
+            pre_out       = pre.juice_out
+            juice_to_sets = pre_out.flow_lb_per_hr
+            sets = make_sets(
+                juice_brix        = pre_out.brix,
+                juice_temp_deg_F  = pre_out.temp_deg_F,
+                juice_flow_per_set= juice_to_sets / len(NAMES),
+            )
+            remaining_demands = dict(demands)
+            if 1 in remaining_demands:
+                remaining_demands[1] = max(0.0, remaining_demands[1] - pre_v1_bleed)
+        else:
+            pre               = None
+            juice_to_sets     = total_juice
+            sets              = make_sets()
+            remaining_demands = demands
+
+        # ── Convert user fractions → bleed_overrides (lb/hr per set) ─────
+        # Fractions are expressed as shares of the TOTAL demand for each effect.
+        # The 'pre' key (V1 only) is handled above; here we build set overrides.
+        bleed_overrides = None
+        if fracs:
+            overrides = {}
+            for effect_num, effect_fracs in fracs.items():
+                total_demand = demands.get(effect_num, 0)
+                set_alloc = {
+                    participant: frac * total_demand
+                    for participant, frac in effect_fracs.items()
+                    if participant != 'pre'
+                }
+                if set_alloc:
+                    overrides[effect_num] = set_alloc
+            if overrides:
+                bleed_overrides = overrides
+
+        t0 = time.time()
+
         solve_multi_set(
             evaporator_sets=sets,
             online=online,
-            total_juice_flow_lb_per_hr=total_juice,
-            vapor_demands=demands,
+            total_juice_flow_lb_per_hr=juice_to_sets,
+            vapor_demands=remaining_demands,
             bleed_toggles=toggles,
             set_names=NAMES,
             excel_path=xls,
+            scenario_label=label.strip(),
             verbose=False,
+            pre_evaporator=pre,
+            bleed_overrides=bleed_overrides,
         )
+
         elapsed = time.time() - t0
 
         active = [i for i, o in enumerate(online) if o]
@@ -862,7 +1173,7 @@ if __name__ == "__main__":
         results.append((status, label, elapsed, spread, u_vals))
 
         u_str = "  ".join(f"S{active[j]+1}:{u:.4f}" for j, u in enumerate(u_vals))
-        print(f"  [{status}]  {label:<42}  spread={spread:.4f}  {elapsed:.2f}s  |  {u_str}")
+        print(f"  [{status}]  {label:<52}  spread={spread:.4f}  {elapsed:.2f}s  |  {u_str}")
         if xls:
             print(f"           Excel -> {xls}")
 

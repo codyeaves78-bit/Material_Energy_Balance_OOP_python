@@ -55,10 +55,11 @@ class Pan:
 
     def __init__(self, feed_streams, heating_surface_ft2,
                  inches_vacuum, supersaturation, head_ft,
-                 masse_brix, ml_purity,
+                 masse_brix, cry_yld_pct_brix,
                  steam_type='V1',
                  calandria_steam_temp_F=None,
-                 heat_loss_factor=0.0):
+                 heat_loss_factor=0.0,
+                 name='Pan'):
         if steam_type not in self.STEAM_CONDITIONS:
             raise ValueError(
                 f"steam_type '{steam_type}' is not valid. "
@@ -71,9 +72,11 @@ class Pan:
         self.supersaturation     = supersaturation
         self.head_ft             = head_ft
         self.masse_brix          = masse_brix
-        self.ml_purity           = ml_purity
+        self.crys_yld_frac_brix  = cry_yld_pct_brix / 100
+        self.ml_purity           = (100 * self.crys_yld_frac_brix - self.masse_purity) / (self.crys_yld_frac_brix - 1)
         self.steam_type          = steam_type
         self.heat_loss_factor    = heat_loss_factor
+        self.name                = name
 
         # Default calandria temp from standard table; override any time for U refinement
         self.calandria_steam_temp_F = (calandria_steam_temp_F
@@ -82,7 +85,7 @@ class Pan:
 
         # Build the Massecuite using the pol/solids-derived purity
         self.massecuite = Massecuite(
-            ml_purity=ml_purity,
+            ml_purity=self.ml_purity,
             masse_purity=self.masse_purity,
             masse_brix=masse_brix,
             inches_vacuum=inches_vacuum,
@@ -310,6 +313,56 @@ class Pan:
             else:
                 print(f"  {k:<30}: {v:,.3f}")
 
+    def neat_display(self):
+        def row(label, value, unit=""):
+            if isinstance(value, str):
+                print(f"  {label:<35} {value}")
+            else:
+                print(f"  {label:<35} {value:>14,.1f}  {unit}")
+
+        def section(title):
+            print(f"\n  {'─' * 55}")
+            print(f"  {title}")
+            print(f"  {'─' * 55}")
+
+        print(f"\n{'═' * 59}")
+        print(f"  {self.name}  |  {self.steam_type} steam  |  {self.heating_surface_ft2:,.0f} ft²  |  {self.inches_vacuum} inHg vacuum")
+        print(f"{'═' * 59}")
+
+        section("FEED")
+        row("Total feed flow",         self.feed_flow_lb_hr,        "lb/hr")
+        row("Feed solids",             self.feed_solids_lb_hr,      "lb/hr")
+        row("Feed temperature",        self.feed_temp_F,            "°F")
+
+        section("MASSECUITE")
+        row("Massecuite flow",         self.massecuite_flow_lb_hr,  "lb/hr")
+        row("Massecuite brix",         self.masse_brix,             "%")
+        row("Massecuite purity",       self.masse_purity,           "%")
+        row("Mother liquor purity",    self.ml_purity,              "%")
+        row("Crystal content",         self.massecuite.crystal_content, "%")
+        row("Mother liquor brix",      self.massecuite.mother_liquor_brix, "%")
+
+        section("EVAPORATION")
+        row("Water evaporated",        self.water_evaporated_lb_hr, "lb/hr")
+        row("Massecuite temp",         self.massecuite.massecuite_temp, "°F")
+        row("Vapor pressure",          self.massecuite.vapor_pressure_psia, "psia")
+        row("BPR at head",             self.massecuite.bpr_at_head, "°F")
+
+        section("ENERGY BALANCE")
+        row("Sensible heat",           self.heat_sensible_btu_hr,   "BTU/hr")
+        row("Evaporation heat",        self.heat_evaporation_btu_hr,"BTU/hr")
+        row("Heat loss",               self.heat_loss_btu_hr,       "BTU/hr")
+        row("Total duty",              self.heat_transfer_btu_hr,   "BTU/hr")
+
+        section("STEAM & HEAT TRANSFER")
+        row("Steam flow",              self.steam_flow_lb_hr,       "lb/hr")
+        row("Steam/evaporation ratio", self.steam_to_evaporation_ratio, "lb/lb")
+        row("Calandria steam temp",    self.calandria_steam_temp_F, "°F")
+        row("ΔT (calandria − masse)", self.delta_T,                "°F")
+        row("U (back-calc)",           self.U_btu_hr_ft2_F,        "BTU/hr·ft²·°F")
+
+        print(f"\n{'═' * 59}\n")
+
 
 if __name__ == "__main__":
     from SugarStream import SugarStream
@@ -326,7 +379,7 @@ if __name__ == "__main__":
         supersaturation=1.2,
         head_ft=2,
         masse_brix=96,
-        ml_purity=30,
+        cry_yld_pct_brix=30,
         steam_type='V1',
         heat_loss_factor=0.05,
     )

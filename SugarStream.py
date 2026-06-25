@@ -40,6 +40,14 @@ class SugarStream:
     @property
     def vapor_saturation_temp_deg_F(self):
         return sat_steam_temp(self.pressure_psia) if self.pressure_psia > 0 else 0
+    
+    @property
+    def solids_flow(self):
+        return self.brix * self.flow_lb_per_hr / 100
+    
+    @property
+    def pol_flow(self):
+        return self.pol * self.flow_lb_per_hr / 100
        
     def current_temp_to_bpe_plus_vapor_temp(self):
         """Sets the current temp to the vapor boiling temp + boiling point elevation, useful in evaporator calculations"""

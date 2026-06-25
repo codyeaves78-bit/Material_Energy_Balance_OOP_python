@@ -68,13 +68,19 @@ class Centrifugal:
                  target_molasses_brix=85.0,
                  purity_rise=2.0,
                  sugar_purity=99.5,
-                 sugar_moisture=0.5):
+                 sugar_moisture=0.5,
+                 name='Centrifugal',
+                 sugar_temp = 155,
+                 molasses_temp = 155):
         self.massecuite            = massecuite
         self.massecuite_flow_lb_hr = massecuite_flow_lb_hr
         self.target_molasses_brix  = target_molasses_brix
         self.purity_rise           = purity_rise
         self.sugar_purity          = sugar_purity
         self.sugar_moisture        = sugar_moisture
+        self.name                  = name
+        self.sugar_temp            = sugar_temp
+        self.molasses_temp         = molasses_temp
 
     # ------------------------------------------------------------------
     # SJM balance  (S = sugar_purity, J = masse_purity, M = molasses_purity)
@@ -232,6 +238,18 @@ class Centrifugal:
     # ------------------------------------------------------------------
 
     @property
+    def sugar_stream(self):
+        """SugarStream representing the sugar output."""
+        return SugarStream(
+            brix=self.sugar_brix,
+            purity=self.sugar_purity,
+            flow_lb_per_hr=self.sugar_wet_lb_hr,
+            temp_deg_F=self.sugar_temp,
+            pressure_psia=14.7,
+            level_ft=0,
+        )
+
+    @property
     def molasses_stream(self):
         """SugarStream representing the molasses output.
         Temperature set to the massecuite boiling temperature — adjust if needed.
@@ -241,7 +259,7 @@ class Centrifugal:
             brix=self.molasses_brix,
             purity=self.molasses_purity,
             flow_lb_per_hr=self.molasses_flow_lb_hr,
-            temp_deg_F=self.massecuite.massecuite_temp,
+            temp_deg_F=self.molasses_temp,
             pressure_psia=14.7,
             level_ft=0,
         )
@@ -320,6 +338,55 @@ class Centrifugal:
         print("Units: flow(lb/hr), purity/brix/moisture(%)")
         for k, v in props.items():
             print(f"  {k:<28}: {v:,.3f}")
+
+    def neat_display(self):
+        def row(label, value, unit=""):
+            print(f"  {label:<35} {value:>14,.1f}  {unit}")
+
+        def section(title):
+            print(f"\n  {'─' * 55}")
+            print(f"  {title}")
+            print(f"  {'─' * 55}")
+
+        print(f"\n{'═' * 59}")
+        print(f"  {self.name}  |  J={self.massecuite.masse_purity:.1f}%  "
+              f"S={self.sugar_purity:.1f}%  M={self.molasses_purity:.1f}%")
+        print(f"{'═' * 59}")
+
+        section("MASSECUITE FEED")
+        row("Massecuite flow",          self.massecuite_flow_lb_hr,          "lb/hr")
+        row("Massecuite solids",        self.massecuite_solids_lb_hr,        "lb/hr")
+        row("Massecuite brix",          self.massecuite.masse_brix,          "%")
+        row("Massecuite purity (J)",    self.massecuite.masse_purity,        "%")
+        row("Mother liquor purity",     self.massecuite.ml_purity,           "%")
+        row("Pol in",                   self.pol_in_lb_hr,                   "lb/hr")
+
+        section("SUGAR PRODUCT")
+        row("Sugar solids (dry)",       self.crystals_to_sugar_lb_hr,        "lb/hr")
+        row("Sugar flow (wet)",         self.sugar_wet_lb_hr,                "lb/hr")
+        row("Sugar brix",               self.sugar_brix,                     "%")
+        row("Sugar purity (S)",         self.sugar_purity,                   "%")
+        row("Sugar pol %",              self.sugar_pol,                      "%")
+        row("Sugar moisture",           self.sugar_moisture,                  "%")
+        row("Moisture lb/hr",           self.sugar_moisture_lb_hr,           "lb/hr")
+        row("Pol to sugar",             self.pol_to_sugar_lb_hr,             "lb/hr")
+
+        section("MOLASSES")
+        row("Molasses flow",            self.molasses_flow_lb_hr,            "lb/hr")
+        row("Molasses solids",          self.molasses_solids_lb_hr,          "lb/hr")
+        row("Molasses brix",            self.molasses_brix,                  "%")
+        row("Molasses purity (M)",      self.molasses_purity,                "%")
+        row("Purity rise",              self.purity_rise,                    "%")
+        row("Pol to molasses",          self.pol_to_molasses_lb_hr,          "lb/hr")
+        row("Molasses density",         self.molasses_density_lb_gal,        "lb/gal")
+        row("Molasses flow",            self.molasses_flow_gal_min,          "gal/min")
+
+        section("WASH WATER & YIELD")
+        row("Wash water required",      self.wash_water_lb_hr,               "lb/hr")
+        row("Crystal yield (% brix)",   self.station_crystal_yield_pct_brix, "%")
+        row("Crystal yield (% masse)",  self.station_crystal_yield_pct_masse,"%")
+
+        print(f"\n{'═' * 59}\n")
 
 
 if __name__ == "__main__":
