@@ -445,20 +445,3 @@ if __name__ == "__main__":
                      + cent.molasses_flow_lb_hr * (1 - cent.molasses_brix / 100))
         print(f"  {label} pan: water_in={water_in:,.3f}  water_out={water_out:,.3f}  "
               f"imbalance={water_in - water_out:+.6f} lb/hr")
-
-## Claude, I think i see the issue for the program. The centrifugal object is actually quite straight forward... 
-## Do this first...
-## sjm on centrifugal with 0% crystals lost. S = sugar purity, J = massecuite purity, M = molasses purity (mother liquor for 0% loss)
-## lbs solids massecuite * (S - J) / (S - M) = lbs solids perfect molasses
-## lbs solids massecuite - lbs solids perfect molasses = lbs solids in sugar
-## pol in sugar = sugar purity * lbs solids sugar / 100
-## pol in molasses = molasses purity * lbs solids molasses / 100
-## Now account for sugar crystals loss
-## crystals lbs pol = 100 % (pure sugar crystals 100% pol) * % crystals * massecuite flow
-## crystals lbs washed into molasses = % cryst loss / 100 * crystals lbs pol 
-## update molasses properties... lbs pol in molasses += crystals lbs washed into molasses, lbs brix molasses / hr += crystals lbs washed into molasses, purity molasses = lbs pol / lbs brix in molasses * 100
-## update sugar properties... just do an SJM balance since purity is still defined as an input.. define new M = updated molasses purity
-## sugar solids lb / hr = solids in massecuite lb / hr * (J - M) / (S - M), sugar lbs pol / hr = sugar purity / 100 * sugar solids lb/hr
-## balance check... POL IN = masse lb/hr * % pol, POL OUT = sugar lbs pol / hr + molasses lbs pol / hr
-## BRIX IN = masse lb/hr * %brix, BRIX OUT = sugar solids lb/hr + lbs brix molasses / hr
-## Water IN = (1 - brix) * masse lb/hr, Water OUT subtotal = water in sugar + water in molasses. wash water = WATER IN - WATER OUT sub total
