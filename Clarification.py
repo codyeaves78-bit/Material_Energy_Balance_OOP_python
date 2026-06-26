@@ -1,3 +1,4 @@
+# This file is for the Clarification class, easily call it in the main balance
 from SugarStream import SugarStream
 
 
