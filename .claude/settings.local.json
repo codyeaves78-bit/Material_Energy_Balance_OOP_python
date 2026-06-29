@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python Pan.py)",
+      "Bash(python three_boiling_double_magma_OOP.py)",
+      "Bash(git mv *)"
+    ]
+  }
+}

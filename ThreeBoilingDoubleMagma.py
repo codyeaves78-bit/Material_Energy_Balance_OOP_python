@@ -1,7 +1,7 @@
 from Pan import Pan
 from Centrifugal import Centrifugal
 from SugarStream import SugarStream
-from boiling_house_balance import display_balance
+
 from time import time
 
 def make_magma(sugar_stream: SugarStream, mingler_brix: float) -> SugarStream:
@@ -20,226 +20,442 @@ def make_remelt(magma=SugarStream(), remelt_brix=65):
     remelt.brix = new_brix
     return remelt
 
-# create syrup
-syrup = SugarStream(brix=65, purity=90, flow_lb_per_hr=100000, temp_deg_F=140, pressure_psia=14.7, level_ft=0)
+class ThreeBoilingDoubleMagma:
+    """An object to do the Three Boiling Double Magma Balance
+    When inputting the Pan and Centrifugal Object, user does not need to define inlet streams"""
+    def __init__(
+            self,
+            syrup: SugarStream,
+            A_pans: Pan,
+            B_pans: Pan,
+            C_pans: Pan,
+            grain_pans: Pan,
+            A_centrifugals: Centrifugal,
+            B_centrifugals: Centrifugal,
+            C_centrifugals: Centrifugal,
+            c_magma_remelt_pct: float = 20,
+            b_magma_remelt_pct: float = 20,
+            syrup_to_grain_pct: float = 5,
+            a_mol_to_grain_pct: float = 5,
+            b_mol_to_grain_pct: float = 10,
+            a_mol_top_off_pct: float = 30,
+            ):
 
-# create dummy magma streams to start loop
-c_magma_B_pans = SugarStream(brix=92, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
-b_magma_A_pans = SugarStream(brix=92, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
-
-# Set some syrup and A & B molasses distribution parameters
-syrup_to_grain_pct = 5
-syrup_to_A_pans_pct = 100 - syrup_to_grain_pct
-syrup_to_A_pans = SugarStream.copy(syrup)
-syrup_to_A_pans.flow_lb_per_hr = syrup_to_A_pans_pct / 100 * syrup.flow_lb_per_hr
-
-syrup_to_grain = SugarStream.copy(syrup)
-a_mol_to_grain_pct = 10
-a_mol_top_off_pct = 20
-a_mol_B_pans_pct = 100 - a_mol_top_off_pct - a_mol_to_grain_pct
-
-b_mol_to_grain_pct = 10
-b_mol_C_pans_pct = 100 - b_mol_to_grain_pct
-
-# Define quantity of magma to be remelted
-c_magma_rmlt_pct = 50
-b_magma_rmlt_pct = 50
-
-c_magma_foot = 100 - c_magma_rmlt_pct
-b_magma_foot = 100 - b_magma_rmlt_pct
-
-# Solve A pans, set up b magma with zero flow for initial solve, same for top off A molasses
-
-top_off_a_mol = SugarStream(brix=70, purity=70, flow_lb_per_hr=0, temp_deg_F=140)
-
-
-# Start loop
-start_time = time() * 1000
-
-for i in range(20):
+        self.syrup = syrup
         
-    A_pans = Pan(
-        feed_streams=[syrup_to_A_pans, b_magma_A_pans, top_off_a_mol],
-        heating_surface_ft2=20000,
-        inches_vacuum=23.5,
-        supersaturation=1.2,
-        head_ft=2,
-        masse_brix=92,
-        cry_yld_pct_brix=60,
-        steam_type="V1",
-        heat_loss_factor=0.05,
-        calandria_steam_temp_F=235,
-        name='A Pans'
+        # Store Pan/Centrifugal configs as templates; solved instances assigned in _solve()
+        self._A_pans_cfg = A_pans
+        self._B_pans_cfg = B_pans
+        self._C_pans_cfg = C_pans
+        self._grain_pans_cfg = grain_pans
+        self._A_cen_cfg = A_centrifugals
+        self._B_cen_cfg = B_centrifugals
+        self._C_cen_cfg = C_centrifugals
+
+        self.c_magma_remelt_pct = c_magma_remelt_pct
+        self.b_magma_remelt_pct = b_magma_remelt_pct
+        self.syrup_to_grain_pct = syrup_to_grain_pct
+        self.a_mol_to_grain_pct = a_mol_to_grain_pct
+        self.b_mol_to_grain_pct = b_mol_to_grain_pct
+        self.a_mol_top_off_pct = a_mol_top_off_pct
+        self.a_mol_B_pans_pct = 100.0 - a_mol_top_off_pct - a_mol_to_grain_pct
+        self.b_mol_C_pans_pct = 100.0 - b_mol_to_grain_pct
+        self.syrup_to_A_pans_pct = 100.0 - syrup_to_grain_pct
+
+        self._solve()
+
+    def _rebuild_pan(self, config: Pan, feed_streams: list) -> Pan:
+        return Pan(
+            feed_streams=feed_streams,
+            heating_surface_ft2=config.heating_surface_ft2,
+            inches_vacuum=config.inches_vacuum,
+            supersaturation=config.supersaturation,
+            head_ft=config.head_ft,
+            masse_brix=config.masse_brix,
+            ml_purity=config.ml_purity,
+            calandria_pressure_psia=config.calandria_pressure_psia,
+            heat_loss_factor=config.heat_loss_factor,
+            name=config.name,
         )
 
-    A_centrifugals = Centrifugal(
-        massecuite=A_pans.massecuite,
-        massecuite_flow_lb_hr=A_pans.massecuite_flow_lb_hr,
-        target_molasses_brix=83,
-        purity_rise=2,
-        sugar_purity=99.7,
-        sugar_moisture=0.17,
-        name="A Machines",
-        sugar_temp=140,
-        molasses_temp=150
-    )
-
-    A_centrifugals.molasses_stream.temp_deg_F = 150 # adjust temp to reflect measured conditions
-
-    top_off_a_mol = SugarStream.copy(A_centrifugals.molasses_stream)
-    top_off_a_mol.flow_lb_per_hr = a_mol_top_off_pct / 100 * top_off_a_mol.flow_lb_per_hr
-
-    a_mol_B_pans = SugarStream.copy(A_centrifugals.molasses_stream)
-    a_mol_B_pans.flow_lb_per_hr = a_mol_B_pans_pct / 100 * a_mol_B_pans.flow_lb_per_hr
-
-    # Solve B pans, make dummy c magma stream
-
-
-    B_pans = Pan(
-        feed_streams=[c_magma_B_pans, a_mol_B_pans],
-        heating_surface_ft2=15000,
-        inches_vacuum=25, 
-        supersaturation=1.2, 
-        head_ft=2,
-        masse_brix=94,
-        cry_yld_pct_brix=40,
-        steam_type="Exhaust",
-        calandria_steam_temp_F=255,
-        name="B Pans"
-    )
-
-    B_centrifugals = Centrifugal(
-        massecuite=B_pans.massecuite,
-        massecuite_flow_lb_hr=B_pans.massecuite_flow_lb_hr,
-        target_molasses_brix=83,
-        purity_rise=2,
-        sugar_purity=92,
-        sugar_moisture=5 ,
-        name="B Machines",
-        sugar_temp=140,
-        molasses_temp=140
+    def _rebuild_centrifugal(self, config: Centrifugal, massecuite, massecuite_flow_lb_hr: float) -> Centrifugal:
+        return Centrifugal(
+            massecuite=massecuite,
+            massecuite_flow_lb_hr=massecuite_flow_lb_hr,
+            target_molasses_brix=config.target_molasses_brix,
+            purity_rise=config.purity_rise,
+            sugar_purity=config.sugar_purity,
+            sugar_moisture=config.sugar_moisture,
+            name=config.name,
+            sugar_temp=config.sugar_temp,
+            molasses_temp=config.molasses_temp,
         )
 
-    # make grain
-    b_mol_grain = SugarStream.copy(B_centrifugals.molasses_stream)
-    b_mol_grain.flow_lb_per_hr = b_mol_to_grain_pct / 100 * b_mol_grain.flow_lb_per_hr
+    def _solve(self, iterations: int = 20):
+        # Dummy initial magma footings — zero flow so they don't distort the first A/B pan solve.
+        # Both are overwritten each iteration: c_magma_B_pans from C centrifugals sugar stream,
+        # b_magma_A_pans from B centrifugals sugar stream (via make_magma). Brix/purity/temp
+        # are placeholders only; the loop replaces them before they matter.
+        c_magma_B_pans = SugarStream(brix=92, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
+        b_magma_A_pans = SugarStream(brix=92, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
 
-    a_mol_grain = SugarStream.copy(A_centrifugals.molasses_stream)
-    a_mol_grain.flow_lb_per_hr = a_mol_to_grain_pct / 100 * a_mol_grain.flow_lb_per_hr
+        syrup_as_fed = SugarStream.copy(self.syrup)
+
+        syrup_to_A_pans = SugarStream.copy(self.syrup)
+        syrup_to_A_pans.flow_lb_per_hr = self.syrup_to_A_pans_pct / 100 * self.syrup.flow_lb_per_hr
+
+        # Dummy top-off A molasses — zero flow for the first A pan solve.
+        # Overwritten each iteration from A centrifugals molasses_stream.
+        # NOTE: molasses_stream.temp_deg_F is fixed to _A_cen_cfg.molasses_temp (not computed
+        # from the centrifugal thermodynamics), so temperature is constant across iterations.
+        top_off_a_mol = SugarStream(brix=70, purity=70, flow_lb_per_hr=0, temp_deg_F=140)
+
+        for _ in range(iterations):
+            self.A_pans = self._rebuild_pan(
+                self._A_pans_cfg, [syrup_to_A_pans, b_magma_A_pans, top_off_a_mol]
+            )
+            self.A_centrifugals = self._rebuild_centrifugal(
+                self._A_cen_cfg, self.A_pans.massecuite, self.A_pans.massecuite_flow_lb_hr
+            )
+
+            top_off_a_mol = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            top_off_a_mol.flow_lb_per_hr = self.a_mol_top_off_pct / 100 * top_off_a_mol.flow_lb_per_hr
+
+            a_mol_B_pans = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            a_mol_B_pans.flow_lb_per_hr = self.a_mol_B_pans_pct / 100 * a_mol_B_pans.flow_lb_per_hr
+
+            self.B_pans = self._rebuild_pan(
+                self._B_pans_cfg, [c_magma_B_pans, a_mol_B_pans]
+            )
+            self.B_centrifugals = self._rebuild_centrifugal(
+                self._B_cen_cfg, self.B_pans.massecuite, self.B_pans.massecuite_flow_lb_hr
+            )
+
+            b_mol_grain = SugarStream.copy(self.B_centrifugals.molasses_stream)
+            b_mol_grain.flow_lb_per_hr = self.b_mol_to_grain_pct / 100 * b_mol_grain.flow_lb_per_hr
+
+            a_mol_grain = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            a_mol_grain.flow_lb_per_hr = self.a_mol_to_grain_pct / 100 * a_mol_grain.flow_lb_per_hr
+
+            syrup_to_grain = SugarStream.copy(syrup_as_fed)
+            syrup_to_grain.flow_lb_per_hr = self.syrup_to_grain_pct / 100 * syrup_as_fed.flow_lb_per_hr
+
+            self.grain_pans = self._rebuild_pan(
+                self._grain_pans_cfg, [syrup_to_grain, a_mol_grain, b_mol_grain]
+            )
+
+            grain_massecuite = SugarStream(
+                brix=self.grain_pans.masse_brix,
+                purity=self.grain_pans.masse_purity,
+                flow_lb_per_hr=self.grain_pans.massecuite_flow_lb_hr,
+                temp_deg_F=self.grain_pans.massecuite.massecuite_temp,
+                pressure_psia=14.7,
+                level_ft=0,
+            )
+
+            b_mol_C_pans = SugarStream.copy(self.B_centrifugals.molasses_stream)
+            b_mol_C_pans.flow_lb_per_hr = self.b_mol_C_pans_pct / 100 * b_mol_C_pans.flow_lb_per_hr
+
+            self.C_pans = self._rebuild_pan(
+                self._C_pans_cfg, [grain_massecuite, b_mol_C_pans]
+            )
+            self.C_centrifugals = self._rebuild_centrifugal(
+                self._C_cen_cfg, self.C_pans.massecuite, self.C_pans.massecuite_flow_lb_hr
+            )
+
+            b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=92)
+            c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=92)
+
+            b_magma_A_pans = SugarStream.copy(b_magma)
+            b_magma_A_pans.flow_lb_per_hr = (100 - self.b_magma_remelt_pct) / 100 * b_magma_A_pans.flow_lb_per_hr
+
+            c_magma_B_pans = SugarStream.copy(c_magma)
+            c_magma_B_pans.flow_lb_per_hr = (100 - self.c_magma_remelt_pct) / 100 * c_magma_B_pans.flow_lb_per_hr
+
+            b_magma_to_rmlt = SugarStream.copy(b_magma)
+            b_magma_to_rmlt.flow_lb_per_hr = self.b_magma_remelt_pct / 100 * b_magma_to_rmlt.flow_lb_per_hr
+            b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=65)
+
+            c_magma_to_rmlt = SugarStream.copy(c_magma)
+            c_magma_to_rmlt.flow_lb_per_hr = self.c_magma_remelt_pct / 100 * c_magma_to_rmlt.flow_lb_per_hr
+            c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=65)
+
+            total_flows = self.syrup.flow_lb_per_hr + c_remelt.flow_lb_per_hr + b_remelt.flow_lb_per_hr
+            total_solids = self.syrup.solids_flow + c_remelt.solids_flow + b_remelt.solids_flow
+            total_pols = self.syrup.pol_flow + b_remelt.pol_flow + c_remelt.pol_flow
+
+            syrup_as_fed = SugarStream.copy(self.syrup)
+            syrup_as_fed.flow_lb_per_hr = total_flows
+            syrup_as_fed.brix = total_solids / total_flows * 100
+            syrup_as_fed.purity = total_pols / total_solids * 100
+
+            syrup_to_A_pans = SugarStream.copy(syrup_as_fed)
+            syrup_to_A_pans.flow_lb_per_hr = self.syrup_to_A_pans_pct / 100 * syrup_to_A_pans.flow_lb_per_hr
+
+        self.syrup_as_fed = syrup_as_fed
+
+        # Save final-iteration magma/remelt streams for water accounting
+        self._b_magma          = b_magma
+        self._c_magma          = c_magma
+        self._b_magma_to_rmlt  = b_magma_to_rmlt
+        self._c_magma_to_rmlt  = c_magma_to_rmlt
+        self._b_remelt         = b_remelt
+        self._c_remelt         = c_remelt
+
+    @property
+    def total_water(self) -> SugarStream:
+        """All fresh water added to the pan floor (lb/hr): centrifugal wash + magma minglers + remelts."""
+        cen_wash     = (self.A_centrifugals.wash_water_lb_hr
+                      + self.B_centrifugals.wash_water_lb_hr
+                      + self.C_centrifugals.wash_water_lb_hr)
+        b_mingler    = self._b_magma.flow_lb_per_hr    - self.B_centrifugals.sugar_stream.flow_lb_per_hr
+        c_mingler    = self._c_magma.flow_lb_per_hr    - self.C_centrifugals.sugar_stream.flow_lb_per_hr
+        b_rmlt_water = self._b_remelt.flow_lb_per_hr   - self._b_magma_to_rmlt.flow_lb_per_hr
+        c_rmlt_water = self._c_remelt.flow_lb_per_hr   - self._c_magma_to_rmlt.flow_lb_per_hr
+        total_lb_hr  = cen_wash + b_mingler + c_mingler + b_rmlt_water + c_rmlt_water
+        return SugarStream(brix=0, purity=0, flow_lb_per_hr=total_lb_hr)
+
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    def display_balance(self):
+        W = 102
+        HEAVY = "=" * W
+        LIGHT = "-" * W
+
+        LBL = 32   # label column width
+        NUM = 13   # numeric column width
+
+        def _row(label, flow, solids, pol, water, brix=None, purity=None):
+            b = f"{brix:6.1f}" if brix is not None else "     -"
+            p = f"{purity:6.1f}" if purity is not None else "     -"
+            return (f"  {label:<{LBL}} {flow:{NUM},.0f} {solids:{NUM},.0f}"
+                    f" {pol:{NUM},.0f} {water:{NUM},.0f} {b} {p}")
+
+        def _hdr():
+            return (f"  {'Stream':<{LBL}} {'Flow (lb/hr)':{NUM}} {'Solids (lb/hr)':{NUM}}"
+                    f" {'Pol (lb/hr)':{NUM}} {'Water (lb/hr)':{NUM}} {'Brix%':>6} {'Pur%':>6}")
+
+        def _stream(label, s):
+            sol = s.solids_flow
+            return _row(label, s.flow_lb_per_hr, sol, s.pol_flow,
+                        s.flow_lb_per_hr - sol, s.brix, s.purity)
+
+        def _section(title):
+            return f"\n{LIGHT}\n  {title}\n{LIGHT}"
+
+        def _pan_station(pan):
+            lines = []
+            lines.append("  ENTERING")
+            for i, f in enumerate(pan.feed_streams, 1):
+                sol = f.solids_flow
+                lines.append(_row(f"    Feed {i}  (Bx={f.brix:.1f} Pu={f.purity:.1f})",
+                                  f.flow_lb_per_hr, sol, f.pol_flow,
+                                  f.flow_lb_per_hr - sol, f.brix, f.purity))
+            ff = pan.feed_flow_lb_hr
+            fs = pan.feed_solids_lb_hr
+            fp = sum(f.pol_flow for f in pan.feed_streams)
+            lines.append(LIGHT)
+            lines.append(_row("  Total Feed In", ff, fs, fp, ff - fs))
+            lines.append("")
+            lines.append("  LEAVING")
+            masse_sol = fs          # solids conserved through evaporation
+            masse_pol = fp          # pol conserved through evaporation
+            masse_water = pan.massecuite_flow_lb_hr - masse_sol
+            lines.append(_row("  Massecuite Out", pan.massecuite_flow_lb_hr,
+                               masse_sol, masse_pol, masse_water,
+                               pan.masse_brix, pan.masse_purity))
+            lines.append(_row("  Evaporated Water", pan.water_evaporated_lb_hr,
+                               0, 0, pan.water_evaporated_lb_hr))
+            lines.append(LIGHT)
+            net = ff - pan.massecuite_flow_lb_hr - pan.water_evaporated_lb_hr
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.0f} lb/hr")
+            return lines
+
+        def _cen_station(cen):
+            lines = []
+            ms  = cen.massecuite_solids_lb_hr
+            mw  = cen.massecuite_flow_lb_hr - ms
+            mp  = cen.pol_in_lb_hr
+            ww  = cen.wash_water_lb_hr
+            s_sol  = cen.crystals_to_sugar_lb_hr
+            s_wat  = cen.sugar_wet_lb_hr - s_sol
+            m_sol  = cen.molasses_solids_lb_hr
+            m_wat  = cen.molasses_flow_lb_hr - m_sol
+            lines.append("  ENTERING")
+            lines.append(_row("    Massecuite", cen.massecuite_flow_lb_hr, ms, mp, mw,
+                               cen.massecuite.masse_brix, cen.massecuite.masse_purity))
+            lines.append(_row("    Wash Water", ww, 0, 0, ww))
+            lines.append(LIGHT)
+            lines.append(f"  {'Total In':<{LBL}} {cen.massecuite_flow_lb_hr + ww:{NUM},.0f}"
+                         f" {ms:{NUM},.0f} {mp:{NUM},.0f} {mw + ww:{NUM},.0f}")
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_row("    Sugar Out", cen.sugar_wet_lb_hr,
+                               s_sol, cen.sugar_pol_lb_hr, s_wat,
+                               cen.sugar_brix, cen.sugar_purity))
+            lines.append(_row("    Molasses Out", cen.molasses_flow_lb_hr,
+                               m_sol, cen.pol_to_molasses_lb_hr, m_wat,
+                               cen.target_molasses_brix, cen.molasses_purity))
+            lines.append(LIGHT)
+            total_out = cen.sugar_wet_lb_hr + cen.molasses_flow_lb_hr
+            net = (cen.massecuite_flow_lb_hr + ww) - total_out
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.0f} lb/hr")
+            return lines
+
+        # ── Totals needed for Overall section ────────────────────────────
+        total_evap = (self.A_pans.water_evaporated_lb_hr + self.B_pans.water_evaporated_lb_hr
+                      + self.C_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr)
+        a_sugar  = self.A_centrifugals.sugar_stream
+        c_mol    = self.C_centrifugals.molasses_stream
+        pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
+
+        out = []
+        out.append(HEAVY)
+        out.append(f"{'THREE BOILING DOUBLE MAGMA - COMPLETE FLOOR BALANCE':^{W}}")
+        out.append(HEAVY)
+
+        # ── Overall ──────────────────────────────────────────────────────
+        out.append(_section("OVERALL FLOOR BALANCE"))
+        out.append(f"  (Feed = Evaporator syrup + Wash Water; Products = A sugar + C final molasses)")
+        out.append("")
+        out.append(_hdr())
+        out.append("")
+        out.append("  ENTERING")
+        out.append(_stream("  Syrup From Evaporators", self.syrup))
+        out.append(_stream("  Wash and Dilution Water", self.total_water))
+        out.append("")
+        out.append("  LEAVING")
+        out.append(_stream("  A Product Sugar", a_sugar))
+        out.append(_stream("  C Final Molasses", c_mol))
+        out.append(_row("  Evaporated (all pans)", total_evap, 0, 0, total_evap))
+        out.append("")
+        tw = self.total_water
+        in_flow    = self.syrup.flow_lb_per_hr + tw.flow_lb_per_hr
+        in_solids  = self.syrup.solids_flow
+        in_pol     = self.syrup.pol_flow
+        in_water   = (self.syrup.flow_lb_per_hr - self.syrup.solids_flow) + tw.flow_lb_per_hr
+        out_flow   = a_sugar.flow_lb_per_hr + c_mol.flow_lb_per_hr + total_evap
+        out_solids = a_sugar.solids_flow    + c_mol.solids_flow
+        out_pol    = a_sugar.pol_flow       + c_mol.pol_flow
+        out_water  = ((a_sugar.flow_lb_per_hr - a_sugar.solids_flow)
+                    + (c_mol.flow_lb_per_hr   - c_mol.solids_flow)
+                    + total_evap)
+        out.append(LIGHT)
+        out.append(_row("  Total Entering", in_flow,  in_solids,  in_pol,  in_water))
+        out.append(_row("  Total Leaving",  out_flow, out_solids, out_pol, out_water))
+        out.append(LIGHT)
+        out.append(_row("  Net (In - Out)", in_flow - out_flow, in_solids - out_solids,
+                                            in_pol  - out_pol,  in_water  - out_water))
+        out.append(f"  {'Pol% Recovered in Raw Sugar (A sugar / feed):':<{LBL+NUM}} {pol_extr:6.2f} %")
+        out.append("")
+
+        # ── A Pans ────────────────────────────────────────────────────────
+        out.append(_section(f"A PANS  [{self.A_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.A_pans))
+
+        # ── A Centrifugals ─────────────────────────────────────────────────
+        out.append(_section(f"A CENTRIFUGALS  [{self.A_centrifugals.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_cen_station(self.A_centrifugals))
+
+        # ── B Pans ────────────────────────────────────────────────────────
+        out.append(_section(f"B PANS  [{self.B_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.B_pans))
+
+        # ── B Centrifugals ─────────────────────────────────────────────────
+        out.append(_section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_cen_station(self.B_centrifugals))
+
+        # ── Grain Pans ────────────────────────────────────────────────────
+        out.append(_section(f"GRAIN PANS  [{self.grain_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.grain_pans))
+
+        # ── C Pans ────────────────────────────────────────────────────────
+        out.append(_section(f"C PANS  [{self.C_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.C_pans))
+
+        # ── C Centrifugals ─────────────────────────────────────────────────
+        out.append(_section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_cen_station(self.C_centrifugals))
+        out.append("")
+        out.append(HEAVY)
+
+        print("\n".join(out))
 
 
-    syrup_to_grain.flow_lb_per_hr = syrup_to_grain_pct / 100 * syrup_to_grain.flow_lb_per_hr
-
-    grain_pans = Pan(
-        feed_streams=[syrup_to_grain, a_mol_grain, b_mol_grain],
-        heating_surface_ft2=6000,
-        inches_vacuum=25,
-        supersaturation=1.2,
-        head_ft=2,
-        masse_brix=88,
-        cry_yld_pct_brix=20,
-        steam_type="Exhaust",
-        calandria_steam_temp_F=255,
-        heat_loss_factor=0.05,
-        name='Grain Pans for C'
+if __name__ == "__main__":
+    pan_floor = ThreeBoilingDoubleMagma(
+        syrup=SugarStream(brix=60, purity=80, flow_lb_per_hr=162_744, temp_deg_F=140),
+        A_pans=Pan(
+            feed_streams=None,
+            heating_surface_ft2=22500,
+            inches_vacuum=23.5,
+            supersaturation=1.2,
+            head_ft=2,
+            masse_brix=92,
+            ml_purity=65,
+            calandria_pressure_psia=21.696,   # V1 (7 psig)
+            heat_loss_factor=0.02, name='A Pans'),
+        B_pans=Pan(
+            feed_streams=None,
+            heating_surface_ft2=7500,
+            inches_vacuum=25,
+            supersaturation=1.2,
+            head_ft=2,
+            masse_brix=94,
+            ml_purity=48,
+            calandria_pressure_psia=29.696,   # Exhaust (15 psig)
+            heat_loss_factor=0.05, name='B Pans'),
+        grain_pans=Pan(
+            feed_streams=None,
+            heating_surface_ft2=3000,
+            inches_vacuum=25.5,
+            supersaturation=1.2,
+            head_ft=2,
+            masse_brix=88,
+            ml_purity=39,
+            calandria_pressure_psia=29.696,   # Exhaust (15 psig)
+            heat_loss_factor=0.05, name='grain Pans'),
+        C_pans=Pan(
+            feed_streams=None,
+            heating_surface_ft2=12000,
+            inches_vacuum=26.5,
+            supersaturation=1.2,
+            head_ft=2,
+            masse_brix=95.5,
+            ml_purity=33,
+            calandria_pressure_psia=21.696,   # V1 (7 psig)
+            heat_loss_factor=0.05, name='C Pans'),
+        A_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=2, 
+                                   sugar_moisture=0.2, sugar_purity=99.7, sugar_temp=150, molasses_temp=145, name="A Centrifugals"),
+        B_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=2, 
+                                   sugar_moisture=5, sugar_purity=92, sugar_temp=150, molasses_temp=145, name="B Centrifugals"),
+        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=4, 
+                                   sugar_moisture=5, sugar_purity=82, sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
+        b_magma_remelt_pct=20,
+        c_magma_remelt_pct=20,
+        a_mol_to_grain_pct=3,
+        b_mol_to_grain_pct=10,
+        syrup_to_grain_pct=1,
+        a_mol_top_off_pct=0
     )
 
-    grain_massecuite = SugarStream(
-        brix=grain_pans.masse_brix,
-        purity=grain_pans.masse_purity,
-        flow_lb_per_hr=grain_pans.massecuite_flow_lb_hr,
-        temp_deg_F=grain_pans.massecuite.massecuite_temp,
-        pressure_psia=14.7,
-        level_ft=0
-    ) # got to feed Pan object a SugarStream
-
-    # Make C Pans
-    b_mol_C_pans = SugarStream.copy(B_centrifugals.molasses_stream)
-    b_mol_C_pans.flow_lb_per_hr = b_mol_C_pans_pct / 100 * b_mol_C_pans.flow_lb_per_hr
-
-    C_pans = Pan(
-        [grain_massecuite, b_mol_C_pans],
-        heating_surface_ft2=12000,
-        inches_vacuum=26.5,
-        supersaturation=1.2,
-        head_ft=2,
-        masse_brix=96,
-        cry_yld_pct_brix=30,
-        steam_type="V1",
-        calandria_steam_temp_F=235,
-        heat_loss_factor=0.05,
-        name="C Pans"
-    )
-
-    C_machines = Centrifugal(
-        massecuite=C_pans.massecuite,
-        massecuite_flow_lb_hr=C_pans.massecuite_flow_lb_hr,
-        target_molasses_brix=82,
-        purity_rise=2,
-        sugar_moisture=5,
-        sugar_purity=82,
-        sugar_temp=140,
-        molasses_temp=150,
-        name="C Machines"
-    )
-
-    # Update B and C magma
-    b_magma = make_magma(B_centrifugals.sugar_stream, mingler_brix=92)
-    c_magma = make_magma(C_machines.sugar_stream, mingler_brix=92)
-
-    # Update footings for remelt
-    b_magma_A_pans = SugarStream.copy(b_magma)
-    b_magma_A_pans.flow_lb_per_hr = (100 - b_magma_rmlt_pct) / 100 * b_magma_A_pans.flow_lb_per_hr
-
-    c_magma_B_pans = SugarStream.copy(c_magma)
-    c_magma_B_pans.flow_lb_per_hr = (100 - c_magma_rmlt_pct) / 100 * c_magma_B_pans.flow_lb_per_hr
-
-    # Remelt
-    b_magma_to_rmlt = SugarStream.copy(b_magma)
-    b_magma_to_rmlt.flow_lb_per_hr = (b_magma_rmlt_pct) / 100 * b_magma_to_rmlt.flow_lb_per_hr
-    b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=65)
-
-    c_magma_to_rmlt = SugarStream.copy(c_magma)
-    c_magma_to_rmlt.flow_lb_per_hr = (c_magma_rmlt_pct) / 100 * c_magma_to_rmlt.flow_lb_per_hr
-    c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=65)
-
-    # Now update syrup as delivered to pans
-    syrup_as_fed = SugarStream.copy(syrup)
-    total_flows = syrup.flow_lb_per_hr + c_remelt.flow_lb_per_hr + b_remelt.flow_lb_per_hr
-    total_solids = syrup.solids_flow + c_remelt.solids_flow + b_remelt.solids_flow
-    total_pols = syrup.pol_flow + b_remelt.pol_flow + c_remelt.pol_flow
-    syrup_as_fed.flow_lb_per_hr = total_flows
-    syrup_as_fed.brix = total_solids / total_flows * 100
-    syrup_as_fed.purity = total_pols / total_solids * 100
-
-    # Update flows
-    syrup_to_A_pans = SugarStream.copy(syrup_as_fed)
-    syrup_to_A_pans.flow_lb_per_hr = syrup_to_A_pans_pct / 100 * syrup_to_A_pans.flow_lb_per_hr
-
-    syrup_to_grain = SugarStream.copy(syrup_as_fed) # Flow gets updated right before Grain pans
-
-    # convergence checker
-    print(syrup_as_fed.flow_lb_per_hr) # when this stops changing
-
-
-# End Loop
-
-end_time = time() * 1000
-
-time_to_solve = end_time - start_time
-
-print(f"time to solve {time_to_solve:.0f} ms")
-
-display_balance(
-    syrup=syrup,
-    A_centrifugals=A_centrifugals,
-    B_centrifugals=B_centrifugals,
-    C_machines=C_machines,
-    A_pans=A_pans,
-    B_pans=B_pans,
-    grain_pans=grain_pans,
-    C_pans=C_pans,
-)
-
+    pan_floor.display_balance()
+    pan_floor.A_pans.neat_display()
 
 

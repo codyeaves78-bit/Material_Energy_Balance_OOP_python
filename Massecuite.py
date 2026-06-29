@@ -28,7 +28,7 @@ class Massecuite:
     """
     Represents a massecuite in a vacuum pan.
 
-    ml_purity       : mother liquor apparent purity (30–100)
+    ml_purity       : mother liquor apparent purity (10–100)
                       Note: BPR data exists for 60–100; below 60 is extrapolated.
     masse_purity    : overall massecuite apparent purity
     masse_brix      : overall massecuite Brix
@@ -40,7 +40,7 @@ class Massecuite:
     Solve results are cached on first access — iterations run once per instance.
     """
 
-    PURITY_MIN = 30
+    PURITY_MIN = 20
     PURITY_MAX = 100
 
     def __init__(self, ml_purity, masse_purity, masse_brix,

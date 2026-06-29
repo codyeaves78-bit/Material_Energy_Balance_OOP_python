@@ -1,13 +1,14 @@
 # Vacuum pan — complete material and energy balance.
 # Massecuite purity is derived from the feed stream pol/solids balance (not specified directly).
-# The Massecuite object is built internally once purity is known.
-# Heating steam is selected from standard Louisiana steam types (Exhaust, V1–V4).
-# calandria_steam_temp_F defaults to the standard T_sat for the chosen type but can be
-# overridden at any time — either for a single-pass U refinement or a future nested loop.
+# Mother liquor purity (ml_purity) is a direct user input — set it from lab analysis or
+# process knowledge. Crystal yield is derived from ml_purity and masse_purity.
+# Calandria steam is specified by pressure (psia); h_fg and T_sat are computed live by
+# EvaporatorSteam. Update calandria_pressure_psia at any time (e.g. after an evaporator
+# balance) and all heat transfer results recalculate automatically.
 
 from SteamStream import EvaporatorSteam
 from Massecuite import Massecuite
-
+from SugarStream import SugarStream
 
 class Pan:
     """
@@ -20,68 +21,48 @@ class Pan:
     supersaturation        : target supersaturation coefficient (e.g. 1.1)
     head_ft                : massecuite depth in the pan (ft)
     masse_brix             : target massecuite outlet Brix
-    ml_purity              : mother liquor apparent purity
-    steam_type             : one of 'Exhaust', 'V1', 'V2', 'V3', 'V4'
-                             Selects standard h_fg and default calandria T from STEAM_CONDITIONS.
-    calandria_steam_temp_F : override for calandria saturation temperature (°F).
-                             If None (default), uses STEAM_CONDITIONS[steam_type]['T_sat_F'].
-                             Set this to the real measured/calculated steam temp for a
-                             more accurate U back-calculation after the evaporator solve.
+    ml_purity              : mother liquor apparent purity (%) — direct input from lab
+                             analysis or process knowledge. Crystal yield is derived from
+                             this and masse_purity: (J - M) / (100 - M).
+    calandria_pressure_psia: heating steam pressure (psia). T_sat and h_fg are computed
+                             live from this by EvaporatorSteam — no lookup table needed.
+                             Update this attribute at any time (e.g. after an evaporator
+                             balance) and all heat transfer results recalculate automatically.
 
     Massecuite apparent purity is computed from the feed pol/solids balance:
         masse_purity = Σ(flow_i × purity_i × brix_i) / Σ(flow_i × brix_i)
 
     Solve order:
         1. Pol/solids balance     →  masse_purity, feed_solids_lb_hr
-        2. Massecuite object      →  T_massecuite, vapor_pressure, BPR
-        3. Material balance       →  massecuite_flow_lb_hr, water_evaporated_lb_hr
-        4. Energy balance         →  Q = Q_sensible + Q_latent  (h_fg at vapor-space pressure)
-        5. Steam consumption      →  steam_flow = Q / h_fg_calandria  (standard h_fg for steam_type)
-        6. Back-calculate         →  U = Q / (A × ΔT)
+        2. Crystal yield derived  →  crys_yld_frac_brix = (masse_purity - ml_purity) / (100 - ml_purity)
+        3. Massecuite object      →  T_massecuite, vapor_pressure, BPR
+        4. Material balance       →  massecuite_flow_lb_hr, water_evaporated_lb_hr
+        5. Energy balance         →  Q = Q_sensible + Q_latent  (h_fg at vapor-space pressure)
+        6. Steam consumption      →  steam_flow = Q / h_fg_calandria  (h_fg from calandria_pressure_psia)
+        7. Back-calculate         →  U = Q / (A × ΔT)  where ΔT = T_sat(calandria) − T_massecuite
     """
-
-    # Standard Louisiana steam conditions.
-    # h_fg values are fixed for steam consumption calculations — variation from actual
-    # conditions is < 1% within each type's realistic operating range.
-    # Pressures listed for reference; T_sat and h_fg were computed from IAPWS-97.
-    # To adapt for other regions or cogen mills, adjust P_psia entries here.
-    STEAM_CONDITIONS = {
-        'Exhaust': {'P_psia': 29.696, 'T_sat_F': 249.7, 'h_fg': 945.7},  # 15 psig
-        'V1':      {'P_psia': 21.696, 'T_sat_F': 232.3, 'h_fg': 957.1},  # 7 psig
-        'V2':      {'P_psia': 14.696, 'T_sat_F': 212.0, 'h_fg': 970.0},  # 0 psig (atm)
-        'V3':      {'P_psia': 10.276, 'T_sat_F': 194.4, 'h_fg': 980.9},  # ~9 in Hg vac
-        'V4':      {'P_psia':  3.399, 'T_sat_F': 146.3, 'h_fg': 1009.5}, # ~23 in Hg vac
-    }
 
     def __init__(self, feed_streams, heating_surface_ft2,
                  inches_vacuum, supersaturation, head_ft,
-                 masse_brix, cry_yld_pct_brix,
-                 steam_type='V1',
-                 calandria_steam_temp_F=None,
-                 heat_loss_factor=0.0,
-                 name='Pan'):
-        if steam_type not in self.STEAM_CONDITIONS:
-            raise ValueError(
-                f"steam_type '{steam_type}' is not valid. "
-                f"Choose from: {list(self.STEAM_CONDITIONS)}"
-            )
-        self.feed_streams        = (feed_streams if isinstance(feed_streams, list)
-                                    else [feed_streams])
-        self.heating_surface_ft2 = heating_surface_ft2
-        self.inches_vacuum       = inches_vacuum
-        self.supersaturation     = supersaturation
-        self.head_ft             = head_ft
-        self.masse_brix          = masse_brix
-        self.crys_yld_frac_brix  = cry_yld_pct_brix / 100
-        self.ml_purity           = (100 * self.crys_yld_frac_brix - self.masse_purity) / (self.crys_yld_frac_brix - 1)
-        self.steam_type          = steam_type
-        self.heat_loss_factor    = heat_loss_factor
-        self.name                = name
-
-        # Default calandria temp from standard table; override any time for U refinement
-        self.calandria_steam_temp_F = (calandria_steam_temp_F
-                                       if calandria_steam_temp_F is not None
-                                       else self.STEAM_CONDITIONS[steam_type]['T_sat_F'])
+                 masse_brix, ml_purity: float,
+                 calandria_pressure_psia: float = 21.696,
+                 heat_loss_factor: float = 0.0,
+                 name: str = 'Pan'):
+        if feed_streams is None:
+            self.feed_streams = [SugarStream(brix=65, purity=88, flow_lb_per_hr=100, temp_deg_F=140)]
+        else:
+            self.feed_streams        = (feed_streams if isinstance(feed_streams, list)
+                                        else [feed_streams])
+        self.heating_surface_ft2      = heating_surface_ft2
+        self.inches_vacuum            = inches_vacuum
+        self.supersaturation          = supersaturation
+        self.head_ft                  = head_ft
+        self.masse_brix               = masse_brix
+        self.ml_purity                = ml_purity
+        self.crys_yld_frac_brix       = (self.masse_purity - ml_purity) / (100 - ml_purity)
+        self.calandria_pressure_psia  = calandria_pressure_psia
+        self.heat_loss_factor         = heat_loss_factor
+        self.name                     = name
 
         # Build the Massecuite using the pol/solids-derived purity
         self.massecuite = Massecuite(
@@ -94,21 +75,24 @@ class Pan:
         )
 
     # ------------------------------------------------------------------
-    # Calandria steam (from standard table)
+    # Calandria steam (computed live from calandria_pressure_psia)
     # ------------------------------------------------------------------
 
     @property
-    def h_fg_calandria(self):
-        """Standard latent heat of the heating steam (BTU/lb) — from STEAM_CONDITIONS table.
-        Used for steam consumption: steam_flow = Q / h_fg_calandria.
-        Fixed per steam type; < 1% error vs actual operating conditions.
-        """
-        return self.STEAM_CONDITIONS[self.steam_type]['h_fg']
+    def _calandria_steam(self):
+        """EvaporatorSteam instance for the calandria side. Re-created on each access
+        so that updating calandria_pressure_psia immediately propagates everywhere."""
+        return EvaporatorSteam(self.calandria_pressure_psia)
 
     @property
-    def calandria_steam_pressure_psia(self):
-        """Standard pressure for the selected steam type (psia) — reference only."""
-        return self.STEAM_CONDITIONS[self.steam_type]['P_psia']
+    def calandria_T_sat_F(self):
+        """Saturation temperature of the calandria steam (°F)."""
+        return self._calandria_steam.sat_temp_deg_F
+
+    @property
+    def h_fg_calandria(self):
+        """Latent heat of the calandria steam (BTU/lb) — computed from calandria_pressure_psia."""
+        return self._calandria_steam.h_fg
 
     # ------------------------------------------------------------------
     # Feed-side helpers
@@ -201,14 +185,13 @@ class Pan:
     @property
     def steam_flow_lb_hr(self):
         """Steam consumed by the calandria: Q / h_fg_calandria (lb/hr).
-        Uses the standard table h_fg for the selected steam_type — accurate to < 1%
-        without requiring knowledge of the actual header pressure.
+        h_fg is computed from calandria_pressure_psia via EvaporatorSteam.
         """
         return self.heat_transfer_btu_hr / self.h_fg_calandria
 
     @property
     def steam_to_evaporation_ratio(self):
-        """lb steam consumed per lb water evaporated — compare directly to Birkett (A=1.15, C=1.25)."""
+        """lb steam consumed per lb water evaporated — compare to Birkett (A=1.15, C=1.25)."""
         return self.steam_flow_lb_hr / self.water_evaporated_lb_hr
 
     # ------------------------------------------------------------------
@@ -217,11 +200,12 @@ class Pan:
 
     @property
     def delta_T(self):
-        """Driving force: T_calandria − T_massecuite (°F)."""
-        dT = self.calandria_steam_temp_F - self.massecuite.massecuite_temp
+        """Driving force: T_sat(calandria) − T_massecuite (°F)."""
+        dT = self.calandria_T_sat_F - self.massecuite.massecuite_temp
         if dT <= 0:
             raise ValueError(
-                f"Calandria steam ({self.calandria_steam_temp_F:.1f}°F) must exceed "
+                f"Calandria steam T_sat ({self.calandria_T_sat_F:.1f}°F at "
+                f"{self.calandria_pressure_psia:.2f} psia) must exceed "
                 f"massecuite boiling point ({self.massecuite.massecuite_temp:.1f}°F)."
             )
         return dT
@@ -229,8 +213,8 @@ class Pan:
     @property
     def U_btu_hr_ft2_F(self):
         """Overall HTC back-calculated: U = Q / (A × ΔT) (BTU/hr·ft²·°F).
-        Refine by setting calandria_steam_temp_F to the actual measured steam temp
-        after the evaporator solve — no loop required.
+        Update calandria_pressure_psia to the actual measured header pressure
+        after an evaporator solve to refine U — no re-instantiation required.
         """
         return self.heat_transfer_btu_hr / (self.heating_surface_ft2 * self.delta_T)
 
@@ -250,7 +234,7 @@ class Pan:
 
     def __repr__(self):
         return (
-            f"Pan(steam={self.steam_type}, "
+            f"Pan(calandria={self.calandria_pressure_psia:.2f} psia, "
             f"A={self.heating_surface_ft2:,.0f} ft², "
             f"vacuum={self.inches_vacuum:.1f} inHg, "
             f"SS={self.supersaturation:.2f}, "
@@ -293,12 +277,12 @@ class Pan:
             'heat_loss_btu_hr':           self.heat_loss_btu_hr,
             'heat_transfer_btu_hr':       self.heat_transfer_btu_hr,
             # Steam consumption
-            'steam_type':                 self.steam_type,
+            'calandria_pressure_psia':    self.calandria_pressure_psia,
+            'calandria_T_sat_F':          self.calandria_T_sat_F,
             'h_fg_calandria':             self.h_fg_calandria,
             'steam_flow_lb_hr':           self.steam_flow_lb_hr,
             'steam_to_evaporation_ratio': self.steam_to_evaporation_ratio,
             # Heat transfer coefficient
-            'calandria_steam_temp_F':     self.calandria_steam_temp_F,
             'delta_T_F':                  self.delta_T,
             'heating_surface_ft2':        self.heating_surface_ft2,
             'U_btu_hr_ft2_F':             self.U_btu_hr_ft2_F,
@@ -321,13 +305,13 @@ class Pan:
                 print(f"  {label:<35} {value:>14,.1f}  {unit}")
 
         def section(title):
-            print(f"\n  {'─' * 55}")
+            print(f"\n  {'-' * 55}")
             print(f"  {title}")
-            print(f"  {'─' * 55}")
+            print(f"  {'-' * 55}")
 
-        print(f"\n{'═' * 59}")
-        print(f"  {self.name}  |  {self.steam_type} steam  |  {self.heating_surface_ft2:,.0f} ft²  |  {self.inches_vacuum} inHg vacuum")
-        print(f"{'═' * 59}")
+        print(f"\n{'=' * 59}")
+        print(f"  {self.name}  |  {self.calandria_pressure_psia:.2f} psia steam  |  {self.heating_surface_ft2:,.0f} ft²  |  {self.inches_vacuum} inHg vacuum")
+        print(f"{'=' * 59}")
 
         section("FEED")
         row("Total feed flow",         self.feed_flow_lb_hr,        "lb/hr")
@@ -355,21 +339,23 @@ class Pan:
         row("Total duty",              self.heat_transfer_btu_hr,   "BTU/hr")
 
         section("STEAM & HEAT TRANSFER")
-        row("Steam flow",              self.steam_flow_lb_hr,       "lb/hr")
+        row("Calandria pressure",      self.calandria_pressure_psia,    "psia")
+        row("Calandria T_sat",         self.calandria_T_sat_F,          "°F")
+        row("h_fg calandria",          self.h_fg_calandria,             "BTU/lb")
+        row("Steam flow",              self.steam_flow_lb_hr,           "lb/hr")
         row("Steam/evaporation ratio", self.steam_to_evaporation_ratio, "lb/lb")
-        row("Calandria steam temp",    self.calandria_steam_temp_F, "°F")
-        row("ΔT (calandria − masse)", self.delta_T,                "°F")
-        row("U (back-calc)",           self.U_btu_hr_ft2_F,        "BTU/hr·ft²·°F")
+        row("dT (calandria - masse)",  self.delta_T,                    "°F")
+        row("U (back-calc)",           self.U_btu_hr_ft2_F,            "BTU/hr·ft²·°F")
 
-        print(f"\n{'═' * 59}\n")
+        print(f"\n{'=' * 59}\n")
 
 
 if __name__ == "__main__":
     from SugarStream import SugarStream
 
-    syrup   = SugarStream(brix=80, purity=52, flow_lb_per_hr=250_000,
+    syrup   = SugarStream(brix=80, purity=88, flow_lb_per_hr=250_000,
                           temp_deg_F=144, pressure_psia=14.7, level_ft=0)
-    footing = SugarStream(brix=88, purity=65, flow_lb_per_hr=50_000,
+    footing = SugarStream(brix=88, purity=92, flow_lb_per_hr=50_000,
                           temp_deg_F=150, pressure_psia=14.7, level_ft=0)
 
     pan = Pan(
@@ -379,16 +365,16 @@ if __name__ == "__main__":
         supersaturation=1.2,
         head_ft=2,
         masse_brix=96,
-        cry_yld_pct_brix=30,
-        steam_type='V1',
+        ml_purity=70,
+        calandria_pressure_psia=21.696,   # V1 steam (7 psig)
         heat_loss_factor=0.05,
     )
 
     print(pan)
     print()
-    pan.display_properties()
+    pan.neat_display()
 
     print()
-    print("--- single-pass U refinement after evaporator solve ---")
-    pan.calandria_steam_temp_F = 228.0   # actual V1 temp from evaporator balance
-    print(f"  U (standard 232.3F) -> U (actual 228.0F): {pan.U_btu_hr_ft2_F:.1f} BTU/hr.ft2.F")
+    print("--- single-pass U refinement after evaporator balance ---")
+    pan.calandria_pressure_psia = 20.5   # actual measured V1 header pressure
+    print(f"  U (21.696 psia) -> U (20.5 psia): {pan.U_btu_hr_ft2_F:.1f} BTU/hr.ft2.F")
