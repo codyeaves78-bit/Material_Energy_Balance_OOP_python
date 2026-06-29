@@ -33,6 +33,7 @@ class Bagasse:
         print("=" * 40)
 
 
+# Test code below
 if __name__ == "__main__":
     b = Bagasse(
         moisture_pct=49.0,
