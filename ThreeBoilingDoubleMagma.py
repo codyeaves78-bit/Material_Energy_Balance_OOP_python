@@ -39,6 +39,7 @@ class ThreeBoilingDoubleMagma:
             a_mol_to_grain_pct: float = 5,
             b_mol_to_grain_pct: float = 10,
             a_mol_top_off_pct: float = 30,
+            
             ):
 
         self.syrup = syrup

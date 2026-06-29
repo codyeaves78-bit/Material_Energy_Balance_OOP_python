@@ -175,6 +175,14 @@ class Clarification:
             level_ft=0,
         )
 
+        # also include the Limed Juice as output streams for use in JuiceHeating
+        self.limed_juice_cold_stream = SugarStream(
+            brix=lj_brix_pct,
+            purity=lj_pol_lb_hr / lj_brix_lb_hr * 100,
+            flow_lb_per_hr=lj_lb_hr,
+            temp_deg_F=limed_juice_cold_temp_f
+        )
+
         # ── Stream table ──────────────────────────────────────────────────────
         def _gpm(lb_hr, sg):
             return lb_hr / (sg * 8.34 * 60)

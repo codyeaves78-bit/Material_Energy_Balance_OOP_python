@@ -63,10 +63,10 @@ class Condenser:
     def injection_water_flow_lb_hr(self):
         """Injection water required to condense the vapor (lb/hr)."""
         delta_T = self.vapor_sat_temp_F - self.water_inlet_temp_F
-        if delta_T <= 0:
+        if delta_T < 0:
             raise ValueError(
                 f"Injection water inlet ({self.water_inlet_temp_F}°F) must be "
-                f"below vapor saturation temp ({self.vapor_sat_temp_F:.1f}°F)."
+                f"below vapor saturation temp ({self.vapor_sat_temp_F:.2f}°F)."
             )
         return self.heat_load_btu_hr / (self._CP_WATER * delta_T)
 

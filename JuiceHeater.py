@@ -27,7 +27,7 @@ class JuiceHeaterShellTube:
             self.cold_stream.brix,
             self.cold_stream.purity,
             self.cold_stream.flow_lb_per_hr,
-            self.cold_stream.temp_deg_F,
+            self.juice_out_temp_degF, # updated temp
             self.cold_stream.pressure_psia,
             self.cold_stream.level_ft,
         )
