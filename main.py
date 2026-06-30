@@ -85,32 +85,79 @@ st_mary_clar = Clarification(
 
 st_mary_clar.neat_display()
 
-fabrication_exhaust_psia = 30
+fabrication_exhaust_psia = 30 # global variable
 
-primary_heaters = JuiceHeaterShellTube(
-    cold_stream=st_mary_clar.limed_juice_cold_stream,
-    hot_stream=SteamStream(x=1, P=19), # can update after solving evaporators
-    name="Primary Heaters",
-    juice_out_temp_degF=175,
-    U_btu_per_ft2_degF=220,
-    installed_area_ft2=8000
-)
+# Juice Heater Section
+series = False
+if series:
+    # heaters in series
+    primary_heaters = JuiceHeaterShellTube(
+        cold_stream=st_mary_clar.limed_juice_cold_stream,
+        hot_stream=SteamStream(x=1, P=19), # can update after solving evaporators
+        name="Primary Heaters",
+        juice_out_temp_degF=175,
+        U_btu_per_ft2_degF=220,
+        installed_area_ft2=8000
+    )
+    # what exits primary heaters enters secondary heaters
+    secondary_heaters = JuiceHeaterShellTube(
+        cold_stream=primary_heaters.juice_out,
+        hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia), # using exhaust steam
+        juice_out_temp_degF=st_mary_clar.limed_juice_hot_temp_f, # defined earlier
+        U_btu_per_ft2_degF=220,
+        installed_area_ft2=8000,
+        name="Secondary Heaters"
+    )
+else:
+    # for parellel heaters
+    juice_primary_pct = 50 # percent of juice to primary heaters user input
+    juice_secondary_pct = 100 - juice_primary_pct
+
+    # create streams for each and set flows accordingly
+    juice_to_primaries = SugarStream.copy(st_mary_clar.limed_juice_cold_stream)
+    juice_to_primaries.flow_lb_per_hr = st_mary_clar.limed_juice_cold_stream.flow_lb_per_hr * juice_primary_pct / 100
+
+    juice_to_secondaries = SugarStream.copy(st_mary_clar.limed_juice_cold_stream)
+    juice_to_secondaries.flow_lb_per_hr = st_mary_clar.limed_juice_cold_stream.flow_lb_per_hr * juice_secondary_pct / 100
+
+    # build the heaters, juice was split between the heaters based on input
+    primary_heaters = JuiceHeaterShellTube(
+        cold_stream=juice_to_primaries,
+        hot_stream=SteamStream(x=1, P=19), # can update after solving evaporators
+        name="Primary Heaters - Parallel, using V1",
+        juice_out_temp_degF=st_mary_clar.limed_juice_hot_temp_f,
+        U_btu_per_ft2_degF=220,
+        installed_area_ft2=8000
+    )
+
+    secondary_heaters = JuiceHeaterShellTube(
+        cold_stream=juice_to_secondaries,
+        hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia), # using exhaust steam
+        juice_out_temp_degF=st_mary_clar.limed_juice_hot_temp_f, # defined earlier
+        U_btu_per_ft2_degF=220,
+        installed_area_ft2=8000,
+        name="Secondary Heaters - Parallel, using Exhaust"
+    )
+
 
 primary_heaters.neat_display()
-
-secondary_heaters = JuiceHeaterShellTube(
-    cold_stream=primary_heaters.juice_out,
-    hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia), # using exhaust steam
-    juice_out_temp_degF=st_mary_clar.limed_juice_hot_temp_f, # defined earlier
-    U_btu_per_ft2_degF=220,
-    installed_area_ft2=8000,
-    name="Secondary Heaters"
-)
-
 secondary_heaters.neat_display()
 
-# Now make syrup for the pan floor
+# Now for the Clarified Juice Heater
+# Note that a shell and tube heater for calculations is the same, will update this later on
+clar_juice_colder = SugarStream.copy(st_mary_clar.clarified_juice_stream) # so my temp update won't effect this heaters calculations
+clar_juice_heater = JuiceHeaterShellTube(
+    cold_stream=clar_juice_colder, 
+    hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia), # uses exhaust steam
+    name="Clarified Juice Heater",
+    juice_out_temp_degF=225,
+    U_btu_per_ft2_degF=185,
+    installed_area_ft2=6000
+)
+clar_juice_heater.neat_display()
+st_mary_clar.clarified_juice_stream.temp_deg_F = clar_juice_heater.juice_out_temp_degF
 
+# Now make syrup for the pan floor
 syrup_brix = 65 # User defined
 
 # Simple mass balance
@@ -181,6 +228,7 @@ pan_floor = ThreeBoilingDoubleMagma(
 
 # Now solve Evaporation since steam demands are known
 # No pre or clear juice heater in this balance
+# For tomorrow, add a Pre before the sets, distribute V1 accordingly
 
 # Define vapor demands
 v1_demand = (
@@ -248,7 +296,7 @@ da = Deaerator(deaerator_psig=10, water_in_deg_F=200, water_in_lb_hr=800_000, ve
 
 exhaust_for_evaporators = sum([evap.supply_steam.flow_lb_per_hr for evap in evap_station])
 exhaust_for_pans = pan_floor.B_pans.steam_flow_lb_hr + pan_floor.grain_pans.steam_flow_lb_hr
-exhaust_for_heaters = secondary_heaters.steam_required_lb_per_hr
+exhaust_for_heaters = secondary_heaters.steam_required_lb_per_hr + clar_juice_heater.steam_required_lb_per_hr
 exhaust_for_da = da.steam_flow_lb_hr
 subtotal_exh = exhaust_for_evaporators + exhaust_for_pans + exhaust_for_heaters + exhaust_for_da
 exh_losses_pct = 5 # percent of subtotal User Input
@@ -487,3 +535,4 @@ blrs.neat_display()
 end_time = time() * 1000 # in ms
 solve_time = end_time - start_time
 print(f"\n\nTime to solve factory balance {solve_time:,.2f} ms")
+
