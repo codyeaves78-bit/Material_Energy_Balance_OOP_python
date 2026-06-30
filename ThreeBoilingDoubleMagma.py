@@ -221,27 +221,29 @@ class ThreeBoilingDoubleMagma:
     # ------------------------------------------------------------------
 
     def display_balance(self):
-        W = 102
+        W = 115
         HEAVY = "=" * W
         LIGHT = "-" * W
 
         LBL = 32   # label column width
         NUM = 13   # numeric column width
+        VOL = 10   # ft³/hr column width
 
-        def _row(label, flow, solids, pol, water, brix=None, purity=None):
+        def _row(label, flow, solids, pol, water, brix=None, purity=None, vol_ft3_hr=None):
             b = f"{brix:6.1f}" if brix is not None else "     -"
             p = f"{purity:6.1f}" if purity is not None else "     -"
+            v = f"{vol_ft3_hr:{VOL},.0f}" if vol_ft3_hr is not None else " " * (VOL - 1) + "-"
             return (f"  {label:<{LBL}} {flow:{NUM},.0f} {solids:{NUM},.0f}"
-                    f" {pol:{NUM},.0f} {water:{NUM},.0f} {b} {p}")
+                    f" {pol:{NUM},.0f} {water:{NUM},.0f} {b} {p} {v}")
 
         def _hdr():
             return (f"  {'Stream':<{LBL}} {'Flow (lb/hr)':{NUM}} {'Solids (lb/hr)':{NUM}}"
-                    f" {'Pol (lb/hr)':{NUM}} {'Water (lb/hr)':{NUM}} {'Brix%':>6} {'Pur%':>6}")
+                    f" {'Pol (lb/hr)':{NUM}} {'Water (lb/hr)':{NUM}} {'Brix%':>6} {'Pur%':>6} {'ft3/hr':>{VOL}}")
 
         def _stream(label, s):
             sol = s.solids_flow
             return _row(label, s.flow_lb_per_hr, sol, s.pol_flow,
-                        s.flow_lb_per_hr - sol, s.brix, s.purity)
+                        s.flow_lb_per_hr - sol, s.brix, s.purity, vol_ft3_hr=s.cu_ft_hr)
 
         def _section(title):
             return f"\n{LIGHT}\n  {title}\n{LIGHT}"
@@ -253,7 +255,7 @@ class ThreeBoilingDoubleMagma:
                 sol = f.solids_flow
                 lines.append(_row(f"    Feed {i}  (Bx={f.brix:.1f} Pu={f.purity:.1f})",
                                   f.flow_lb_per_hr, sol, f.pol_flow,
-                                  f.flow_lb_per_hr - sol, f.brix, f.purity))
+                                  f.flow_lb_per_hr - sol, f.brix, f.purity, vol_ft3_hr=f.cu_ft_hr))
             ff = pan.feed_flow_lb_hr
             fs = pan.feed_solids_lb_hr
             fp = sum(f.pol_flow for f in pan.feed_streams)
@@ -264,9 +266,10 @@ class ThreeBoilingDoubleMagma:
             masse_sol = fs          # solids conserved through evaporation
             masse_pol = fp          # pol conserved through evaporation
             masse_water = pan.massecuite_flow_lb_hr - masse_sol
+            masse_vol = pan.massecuite_flow_lb_hr / pan.massecuite.density
             lines.append(_row("  Massecuite Out", pan.massecuite_flow_lb_hr,
                                masse_sol, masse_pol, masse_water,
-                               pan.masse_brix, pan.masse_purity))
+                               pan.masse_brix, pan.masse_purity, vol_ft3_hr=masse_vol))
             lines.append(_row("  Evaporated Water", pan.water_evaporated_lb_hr,
                                0, 0, pan.water_evaporated_lb_hr))
             lines.append(LIGHT)
@@ -284,9 +287,11 @@ class ThreeBoilingDoubleMagma:
             s_wat  = cen.sugar_wet_lb_hr - s_sol
             m_sol  = cen.molasses_solids_lb_hr
             m_wat  = cen.molasses_flow_lb_hr - m_sol
+            masse_vol = cen.massecuite_flow_lb_hr / cen.massecuite.density
             lines.append("  ENTERING")
             lines.append(_row("    Massecuite", cen.massecuite_flow_lb_hr, ms, mp, mw,
-                               cen.massecuite.masse_brix, cen.massecuite.masse_purity))
+                               cen.massecuite.masse_brix, cen.massecuite.masse_purity,
+                               vol_ft3_hr=masse_vol))
             lines.append(_row("    Wash Water", ww, 0, 0, ww))
             lines.append(LIGHT)
             lines.append(f"  {'Total In':<{LBL}} {cen.massecuite_flow_lb_hr + ww:{NUM},.0f}"
@@ -295,10 +300,12 @@ class ThreeBoilingDoubleMagma:
             lines.append("  LEAVING")
             lines.append(_row("    Sugar Out", cen.sugar_wet_lb_hr,
                                s_sol, cen.sugar_pol_lb_hr, s_wat,
-                               cen.sugar_brix, cen.sugar_purity))
+                               cen.sugar_brix, cen.sugar_purity,
+                               vol_ft3_hr=cen.sugar_stream.cu_ft_hr))
             lines.append(_row("    Molasses Out", cen.molasses_flow_lb_hr,
                                m_sol, cen.pol_to_molasses_lb_hr, m_wat,
-                               cen.target_molasses_brix, cen.molasses_purity))
+                               cen.target_molasses_brix, cen.molasses_purity,
+                               vol_ft3_hr=cen.molasses_stream.cu_ft_hr))
             lines.append(LIGHT)
             total_out = cen.sugar_wet_lb_hr + cen.molasses_flow_lb_hr
             net = (cen.massecuite_flow_lb_hr + ww) - total_out

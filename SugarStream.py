@@ -34,6 +34,10 @@ class SugarStream:
         return specific_gravity(self.brix) if self.brix > 0 else 1
     
     @property
+    def cu_ft_hr(self):
+        return self.flow_lb_per_hr / (62.4 * self.specific_gravity)
+    
+    @property
     def latent_heat_btu_per_lb(self):
         return get_latent_heat(self.pressure_psia) if self.pressure_psia > 0 else 0
     

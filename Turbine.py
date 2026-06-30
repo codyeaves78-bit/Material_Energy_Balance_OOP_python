@@ -28,14 +28,15 @@ class Turbine:
         4. Exhaust: SteamStream(P=outlet_pressure_psia, h=h_out, flow=m_dot)
     """
 
-    def __init__(self, inlet_steam, outlet_pressure_psia, isentropic_efficiency, hp_demand):
+    def __init__(self, inlet_steam, outlet_pressure_psia, isentropic_efficiency, hp_demand, name="Turbine", desuperheating_water_temp=212):
         if not (0 < isentropic_efficiency <= 1):
             raise ValueError(f"Isentropic efficiency must be between 0 and 1, got {isentropic_efficiency}")
         self.inlet_steam          = inlet_steam
         self.outlet_pressure_psia = outlet_pressure_psia
         self.isentropic_efficiency = isentropic_efficiency
         self.hp_demand            = hp_demand
-
+        self.name                 = name
+        self.desuperheating_water_temp = desuperheating_water_temp
     # ------------------------------------------------------------------
     # Inlet conditions
     # ------------------------------------------------------------------
@@ -102,6 +103,23 @@ class Turbine:
             h=self.h_out_actual,
             flow_lb_per_hr=self.steam_flow_lb_hr,
         )
+    
+    @property
+    def exhaust_available(self):
+        """Steam stream to represent exhaust available after water separation if x < 1, or after desuperheating if superheated"""
+        # create sat steam stream x = 1
+        sat_exhaust_h = SteamStream(P=self.outlet_pressure_psia, x=1).h
+        if self.exhaust_steam.h == sat_exhaust_h:
+            return self.exhaust_steam.flow_lb_per_hr
+        elif self.exhaust_steam.h > sat_exhaust_h:
+            h_to_sat = self.exhaust_steam.h - sat_exhaust_h
+            water_h = SteamStream(P=self.outlet_pressure_psia, T=self.desuperheating_water_temp).h
+            btu_1_lb_water = sat_exhaust_h - water_h
+            water_lb_hr = h_to_sat * self.exhaust_steam.flow_lb_per_hr / btu_1_lb_water
+            return self.exhaust_steam.flow_lb_per_hr + water_lb_hr
+        else:
+            # so if its a saturated mix... simply do this
+            return self.exhaust_steam.flow_lb_per_hr * self.exhaust_steam.x
 
     # ------------------------------------------------------------------
     # Dunder / display
@@ -132,7 +150,54 @@ class Turbine:
             'hp_demand':                self.hp_demand,
             'steam_flow_lb_hr':         self.steam_flow_lb_hr,
             'steam_rate_lb_per_hp_hr':  self.steam_rate,
+            'exhaust_available':        self.exhaust_available
         }
+
+    def neat_display(self):
+        exhaust = self.exhaust_steam
+        W  = 62
+        C1 = 38
+        C2 = 20
+        div  = "=" * W
+        sdiv = "-" * W
+
+        def row(label, value):
+            print(f"  {label:<{C1}}{value:>{C2}}")
+
+        def section(title):
+            print(f"\n  {title}")
+            print(sdiv)
+
+        title = f"TURBINE  —  {self.name.upper()}"
+        print(div)
+        print(f"{title:^{W}}")
+        print(div)
+
+        section("INLET CONDITIONS")
+        row("Inlet Pressure",            f"{self.inlet_steam.P:,.1f} psia")
+        row("Inlet Temperature",         f"{self.inlet_steam.T:,.1f} °F")
+        row("Inlet Enthalpy (h_in)",     f"{self.h_in:,.2f} BTU/lb")
+        row("Inlet Entropy (s_in)",      f"{self.s_in:,.4f} BTU/lb·°R")
+
+        section("OUTLET CONDITIONS")
+        row("Outlet Pressure",           f"{self.outlet_pressure_psia:,.1f} psia")
+        row("Outlet Temperature",        f"{exhaust.T:,.1f} °F")
+        row("Outlet Enthalpy (actual)",  f"{self.h_out_actual:,.2f} BTU/lb")
+        row("Outlet Enthalpy (isen.)",   f"{self.h_out_isentropic:,.2f} BTU/lb")
+        x = exhaust.x
+        row("Exhaust Quality",           f"{x:.4f}" if x is not None and x < 1.0 else "Superheated")
+        row("Exhaust for Process",       f"{self.exhaust_available:,.0f} lb/hr")
+        if self.exhaust_available > self.exhaust_steam.flow_lb_per_hr:
+            row("Desuper Heater Water",  f"{self.exhaust_available - self.exhaust_steam.flow_lb_per_hr:,.0f} lb/hr")
+
+        section("PERFORMANCE")
+        row("Isentropic Efficiency",     f"{self.isentropic_efficiency:.1%}")
+        row("Work per lb Steam",         f"{self.work_per_lb:,.2f} BTU/lb")
+        row("Steam Rate",                f"{self.steam_rate:,.2f} lb/HP-hr")
+        row("HP Demand",                 f"{self.hp_demand:,.0f} HP")
+        row("Steam Flow Required",       f"{self.steam_flow_lb_hr:,.0f} lb/hr")
+
+        print(f"\n{div}\n")
 
     def display_properties(self):
         props = self.properties()
@@ -156,7 +221,7 @@ if __name__ == "__main__":
     )
     print(turbine)
     print()
-    turbine.display_properties()
+    turbine.neat_display()
     print()
     print("Exhaust steam:")
     turbine.exhaust_steam.display_properties()

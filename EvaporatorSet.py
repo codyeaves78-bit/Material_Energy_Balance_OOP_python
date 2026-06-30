@@ -11,15 +11,17 @@ from statistics import stdev
 
 class EvaporatorSet:
     """Class to represent a set of evaporators"""
-    def __init__(self, juice_in: SugarStream, 
-                 supply_steam: EvaporatorSteam, 
-                 last_effect_pressure_psia=2.4, 
-                 target_brix_out=65, 
+    def __init__(self, juice_in: SugarStream,
+                 supply_steam: EvaporatorSteam,
+                 last_effect_pressure_psia=2.4,
+                 target_brix_out=65,
                  effect_areas_ft2=[1000, 1000, 1000],
                  vapor_bleeds=[0, 0],
                  dessin_coefficient=18000,
-                 liquid_level_ft=2):
+                 liquid_level_ft=2,
+                 name: str = 'Evaporator Set'):
         """initialize class"""
+        self.name = name
         self.juice_in = juice_in
         self.supply_steam = supply_steam
         self.last_effect_pressure_psia = last_effect_pressure_psia
@@ -220,26 +222,115 @@ class EvaporatorSet:
         print(f"\n {'-'*5} Steam Required for Set: {self.supply_steam.flow_lb_per_hr:,.2f} lb/hr {'-'*5} \n")
 
     def show_summary(self):
-        print(f"\nSteam Required: {self.supply_steam.flow_lb_per_hr:,.2f} lb/hr")
-        print(f"Flow of Entering Juice: {self.juice_in.flow_lb_per_hr:,.2f} lb/hr:  Brix of Entering Juice: {self.juice_in.brix}")
+        n  = self.number_of_effects
+        ef = self.evaporator_list
+        syrup_out  = ef[-1].juice_side_out
+        steam_psig = convert_psia_to_psig(self.supply_steam.P_psia)
+        last_vac   = convert_psia_to_inHgVac(self.last_effect_pressure_psia)
 
-        print(f"Steam Pressure: {self.supply_steam.P_psia} psia.    {convert_psia_to_psig(self.supply_steam.P_psia):.2f} psig")
-        for i in range(self.number_of_effects):
-            if self.evaporator_list[i].vapor_pressure_psia > 14.696:
-                press_print = convert_psia_to_psig(self.evaporator_list[i].vapor_pressure_psia)
-                units = 'psig'
-            else:
-                press_print = convert_psia_to_inHgVac(self.evaporator_list[i].vapor_pressure_psia)
-                units = 'inHg Vac'
+        LBL = 18
+        COL = 11
+        SEP = " | "
+        W   = LBL + len(SEP) + (COL + len(SEP)) * n
 
-            string_1 = f"Pressure in effect {i+1}: {self.evaporator_list[i].vapor_pressure_psia:.2f} psia.    {press_print:.2f} {units}"
-            string_2 = f"Brix Leaving effect {i+1}: {self.evaporator_list[i].juice_side_out.brix:.2f}"
-            string_3 = f"Syrup Out {i+1}: {self.evaporator_list[i].juice_side_out.flow_lb_per_hr:,.0f} lb/hr"
-            string_4 = f"Evaporated: {self.evaporator_list[i].lbs_evaporated_per_hr:,.0f}"
-            string_5 = f"Vapor Bleed: {self.evaporator_list[i].vapor_bleed.flow_lb_per_hr:,.0f}"
-            string_6 = f"Steam in: {self.evaporator_list[i].calandria_side.flow_lb_per_hr:,.0f}"
-            print(f"{string_1:<52} | {string_2:<30} | {string_3:<30} | {string_4:<22} | {string_5:<22} | {string_6}")
-        print(f"Average U Ratio: {self.U_ratio_avg:.3f}")
+        heavy = "=" * W
+        light = "-" * W
+
+        # ── Set summary ──────────────────────────────────────────────────
+        print(f"\n{heavy}")
+        print(f"  {self.name}")
+        print(f"{heavy}")
+        print(f"  Juice In     : {self.juice_in.flow_lb_per_hr:>12,.0f} lb/hr"
+              f"  |  {self.juice_in.brix:>6.2f} brix"
+              f"  |  {self.juice_in.temp_deg_F:>6.1f} deg F")
+        print(f"  Syrup Out    : {syrup_out.flow_lb_per_hr:>12,.0f} lb/hr"
+              f"  |  {syrup_out.brix:>6.2f} brix"
+              f"  |  {syrup_out.temp_deg_F:>6.1f} deg F")
+        print(f"  Steam Req'd  : {self.supply_steam.flow_lb_per_hr:>12,.0f} lb/hr"
+              f"  |  {self.supply_steam.P_psia:>6.2f} psia - {steam_psig:>6.2f} psig"
+              f"  |  {self.supply_steam.sat_temp_deg_F:>6.1f} deg F")
+        print(f"  Last Eff Vac : {last_vac:>6.2f} inHg")
+        print(f"  Avg U Ratio  : {self.U_ratio_avg:>6.3f}")
+
+        # ── Effect detail table ──────────────────────────────────────────
+        print(f"\n{light}")
+
+        def row(label, values, fmt="{:>11,.0f}"):
+            cells = SEP.join(fmt.format(v) for v in values)
+            print(f"{label:<{LBL}}{SEP}{cells}")
+
+        # header
+        hdrs = SEP.join(f"{'Effect ' + str(i+1):>{COL}}" for i in range(n))
+        print(f"{self.name:<{LBL}}{SEP}{hdrs}")
+        print(light)
+
+        row("juice in lb/hr",   [e.juice_side_in.flow_lb_per_hr        for e in ef])
+        row("syrup out lb/hr",  [e.juice_side_out.flow_lb_per_hr       for e in ef])
+        row("steam in lb/hr",   [e.calandria_side.flow_lb_per_hr       for e in ef])
+        row("evaporated lb/hr", [e.lbs_evaporated_per_hr               for e in ef])
+        row("vap bleed lb/hr",  [e.vapor_bleed.flow_lb_per_hr          for e in ef])
+        print(light)
+        row("brix in",          [e.juice_side_in.brix                  for e in ef], "{:>11.2f}")
+        row("brix out",         [e.juice_side_out.brix                 for e in ef], "{:>11.2f}")
+        row("juice temp deg F", [e.juice_side_in.temp_deg_F            for e in ef], "{:>11.1f}")
+        row("syrup temp deg F", [e.juice_side_out.temp_deg_F           for e in ef], "{:>11.1f}")
+        row("juice cp",         [e.juice_side_in.cp_btu_per_lb_deg_F  for e in ef], "{:>11.3f}")
+        row("syrup cp",         [e.juice_side_out.cp_btu_per_lb_deg_F for e in ef], "{:>11.3f}")
+        print(light)
+        row("vapor psia",       [e.vapor_pressure_psia                 for e in ef], "{:>11.2f}")
+        row("vapor temp deg F", [e.vapor_temperature                   for e in ef], "{:>11.1f}")
+        row("vapor h_fg BTU/lb",[e.vapor_out.h_fg                     for e in ef], "{:>11.1f}")
+        row("calandria psia",   [e.calandria_side.P_psia               for e in ef], "{:>11.2f}")
+        row("calandria deg F",  [e.calandria_side.sat_temp_deg_F       for e in ef], "{:>11.1f}")
+        row("cal h_fg BTU/lb",  [e.calandria_side.h_fg                 for e in ef], "{:>11.1f}")
+        print(light)
+        row("Duty MM BTU/hr",   [e.heat_duty_btu_per_hr / 1e6         for e in ef], "{:>11.3f}")
+        row("HS ft2",           [e.area_ft2                            for e in ef], "{:>11,.0f}")
+        row("U calc",           [e.heat_xfer_U                         for e in ef], "{:>11.1f}")
+        row("U Dessin",         [e.dessin_U                            for e in ef], "{:>11.1f}")
+        print(light)
+        print(f"  U is in BTU/(hr*ft2*degF)\n")
+
+        # ── Energy balance per effect ────────────────────────────────────
+        print(f"\n{light}")
+        print(f"  ENERGY BALANCE AT EACH EFFECT FOR: {self.name}")
+        print(light)
+        for i, e in enumerate(ef):
+            steam_flow  = e.calandria_side.flow_lb_per_hr
+            h_fg_steam  = e.calandria_side.h_fg
+            entering    = e.heat_duty_btu_per_hr / 1e6
+
+            juice_flow  = e.juice_side_in.flow_lb_per_hr
+            cp          = e.juice_side_in.cp_btu_per_lb_deg_F
+            T_in        = e.juice_side_in.temp_deg_F
+            T_out       = e.juice_side_out.temp_deg_F
+            sensible    = e.heat_from_flash / 1e6   # positive when flashing (T_in > T_out)
+
+            net         = e.heat_available_for_evaporation / 1e6
+            h_fg_vap    = e.juice_side_out.latent_heat_btu_per_lb
+            evap        = e.lbs_evaporated_per_hr
+
+            print(f"\n  Effect {i + 1}")
+            print(f"  {'Entering  ':<12}"
+                  f"  {steam_flow:>10,.0f} lb/hr"
+                  f" * {h_fg_steam:>7.1f} BTU/lb"
+                  f" / 10^6"
+                  f"  =  {entering:>8.3f} MM BTU/hr")
+            print(f"  {'Sensible  ':<12}"
+                  f"  {juice_flow:>10,.0f} lb/hr"
+                  f" * {cp:>5.3f} cp"
+                  f" * ({T_in:.1f} - {T_out:.1f}) degF"
+                  f" / 10^6"
+                  f"  =  {sensible:>8.3f} MM BTU/hr")
+            
+            print(f"  Net for Evaporation  -->  "
+                  f"{entering:.3f} + ({sensible:.3f})"
+                  f"  =  {net:.3f} MM BTU/hr")
+            print(f"  Evaporated  =  {net:.3f} MM BTU/hr * 10^6"
+                  f" / {h_fg_vap:.1f} BTU/lb"
+                  f"  =  {evap:,.0f} lb/hr")
+            print(f"  {'-' * (W - 2)}")
+        print(f"\n{light}\n")
 
     def check_material_balance(self):
         """Checks the material balance of the system"""

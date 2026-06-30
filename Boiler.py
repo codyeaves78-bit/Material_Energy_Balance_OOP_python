@@ -51,7 +51,7 @@ class Boiler:
     def steam_availabe_lb_hr(self):
         return self.steam_available_per_lb_bagasse * self.bagasse.flowrate_lb_hr
 
-    def display(self):
+    def neat_display(self):
         fw = self.feed_water_stream
         st = self.steam_stream
         pressure_psig = self.psia - 14.696
@@ -78,7 +78,8 @@ class Boiler:
         print(f"  {'--- Performance ---':^46}")
         print(f"  {'Heat to make 1 lb steam':<24} {self.btu_for_1_lb:>10.2f}  BTU/lb steam")
         print(f"  {'Steam/Bagasse Ratio':<24} {self.steam_available_per_lb_bagasse:>10.3f}  lb/lb")
-        print(f"  {'Steam Rate':<24} {self.steam_availabe_lb_hr:>10,.1f}  lb/hr")
+        print(f"  {'Steam Available from Bagasse':<24} {self.steam_availabe_lb_hr:>10,.1f}  lb/hr")
+        print(f"Rated Steam Capacity: {self.capacity:,.0f}")
         print("=" * 50)
 
 
@@ -86,17 +87,17 @@ if __name__ == "__main__":
     # Test 1: Default boiler — saturated steam
     print("\nTEST 1: Default — saturated steam")
     b1 = Boiler(name='Boiler 1')
-    b1.display()
+    b1.neat_display()
 
     # Test 2: Superheated steam
     print("\nTEST 2: Superheated +300°F")
     b2 = Boiler(pressure_psig=500, deg_superheat=400, feed_water_temp=230, efficiency=74, name='Boiler 2')
-    b2.display()
+    b2.neat_display()
 
     # Test 3: Production boiler with real bagasse flowrate
     print("\nTEST 3: Production — 125,000 lb/hr bagasse")
     real_bagasse = Bagasse(moisture_pct=49.0, brix_pct=3.2, pol_pct=1.8, ash_pct=4.0, flowrate_lb_hr=100_000)
     b3 = Boiler(bagasse=real_bagasse, efficiency=62, pressure_psig=180, feed_water_temp=230, name='Boiler 3')
-    b3.display()
+    b3.neat_display()
     real_bagasse.display()
 

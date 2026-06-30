@@ -5,6 +5,7 @@
 import functools
 import numpy as np
 from SteamStream import EvaporatorSteam
+from sugar_stream_properties import specific_gravity
 
 # --- BPR regression built once at import ---
 _PURITIES = [100,  90,   80,   70,   60  ]
@@ -67,12 +68,8 @@ class Massecuite:
     # Private helpers (temperature-parameterized, used during iteration)
     # ------------------------------------------------------------------
 
-    def _density_at(self, temp_F):
-        """Density (lb/ft³) at a given temperature — used inside solve loops."""
-        B = self.masse_brix
-        rho_20C = 0.99823 + 3.848e-3*B + 1.427e-5*B**2 + 1.5e-8*B**3
-        temp_C  = (temp_F - 32) * 5/9
-        return rho_20C * (1 - 4.1e-4 * (temp_C - 20)) * 62.428
+    def _density_at(self):
+        return specific_gravity(self.masse_brix) * 62.4
 
     def _sat_bpr_at(self, temp_F):
         """Saturation BPR (°F) at a given temperature — used inside solve loops."""
@@ -109,7 +106,7 @@ class Massecuite:
         P_vapor = self.vapor_pressure_psia
         T = EvaporatorSteam(P_vapor).sat_temp_deg_F + 20
         for _ in range(100):
-            delta_P       = self._density_at(T) * self.head_ft / 144
+            delta_P       = self._density_at() * self.head_ft / 144
             water_bp_head = EvaporatorSteam(P_vapor + delta_P).sat_temp_deg_F
             T_new         = water_bp_head + self.supersaturation * self._sat_bpr_at(T)
             if abs(T_new - T) < 1e-6:
@@ -161,8 +158,8 @@ class Massecuite:
 
     @property
     def density(self):
-        """Massecuite density at the converged head temperature (lb/ft³)."""
-        return self._density_at(self.massecuite_temp)
+        """Massecuite density."""
+        return self._density_at()
 
     @property
     def saturation_bpr(self):
@@ -219,6 +216,10 @@ class Massecuite:
         """Sucrose (pol) flow (lb/hr).  = masse_purity × masse_brix / 10000 × flow"""
         self._check_flow()
         return self.masse_purity * self.masse_brix / 10000 * self.flow_lb_hr
+    
+    @property
+    def cu_ft_hr(self):
+        return self.flow_lb_hr / self.density
 
     # ------------------------------------------------------------------
     # Dunder / display

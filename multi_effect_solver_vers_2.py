@@ -156,6 +156,7 @@ def solve_evaporator_sets(
             vapor_bleeds=cfg.get("vapor_bleeds", [0] * (n_eff - 1)),
             dessin_coefficient=cfg.get("dessin_coefficient", dessin_coefficient),
             liquid_level_ft=cfg.get("liquid_level_ft", liquid_level_ft),
+            name=cfg.get("name", f"Set {i + 1}"),
         )
         sets.append(evap_set)
 
@@ -215,14 +216,15 @@ def solve_evaporator_sets(
     # ── 6. Final summary ──────────────────────────────────────────────────
     elapsed = (time() - start) * 1000
     print(f"\n{'='*60}")
-    print(f"  FINAL RESULTS   ({elapsed:.1f} ms total)")
+    print(f"  EVAPORATION RESULTS   ({elapsed:.1f} ms total)")
     print(f"{'='*60}")
     for i, evap in enumerate(sets):
         flow = fracs[i] * juice_flow_lb_per_hr
         print(f"\n{set_names[i]}  —  {fracs[i]*100:.2f}% of juice  ({flow:,.0f} lb/hr)")
         print(25 * '-')
         evap.show_summary()
-
+    print(f"{'='*100}")
+    print(f"\n")
     return sets
 
 

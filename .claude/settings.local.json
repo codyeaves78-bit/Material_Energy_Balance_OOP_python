@@ -4,7 +4,9 @@
       "Bash(python Pan.py)",
       "Bash(python three_boiling_double_magma_OOP.py)",
       "Bash(git mv *)",
-      "Bash(python Deaerator.py)"
+      "Bash(python Deaerator.py)",
+      "Bash(python EvaporatorSet.py)",
+      "Bash(python EvaporatorSetIAPWS.py)"
     ]
   }
 }
