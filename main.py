@@ -34,6 +34,7 @@ from Deaerator import Deaerator
 from Turbine import Turbine
 from Boiler import Boiler
 from time import time
+from PreEvaporator import PreEvaporator
 
 start_time = time() * 1000 # in ms
 
@@ -146,6 +147,7 @@ secondary_heaters.neat_display()
 # Now for the Clarified Juice Heater
 # Note that a shell and tube heater for calculations is the same, will update this later on
 clar_juice_colder = SugarStream.copy(st_mary_clar.clarified_juice_stream) # so my temp update won't effect this heaters calculations
+
 clar_juice_heater = JuiceHeaterShellTube(
     cold_stream=clar_juice_colder, 
     hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia), # uses exhaust steam
@@ -229,10 +231,17 @@ pan_floor = ThreeBoilingDoubleMagma(
 # Now solve Evaporation since steam demands are known
 # No pre or clear juice heater in this balance
 # For tomorrow, add a Pre before the sets, distribute V1 accordingly
+"""
+pre_3 = PreEvaporator(
+    juice_in=st_mary_clar.clarified_juice_stream,
+    supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
+    vapor_bleed_lb_per_hr=primary_heaters.steam_required_lb_per_hr
+)
+"""
 
 # Define vapor demands
 v1_demand = (
-    primary_heaters.steam_required_lb_per_hr 
+     
     + pan_floor.A_pans.steam_flow_lb_hr 
     + pan_floor.C_pans.steam_flow_lb_hr
 )

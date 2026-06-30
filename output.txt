@@ -199,48 +199,48 @@ Diff                    -0                      0.0
 
 
 ============================================================
-  EVAPORATION RESULTS   (170.1 ms total)
+  EVAPORATION RESULTS   (231.5 ms total)
 ============================================================
 
-Set 1 (4-eff 25k ft²)  —  58.02% of juice  (925,552 lb/hr)
+Set 1 (4-eff 25k ft²)  —  58.02% of juice  (925,619 lb/hr)
 -------------------------
 
 =============================================================================
   Set 1 (4-eff 25k ft²)
 =============================================================================
-  Juice In     :      925,552 lb/hr  |   14.31 brix  |   225.0 deg F
-  Syrup Out    :      203,816 lb/hr  |   64.99 brix  |   148.9 deg F
-  Steam Req'd  :      300,501 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Juice In     :      925,619 lb/hr  |   14.31 brix  |   225.0 deg F
+  Syrup Out    :      203,818 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      245,355 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.099
+  Avg U Ratio  :  1.098
 
 -----------------------------------------------------------------------------
 Set 1 (4-eff 25k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
 -----------------------------------------------------------------------------
-juice in lb/hr     |     925,552 |     634,024 |     497,777 |     354,834
-syrup out lb/hr    |     634,024 |     497,777 |     354,834 |     203,816
-steam in lb/hr     |     300,501 |     129,552 |     136,247 |     142,942
-evaporated lb/hr   |     291,528 |     136,247 |     142,943 |     151,019
-vap bleed lb/hr    |     161,976 |           0 |           0 |           0
+juice in lb/hr     |     925,619 |     691,302 |     536,740 |     374,715
+syrup out lb/hr    |     691,302 |     536,740 |     374,715 |     203,818
+steam in lb/hr     |     245,355 |     146,876 |     154,562 |     162,024
+evaporated lb/hr   |     234,317 |     154,562 |     162,024 |     170,897
+vap bleed lb/hr    |      87,442 |           0 |           0 |           0
 -----------------------------------------------------------------------------
-brix in            |       14.31 |       20.89 |       26.61 |       37.33
-brix out           |       20.89 |       26.61 |       37.33 |       64.99
-juice temp deg F   |       225.0 |       229.9 |       216.1 |       196.1
-syrup temp deg F   |       229.9 |       216.1 |       196.1 |       148.9
-juice cp           |       0.915 |       0.878 |       0.846 |       0.785
-syrup cp           |       0.878 |       0.846 |       0.785 |       0.629
+brix in            |       14.31 |       19.16 |       24.68 |       35.35
+brix out           |       19.16 |       24.68 |       35.35 |       65.00
+juice temp deg F   |       225.0 |       234.0 |       219.6 |       199.0
+syrup temp deg F   |       234.0 |       219.6 |       199.0 |       148.9
+juice cp           |       0.915 |       0.888 |       0.857 |       0.796
+syrup cp           |       0.888 |       0.857 |       0.796 |       0.629
 -----------------------------------------------------------------------------
-vapor psia         |       19.96 |       15.01 |        9.59 |        2.40
-vapor temp deg F   |       227.8 |       213.0 |       191.2 |       132.8
-vapor h_fg BTU/lb  |       960.0 |       969.4 |       982.8 |      1017.4
-calandria psia     |       30.00 |       19.96 |       15.01 |        9.59
-calandria deg F    |       250.3 |       227.8 |       213.0 |       191.2
-cal h_fg BTU/lb    |       945.3 |       960.0 |       969.4 |       982.8
+vapor psia         |       21.56 |       16.16 |       10.26 |        2.40
+vapor temp deg F   |       232.0 |       216.8 |       194.4 |       132.8
+vapor h_fg BTU/lb  |       957.3 |       967.0 |       980.9 |      1017.4
+calandria psia     |       30.00 |       21.56 |       16.16 |       10.26
+calandria deg F    |       250.3 |       232.0 |       216.8 |       194.4
+cal h_fg BTU/lb    |       945.3 |       957.3 |       967.0 |       980.9
 -----------------------------------------------------------------------------
-Duty MM BTU/hr     |     284.055 |     124.368 |     132.071 |     140.490
+Duty MM BTU/hr     |     231.926 |     140.606 |     149.461 |     158.928
 HS ft2             |      25,000 |      25,000 |      25,000 |      25,000
-U calc             |       557.9 |       424.9 |       312.3 |       133.0
-U Dessin           |       507.6 |       386.6 |       284.1 |       121.0
+U calc             |       568.0 |       453.1 |       335.7 |       139.8
+U Dessin           |       517.3 |       412.6 |       305.7 |       127.4
 -----------------------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
 
@@ -250,75 +250,75 @@ U Dessin           |       507.6 |       386.6 |       284.1 |       121.0
 -----------------------------------------------------------------------------
 
   Effect 1
-  Entering         300,501 lb/hr *   945.3 BTU/lb / 10^6  =   284.055 MM BTU/hr
-  Sensible         925,552 lb/hr * 0.915 cp * (225.0 - 229.9) degF / 10^6  =    -4.193 MM BTU/hr
-  Net for Evaporation  -->  284.055 + (-4.193)  =  279.862 MM BTU/hr
-  Evaporated  =  279.862 MM BTU/hr * 10^6 / 960.0 BTU/lb  =  291,528 lb/hr
+  Entering         245,355 lb/hr *   945.3 BTU/lb / 10^6  =   231.926 MM BTU/hr
+  Sensible         925,619 lb/hr * 0.915 cp * (225.0 - 234.0) degF / 10^6  =    -7.611 MM BTU/hr
+  Net for Evaporation  -->  231.926 + (-7.611)  =  224.315 MM BTU/hr
+  Evaporated  =  224.315 MM BTU/hr * 10^6 / 957.3 BTU/lb  =  234,317 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 2
-  Entering         129,552 lb/hr *   960.0 BTU/lb / 10^6  =   124.368 MM BTU/hr
-  Sensible         634,024 lb/hr * 0.878 cp * (229.9 - 216.1) degF / 10^6  =     7.704 MM BTU/hr
-  Net for Evaporation  -->  124.368 + (7.704)  =  132.072 MM BTU/hr
-  Evaporated  =  132.072 MM BTU/hr * 10^6 / 969.4 BTU/lb  =  136,247 lb/hr
+  Entering         146,876 lb/hr *   957.3 BTU/lb / 10^6  =   140.606 MM BTU/hr
+  Sensible         691,302 lb/hr * 0.888 cp * (234.0 - 219.6) degF / 10^6  =     8.855 MM BTU/hr
+  Net for Evaporation  -->  140.606 + (8.855)  =  149.462 MM BTU/hr
+  Evaporated  =  149.462 MM BTU/hr * 10^6 / 967.0 BTU/lb  =  154,562 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 3
-  Entering         136,247 lb/hr *   969.4 BTU/lb / 10^6  =   132.071 MM BTU/hr
-  Sensible         497,777 lb/hr * 0.846 cp * (216.1 - 196.1) degF / 10^6  =     8.420 MM BTU/hr
-  Net for Evaporation  -->  132.071 + (8.420)  =  140.491 MM BTU/hr
-  Evaporated  =  140.491 MM BTU/hr * 10^6 / 982.8 BTU/lb  =  142,943 lb/hr
+  Entering         154,562 lb/hr *   967.0 BTU/lb / 10^6  =   149.461 MM BTU/hr
+  Sensible         536,740 lb/hr * 0.857 cp * (219.6 - 199.0) degF / 10^6  =     9.467 MM BTU/hr
+  Net for Evaporation  -->  149.461 + (9.467)  =  158.929 MM BTU/hr
+  Evaporated  =  158.929 MM BTU/hr * 10^6 / 980.9 BTU/lb  =  162,024 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 4
-  Entering         142,942 lb/hr *   982.8 BTU/lb / 10^6  =   140.490 MM BTU/hr
-  Sensible         354,834 lb/hr * 0.785 cp * (196.1 - 148.9) degF / 10^6  =    13.154 MM BTU/hr
-  Net for Evaporation  -->  140.490 + (13.154)  =  153.644 MM BTU/hr
-  Evaporated  =  153.644 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  151,019 lb/hr
+  Entering         162,024 lb/hr *   980.9 BTU/lb / 10^6  =   158.928 MM BTU/hr
+  Sensible         374,715 lb/hr * 0.796 cp * (199.0 - 148.9) degF / 10^6  =    14.940 MM BTU/hr
+  Net for Evaporation  -->  158.928 + (14.940)  =  173.869 MM BTU/hr
+  Evaporated  =  173.869 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  170,897 lb/hr
   ---------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
 
 
-Set 2 (4-eff 12k ft²)  —  27.84% of juice  (444,125 lb/hr)
+Set 2 (4-eff 12k ft²)  —  27.85% of juice  (444,251 lb/hr)
 -------------------------
 
 =============================================================================
   Set 2 (4-eff 12k ft²)
 =============================================================================
-  Juice In     :      444,125 lb/hr  |   14.31 brix  |   225.0 deg F
-  Syrup Out    :       97,789 lb/hr  |   65.00 brix  |   148.9 deg F
-  Steam Req'd  :      151,235 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Juice In     :      444,251 lb/hr  |   14.31 brix  |   225.0 deg F
+  Syrup Out    :       97,816 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      121,543 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.099
+  Avg U Ratio  :  1.098
 
 -----------------------------------------------------------------------------
 Set 2 (4-eff 12k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
 -----------------------------------------------------------------------------
-juice in lb/hr     |     444,125 |     296,947 |     233,897 |     167,730
-syrup out lb/hr    |     296,947 |     233,897 |     167,730 |      97,789
-steam in lb/hr     |     151,235 |      59,960 |      63,050 |      66,167
-evaporated lb/hr   |     147,178 |      63,050 |      66,167 |      69,941
-vap bleed lb/hr    |      87,218 |           0 |           0 |           0
+juice in lb/hr     |     444,251 |     327,859 |     254,931 |     178,476
+syrup out lb/hr    |     327,859 |     254,931 |     178,476 |      97,816
+steam in lb/hr     |     121,543 |      69,308 |      72,927 |      76,456
+evaporated lb/hr   |     116,392 |      72,927 |      76,456 |      80,659
+vap bleed lb/hr    |      47,084 |           0 |           0 |           0
 -----------------------------------------------------------------------------
-brix in            |       14.31 |       21.41 |       27.18 |       37.90
-brix out           |       21.41 |       27.18 |       37.90 |       65.00
-juice temp deg F   |       225.0 |       228.8 |       215.2 |       195.3
-syrup temp deg F   |       228.8 |       215.2 |       195.3 |       148.9
-juice cp           |       0.915 |       0.875 |       0.843 |       0.782
-syrup cp           |       0.875 |       0.843 |       0.782 |       0.629
+brix in            |       14.31 |       19.39 |       24.94 |       35.62
+brix out           |       19.39 |       24.94 |       35.62 |       65.00
+juice temp deg F   |       225.0 |       233.4 |       219.1 |       198.6
+syrup temp deg F   |       233.4 |       219.1 |       198.6 |       148.9
+juice cp           |       0.915 |       0.887 |       0.855 |       0.795
+syrup cp           |       0.887 |       0.855 |       0.795 |       0.629
 -----------------------------------------------------------------------------
-vapor psia         |       19.53 |       14.71 |        9.41 |        2.40
-vapor temp deg F   |       226.7 |       212.0 |       190.3 |       132.8
-vapor h_fg BTU/lb  |       960.7 |       970.0 |       983.4 |      1017.4
-calandria psia     |       30.00 |       19.53 |       14.71 |        9.41
-calandria deg F    |       250.3 |       226.7 |       212.0 |       190.3
-cal h_fg BTU/lb    |       945.3 |       960.7 |       970.0 |       983.4
+vapor psia         |       21.33 |       15.99 |       10.16 |        2.40
+vapor temp deg F   |       231.4 |       216.3 |       193.9 |       132.8
+vapor h_fg BTU/lb  |       957.7 |       967.3 |       981.2 |      1017.4
+calandria psia     |       30.00 |       21.33 |       15.99 |       10.16
+calandria deg F    |       250.3 |       231.4 |       216.3 |       193.9
+cal h_fg BTU/lb    |       945.3 |       957.7 |       967.3 |       981.2
 -----------------------------------------------------------------------------
-Duty MM BTU/hr     |     142.957 |      57.605 |      61.159 |      65.068
+Duty MM BTU/hr     |     114.891 |      66.375 |      70.545 |      75.016
 HS ft2             |      12,000 |      12,000 |      12,000 |      12,000
-U calc             |       554.7 |       417.0 |       305.8 |       131.1
-U Dessin           |       504.7 |       379.4 |       278.2 |       119.2
+U calc             |       566.6 |       449.1 |       332.4 |       138.9
+U Dessin           |       516.0 |       409.0 |       302.7 |       126.5
 -----------------------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
 
@@ -328,59 +328,59 @@ U Dessin           |       504.7 |       379.4 |       278.2 |       119.2
 -----------------------------------------------------------------------------
 
   Effect 1
-  Entering         151,235 lb/hr *   945.3 BTU/lb / 10^6  =   142.957 MM BTU/hr
-  Sensible         444,125 lb/hr * 0.915 cp * (225.0 - 228.8) degF / 10^6  =    -1.561 MM BTU/hr
-  Net for Evaporation  -->  142.957 + (-1.561)  =  141.396 MM BTU/hr
-  Evaporated  =  141.396 MM BTU/hr * 10^6 / 960.7 BTU/lb  =  147,178 lb/hr
+  Entering         121,543 lb/hr *   945.3 BTU/lb / 10^6  =   114.891 MM BTU/hr
+  Sensible         444,251 lb/hr * 0.915 cp * (225.0 - 233.4) degF / 10^6  =    -3.424 MM BTU/hr
+  Net for Evaporation  -->  114.891 + (-3.424)  =  111.467 MM BTU/hr
+  Evaporated  =  111.467 MM BTU/hr * 10^6 / 957.7 BTU/lb  =  116,392 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 2
-  Entering          59,960 lb/hr *   960.7 BTU/lb / 10^6  =    57.605 MM BTU/hr
-  Sensible         296,947 lb/hr * 0.875 cp * (228.8 - 215.2) degF / 10^6  =     3.554 MM BTU/hr
-  Net for Evaporation  -->  57.605 + (3.554)  =  61.159 MM BTU/hr
-  Evaporated  =  61.159 MM BTU/hr * 10^6 / 970.0 BTU/lb  =  63,050 lb/hr
+  Entering          69,308 lb/hr *   957.7 BTU/lb / 10^6  =    66.375 MM BTU/hr
+  Sensible         327,859 lb/hr * 0.887 cp * (233.4 - 219.1) degF / 10^6  =     4.170 MM BTU/hr
+  Net for Evaporation  -->  66.375 + (4.170)  =  70.545 MM BTU/hr
+  Evaporated  =  70.545 MM BTU/hr * 10^6 / 967.3 BTU/lb  =  72,927 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 3
-  Entering          63,050 lb/hr *   970.0 BTU/lb / 10^6  =    61.159 MM BTU/hr
-  Sensible         233,897 lb/hr * 0.843 cp * (215.2 - 195.3) degF / 10^6  =     3.909 MM BTU/hr
-  Net for Evaporation  -->  61.159 + (3.909)  =  65.068 MM BTU/hr
-  Evaporated  =  65.068 MM BTU/hr * 10^6 / 983.4 BTU/lb  =  66,167 lb/hr
+  Entering          72,927 lb/hr *   967.3 BTU/lb / 10^6  =    70.545 MM BTU/hr
+  Sensible         254,931 lb/hr * 0.855 cp * (219.1 - 198.6) degF / 10^6  =     4.471 MM BTU/hr
+  Net for Evaporation  -->  70.545 + (4.471)  =  75.016 MM BTU/hr
+  Evaporated  =  75.016 MM BTU/hr * 10^6 / 981.2 BTU/lb  =  76,456 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 4
-  Entering          66,167 lb/hr *   983.4 BTU/lb / 10^6  =    65.068 MM BTU/hr
-  Sensible         167,730 lb/hr * 0.782 cp * (195.3 - 148.9) degF / 10^6  =     6.090 MM BTU/hr
-  Net for Evaporation  -->  65.068 + (6.090)  =  71.157 MM BTU/hr
-  Evaporated  =  71.157 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  69,941 lb/hr
+  Entering          76,456 lb/hr *   981.2 BTU/lb / 10^6  =    75.016 MM BTU/hr
+  Sensible         178,476 lb/hr * 0.795 cp * (198.6 - 148.9) degF / 10^6  =     7.045 MM BTU/hr
+  Net for Evaporation  -->  75.016 + (7.045)  =  82.061 MM BTU/hr
+  Evaporated  =  82.061 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  80,659 lb/hr
   ---------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
 
 
-Set 3 (3-eff 11-9k ft²)  —  14.15% of juice  (225,671 lb/hr)
+Set 3 (3-eff 11-9k ft²)  —  14.13% of juice  (225,479 lb/hr)
 -------------------------
 
 ===============================================================
   Set 3 (3-eff 11-9k ft²)
 ===============================================================
-  Juice In     :      225,671 lb/hr  |   14.31 brix  |   225.0 deg F
-  Syrup Out    :       49,686 lb/hr  |   65.00 brix  |   148.9 deg F
-  Steam Req'd  :       55,290 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
+  Juice In     :      225,479 lb/hr  |   14.31 brix  |   225.0 deg F
+  Syrup Out    :       49,646 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       55,242 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.099
+  Avg U Ratio  :  1.098
 
 ---------------------------------------------------------------
 Set 3 (3-eff 11-9k ft²) |    Effect 1 |    Effect 2 |    Effect 3
 ---------------------------------------------------------------
-juice in lb/hr     |     225,671 |     169,270 |     110,665
-syrup out lb/hr    |     169,270 |     110,665 |      49,686
-steam in lb/hr     |      55,290 |      56,401 |      58,605
-evaporated lb/hr   |      56,401 |      58,605 |      60,978
+juice in lb/hr     |     225,479 |     169,127 |     110,572
+syrup out lb/hr    |     169,127 |     110,572 |      49,646
+steam in lb/hr     |      55,242 |      56,353 |      58,555
+evaporated lb/hr   |      56,353 |      58,555 |      60,926
 vap bleed lb/hr    |           0 |           0 |           0
 ---------------------------------------------------------------
-brix in            |       14.31 |       19.08 |       29.19
-brix out           |       19.08 |       29.19 |       65.00
+brix in            |       14.31 |       19.08 |       29.18
+brix out           |       19.08 |       29.18 |       65.00
 juice temp deg F   |       225.0 |       217.6 |       198.4
 syrup temp deg F   |       217.6 |       198.4 |       148.9
 juice cp           |       0.915 |       0.888 |       0.831
@@ -393,9 +393,9 @@ calandria psia     |       20.00 |       15.67 |       10.28
 calandria deg F    |       227.9 |       215.2 |       194.5
 cal h_fg BTU/lb    |       959.9 |       968.0 |       980.8
 ---------------------------------------------------------------
-Duty MM BTU/hr     |      53.073 |      54.595 |      57.482
+Duty MM BTU/hr     |      53.028 |      54.548 |      57.432
 HS ft2             |      11,000 |       9,000 |       9,000
-U calc             |       468.4 |       361.5 |       140.2
+U calc             |       468.0 |       361.1 |       140.1
 U Dessin           |       426.2 |       328.9 |       127.5
 ---------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
@@ -406,24 +406,24 @@ U Dessin           |       426.2 |       328.9 |       127.5
 ---------------------------------------------------------------
 
   Effect 1
-  Entering          55,290 lb/hr *   959.9 BTU/lb / 10^6  =    53.073 MM BTU/hr
-  Sensible         225,671 lb/hr * 0.915 cp * (225.0 - 217.6) degF / 10^6  =     1.522 MM BTU/hr
-  Net for Evaporation  -->  53.073 + (1.522)  =  54.595 MM BTU/hr
-  Evaporated  =  54.595 MM BTU/hr * 10^6 / 968.0 BTU/lb  =  56,401 lb/hr
+  Entering          55,242 lb/hr *   959.9 BTU/lb / 10^6  =    53.028 MM BTU/hr
+  Sensible         225,479 lb/hr * 0.915 cp * (225.0 - 217.6) degF / 10^6  =     1.521 MM BTU/hr
+  Net for Evaporation  -->  53.028 + (1.521)  =  54.548 MM BTU/hr
+  Evaporated  =  54.548 MM BTU/hr * 10^6 / 968.0 BTU/lb  =  56,353 lb/hr
   -------------------------------------------------------------
 
   Effect 2
-  Entering          56,401 lb/hr *   968.0 BTU/lb / 10^6  =    54.595 MM BTU/hr
-  Sensible         169,270 lb/hr * 0.888 cp * (217.6 - 198.4) degF / 10^6  =     2.887 MM BTU/hr
-  Net for Evaporation  -->  54.595 + (2.887)  =  57.482 MM BTU/hr
-  Evaporated  =  57.482 MM BTU/hr * 10^6 / 980.8 BTU/lb  =  58,605 lb/hr
+  Entering          56,353 lb/hr *   968.0 BTU/lb / 10^6  =    54.548 MM BTU/hr
+  Sensible         169,127 lb/hr * 0.888 cp * (217.6 - 198.4) degF / 10^6  =     2.884 MM BTU/hr
+  Net for Evaporation  -->  54.548 + (2.884)  =  57.432 MM BTU/hr
+  Evaporated  =  57.432 MM BTU/hr * 10^6 / 980.8 BTU/lb  =  58,555 lb/hr
   -------------------------------------------------------------
 
   Effect 3
-  Entering          58,605 lb/hr *   980.8 BTU/lb / 10^6  =    57.482 MM BTU/hr
-  Sensible         110,665 lb/hr * 0.831 cp * (198.4 - 148.9) degF / 10^6  =     4.556 MM BTU/hr
-  Net for Evaporation  -->  57.482 + (4.556)  =  62.038 MM BTU/hr
-  Evaporated  =  62.038 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  60,978 lb/hr
+  Entering          58,555 lb/hr *   980.8 BTU/lb / 10^6  =    57.432 MM BTU/hr
+  Sensible         110,572 lb/hr * 0.831 cp * (198.4 - 148.9) degF / 10^6  =     4.553 MM BTU/hr
+  Net for Evaporation  -->  57.432 + (4.553)  =  61.985 MM BTU/hr
+  Evaporated  =  61.985 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  60,926 lb/hr
   -------------------------------------------------------------
 
 ---------------------------------------------------------------
@@ -583,620 +583,240 @@ U Dessin           |       426.2 |       328.9 |       127.5
 ===================================================================================================================
 
 
-Exhaust for Evaporators: 507,026 lb/hr
+Exhaust for Evaporators: 422,140 lb/hr
 Exhausr for Pans: 59,094 lb/hr
 Exhaust for Heaters: 147,571 lb/hr
 Exhaust for Deaerator: 34,753 lb/hr
-Exhaust Losses: 37,422 lb/hr
-Total Exhaust: 785,866 lb/hr
+Exhaust Losses: 33,178 lb/hr
+Total Exhaust: 696,736 lb/hr
 
 
 ==============================================================
                   TURBINE  —  KNIFE NUMBER 1                  
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  180.0 psia
-  Inlet Temperature                                 373.1 °F
-  Inlet Enthalpy (h_in)                      1,197.30 BTU/lb
-  Inlet Entropy (s_in)                      1.5549 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.36 BTU/lb
-  Outlet Enthalpy (isen.)                    1,061.43 BTU/lb
-  Exhaust Quality                                     0.9632
-  Exhaust for Process                           55,987 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             67.94 BTU/lb
-  Steam Rate                                  37.46 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           58,125 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     180.0 |      373.1 |         1,197.30 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.36 |   0.9632  
 ==============================================================
-
+Steam Rate: 37.46 lb/HP-hr  |  HP: 1,552  |  Flow: 58,125 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 55,987 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  KNIFE NUMBER 2                  
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  180.0 psia
-  Inlet Temperature                                 373.1 °F
-  Inlet Enthalpy (h_in)                      1,197.30 BTU/lb
-  Inlet Entropy (s_in)                      1.5549 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.36 BTU/lb
-  Outlet Enthalpy (isen.)                    1,061.43 BTU/lb
-  Exhaust Quality                                     0.9632
-  Exhaust for Process                           55,987 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             67.94 BTU/lb
-  Steam Rate                                  37.46 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           58,125 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     180.0 |      373.1 |         1,197.30 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.36 |   0.9632  
 ==============================================================
-
+Steam Rate: 37.46 lb/HP-hr  |  HP: 1,552  |  Flow: 58,125 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 55,987 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  KNIFE NUMBER 3                  
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  180.0 psia
-  Inlet Temperature                                 373.1 °F
-  Inlet Enthalpy (h_in)                      1,197.30 BTU/lb
-  Inlet Entropy (s_in)                      1.5549 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.36 BTU/lb
-  Outlet Enthalpy (isen.)                    1,061.43 BTU/lb
-  Exhaust Quality                                     0.9632
-  Exhaust for Process                           55,987 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             67.94 BTU/lb
-  Steam Rate                                  37.46 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           58,125 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     180.0 |      373.1 |         1,197.30 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.36 |   0.9632  
 ==============================================================
-
+Steam Rate: 37.46 lb/HP-hr  |  HP: 1,552  |  Flow: 58,125 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 55,987 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 1                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           65,028 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,773 HP
-  Steam Flow Required                           67,466 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,773  |  Flow: 67,466 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 65,028 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 2                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           56,900 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           59,032 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,552  |  Flow: 59,032 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 56,900 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 3                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           56,900 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           59,032 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,552  |  Flow: 59,032 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 56,900 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 4                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           56,900 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           59,032 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,552  |  Flow: 59,032 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 56,900 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 5                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           56,900 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,552 HP
-  Steam Flow Required                           59,032 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,552  |  Flow: 59,032 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 56,900 lb/hr
+==============================================================
 ==============================================================
                   TURBINE  —  MILL NUMBER 6                   
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           65,028 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,773 HP
-  Steam Flow Required                           67,466 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,773  |  Flow: 67,466 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 65,028 lb/hr
+==============================================================
 ==============================================================
                     TURBINE  —  123 ID FAN                    
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           27,503 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           750 HP
-  Steam Flow Required                           28,533 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 750  |  Flow: 28,533 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 27,503 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  4 ID FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                            8,617 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           235 HP
-  Steam Flow Required                            8,940 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 235  |  Flow: 8,940 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 8,617 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  5 ID FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           14,668 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           400 HP
-  Steam Flow Required                           15,218 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 400  |  Flow: 15,218 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 14,668 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  6 ID FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           29,153 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           795 HP
-  Steam Flow Required                           30,245 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 795  |  Flow: 30,245 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 29,153 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  7 FD FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                            8,544 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           233 HP
-  Steam Flow Required                            8,864 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 233  |  Flow: 8,864 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 8,544 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  7 ID FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           44,004 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,200 HP
-  Steam Flow Required                           45,653 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,200  |  Flow: 45,653 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 44,004 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  8 FD FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           12,835 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           350 HP
-  Steam Flow Required                           13,316 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 350  |  Flow: 13,316 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 12,835 lb/hr
+==============================================================
 ==============================================================
                      TURBINE  —  8 ID FAN                     
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           47,671 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                         1,300 HP
-  Steam Flow Required                           49,458 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 1,300  |  Flow: 49,458 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 47,671 lb/hr
+==============================================================
 ==============================================================
              TURBINE  —  BOILER FEED WATER PUMP 1             
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           14,668 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           400 HP
-  Steam Flow Required                           15,218 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 400  |  Flow: 15,218 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 14,668 lb/hr
+==============================================================
 ==============================================================
              TURBINE  —  BOILER FEED WATER PUMP 2             
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           14,668 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           400 HP
-  Steam Flow Required                           15,218 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 400  |  Flow: 15,218 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 14,668 lb/hr
+==============================================================
 ==============================================================
                  TURBINE  —  LIMED JUICE PUMP                 
 ==============================================================
-
-  INLET CONDITIONS
---------------------------------------------------------------
-  Inlet Pressure                                  175.0 psia
-  Inlet Temperature                                 370.8 °F
-  Inlet Enthalpy (h_in)                      1,196.89 BTU/lb
-  Inlet Entropy (s_in)                      1.5572 BTU/lb·°R
-
-  OUTLET CONDITIONS
---------------------------------------------------------------
-  Outlet Pressure                                  30.0 psia
-  Outlet Temperature                                250.3 °F
-  Outlet Enthalpy (actual)                   1,129.99 BTU/lb
-  Outlet Enthalpy (isen.)                    1,063.10 BTU/lb
-  Exhaust Quality                                     0.9639
-  Exhaust for Process                           14,668 lb/hr
-
-  PERFORMANCE
---------------------------------------------------------------
-  Isentropic Efficiency                                50.0%
-  Work per lb Steam                             66.90 BTU/lb
-  Steam Rate                                  38.04 lb/HP-hr
-  HP Demand                                           400 HP
-  Steam Flow Required                           15,218 lb/hr
-
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality  
+------+-----------+------------+------------------+-----------
+   IN |     175.0 |      370.8 |         1,196.89 | Superheat 
+  OUT |      30.0 |      250.3 |         1,129.99 |   0.9639  
 ==============================================================
-
+Steam Rate: 38.04 lb/HP-hr  |  HP: 400  |  Flow: 15,218 lb/hr  |  Eff: 50.0%
+Exhaust for Process: 14,668 lb/hr
+==============================================================
 
 Steam Summary
 Total Live Steam Demand:           857,134 lb/hr
-Exhaust Required:                  785,866 lb/hr
+Exhaust Required:                  696,736 lb/hr
 Exhaust Available from turbines:   762,616 lb/hr
-Makeup Required:                   23,251 lb/hr
+Makeup Required:                   0 lb/hr
 ==================================================
                BOILER — All Boilers               
 ==================================================
@@ -1223,4 +843,4 @@ Rated Steam Capacity: 900,000
 ==================================================
 
 
-Time to solve factory balance 1,123.45 ms
+Time to solve factory balance 895.79 ms
