@@ -1,4 +1,5 @@
 # Evaporator class for modeling steam evaporator behavior and multiple effect evaporators
+from Condenser import Condenser
 from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam, SteamStream
 from Evaporator import Evaporator
@@ -10,7 +11,73 @@ import time
 from statistics import stdev
 
 class EvaporatorSet:
-    """Class to represent a set of evaporators"""
+    """
+    Model of a multiple-effect evaporator set.
+
+    Solves the rigorous heat and material balance across all effects, iterating
+    on steam flow (to hit a target syrup brix) and on the pressure profile
+    (to equalise U ratios across effects per the Dessin equation).
+
+    Examples
+    --------
+    Basic triple effect, no bleeds::
+
+        from EvaporatorSet import EvaporatorSet
+        from SugarStream import SugarStream
+        from SteamStream import EvaporatorSteam
+        from evaporator_functions import convert_inHg_vacuum_to_psia, convert_psig_to_psia
+
+        juice = SugarStream(brix=12, purity=90, flow_lb_per_hr=200_000,
+                            temp_deg_F=225, pressure_psia=60, level_ft=0)
+        steam = EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0)
+
+        evap_set = EvaporatorSet(
+            juice_in=juice,
+            supply_steam=steam,
+            last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
+            target_brix_out=60,
+            effect_areas_ft2=[4800, 4800, 4800],
+            name="Triple Effect",
+        )
+        evap_set.adjust_pressure_profile()
+        evap_set.show_summary()
+        evap_set.generate_pfd()
+
+    With vapor bleeds (first-effect bleed to heaters and pans)::
+
+        evap_set = EvaporatorSet(
+            juice_in=juice,
+            supply_steam=steam,
+            last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
+            target_brix_out=60,
+            effect_areas_ft2=[8800, 3100, 3100],
+            vapor_bleeds=[31_357 + 3_895 + 28_108],
+            name="Triple — V1 Bleed",
+        )
+        evap_set.adjust_pressure_profile()
+        evap_set.show_summary()
+
+    With a pre-evaporator::
+
+        from PreEvaporator import PreEvaporator
+
+        pre = PreEvaporator(
+            juice_in=juice,
+            supply_steam=EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0),
+            vapor_bleed_lb_per_hr=35_252,
+            area_ft2=3_300,
+        )
+        evap_set = EvaporatorSet(
+            juice_in=pre.juice_out,
+            supply_steam=steam,
+            last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
+            target_brix_out=60,
+            effect_areas_ft2=[3800, 3800, 3800],
+            name="Pre-evap + Triple",
+        )
+        evap_set.adjust_pressure_profile()
+        evap_set.generate_pfd(pre_evap=pre)
+    """
     def __init__(self, juice_in: SugarStream,
                  supply_steam: EvaporatorSteam,
                  last_effect_pressure_psia=2.4,
@@ -19,6 +86,7 @@ class EvaporatorSet:
                  vapor_bleeds=[0, 0],
                  dessin_coefficient=18000,
                  liquid_level_ft=2,
+                 injection_water_temp_F=90,
                  name: str = 'Evaporator Set'):
         """initialize class"""
         self.name = name
@@ -30,6 +98,7 @@ class EvaporatorSet:
         self.vapor_bleeds = vapor_bleeds
         self.dessin_coefficient = dessin_coefficient
         self.liquid_level_ft = liquid_level_ft
+        self.injection_water_temp_F = injection_water_temp_F
         self.number_of_effects = len(self.effect_areas_ft2)
         # 1. Package the shared arguments into a temporary dictionary
         evap_args = {
@@ -196,6 +265,17 @@ class EvaporatorSet:
         u_rat_list = [self.evaporator_list[i].U_ratio for i in range(self.number_of_effects)]
         u_avg = sum(u_rat_list) / self.number_of_effects
         return u_avg
+    
+    @property
+    def condenser(self):
+        """Returns a Condenser object for the last effect's vapor"""
+        last_effect_vapor = self.evaporator_list[-1].vapor_out
+        return Condenser(vapor=last_effect_vapor, water_inlet_temp_F=self.injection_water_temp_F)
+
+    def generate_pfd(self, show: bool = True, save_path: str = None, pre_evap=None):
+        """Render the process flow diagram. Pass a solved PreEvaporator to include it on the same figure."""
+        from evaporator_diagram import plot_set_diagram  # lazy import avoids circular dependency
+        return plot_set_diagram(self, set_name=self.name, show=show, save_path=save_path, pre_evap=pre_evap)
 
     def show_brix_list_actual(self):
         print(f"Brix of Entering Juice: {self.juice_in.brix}")
@@ -394,24 +474,88 @@ class EvaporatorSet:
 
 
 if __name__ == "__main__":
-    test_set = EvaporatorSet(
-        juice_in=SugarStream(brix=12, purity=90, flow_lb_per_hr=200_000, temp_deg_F=225, pressure_psia=60, level_ft=0),
-        supply_steam=EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0),
-        last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
-        target_brix_out=60,
-        effect_areas_ft2=[8800, 3100, 3100],
-        vapor_bleeds=[31357+3895+28108],
-        dessin_coefficient=18000,
-        liquid_level_ft=2
-    )
+    from PreEvaporator import PreEvaporator
 
-    start_time = time.time()
-    # test_set.manually_set_pressures([23.252, 16.698, 9.769]) # for trouble shooting
-    test_set.adjust_pressure_profile()
-    test_set.show_me_evaporator_details()
-    test_set.check_material_balance()
-    test_set.check_energy_balance()
-    test_set.show_summary()
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"Execution time: {execution_time:.8f} seconds")
+    # ── Birkett (1978) — 13 Evaporator Cases ─────────────────────────────────
+    # Basis: 200,000 lb/hr clarified juice @ 12° Brix, 225°F, purity 90;
+    #        20 psig supply steam; 26" Hg vacuum last effect; 60° Brix syrup target;
+    #        Dessin K = 20,000 (per paper); 100°F injection water.
+    # Cases 4, 5, 10 include a pre-evaporator — the pre-evap is solved first and
+    # its juice_out is passed as juice_in to the main EvaporatorSet.
+
+    LAST_PSIA  = convert_inHg_vacuum_to_psia(26)
+    STEAM_PSIA = convert_psig_to_psia(20)
+
+    def _j(brix=12.0, flow=200_000, temp=225):
+        return SugarStream(brix=brix, purity=90, flow_lb_per_hr=flow,
+                           temp_deg_F=temp, pressure_psia=60, level_ft=0)
+
+    # pre_evap: None, or dict(area_ft2=..., bleed=...) where bleed is total vapor bleed lb/hr
+    CASES = {
+         1: dict(desc="Straight Triple Effect",               areas=[4800, 4800, 4800],               bleeds=[0],                            pre_evap=None),
+         2: dict(desc="Triple — V1 bleed (heaters)",          areas=[6700, 3900, 3900],               bleeds=[31_357+3_895],                  pre_evap=None),
+         3: dict(desc="Triple — V1 bleed (heaters + pans)",   areas=[8800, 3100, 3100],               bleeds=[31_357+3_895+28_108],           pre_evap=None),
+         4: dict(desc="Pre-evap + Triple",                    areas=[3800, 3800, 3800],               bleeds=[0],                            pre_evap=dict(area_ft2=3_300, bleed=31_357+3_895)),
+         5: dict(desc="Pre-evap + Triple, pan bleed",         areas=[3000, 3000, 3000],               bleeds=[0],                            pre_evap=dict(area_ft2=5_900, bleed=31_357+3_895+28_108)),
+         6: dict(desc="Straight Quadruple Effect",            areas=[5100, 5100, 5100, 5100],         bleeds=[0],                            pre_evap=None),
+         7: dict(desc="Quadruple — V1 bleed (heaters)",       areas=[5900, 4600, 4600, 4600],         bleeds=[31_357+3_895],                  pre_evap=None),
+         8: dict(desc="Quadruple — V1 bleed (heaters + pans)",areas=[8200, 3650, 3650, 3650],         bleeds=[31_357+3_895+28_108],           pre_evap=None),
+         9: dict(desc="Quadruple — V1+V2 double-robbed",      areas=[7750, 6250, 3125, 3125],         bleeds=[8_959+3_895+28_108, 22_120],    pre_evap=None),
+        10: dict(desc="Pre-evap + Quadruple, pan bleed",      areas=[3200, 3200, 3200, 3200],         bleeds=[0],                            pre_evap=dict(area_ft2=5_900, bleed=31_357+3_895+28_108)),
+        11: dict(desc="Straight Quintuple Effect",            areas=[5350, 5350, 5350, 5350, 5350],   bleeds=[0],                            pre_evap=None),
+        12: dict(desc="Quintuple — V1+V2 double-robbed",      areas=[13700, 8150, 3600, 3600, 3600],  bleeds=[8_959+3_895+28_108, 22_189],    pre_evap=None),
+        13: dict(desc="Quintuple — V1+V2+V3 triple-robbed",   areas=[10750, 7200, 6100, 2100, 2100],  bleeds=[3_920+28_108, 8_922, 22_006],   pre_evap=None),
+    }
+
+    print("\nBirkett (1978) — The Multiple Effect Evaporator in the Raw Sugar Factory")
+    print("=" * 74)
+    for n, cfg in CASES.items():
+        tag = "  [pre-evap]" if cfg['pre_evap'] else ""
+        print(f"  {n:>2}: {cfg['desc']}{tag}")
+
+    raw = 4 # select a case number here to run, you can compare to Birkett's numbers
+
+    if int(raw) not in CASES:
+        print("Invalid selection — choose a number from 1 to 13.")
+    else:
+        case_num = int(raw)
+        cfg = CASES[case_num]
+        print(f"\nCase {case_num}: {cfg['desc']}\n")
+        start = time.time()
+
+        juice_in = _j()
+        pre = None
+
+        if cfg['pre_evap']:
+            pre = PreEvaporator(
+                juice_in              = juice_in,
+                supply_steam          = EvaporatorSteam(P_psia=STEAM_PSIA, flow_lb_per_hr=0),
+                vapor_bleed_lb_per_hr = cfg['pre_evap']['bleed'],
+                area_ft2              = cfg['pre_evap']['area_ft2'],
+                liquid_level_ft       = 2,
+                dessin_coefficient    = 20_000,
+            )
+            print("Pre-Evaporator:")
+            pre.display_properties()
+            print()
+            juice_in = pre.juice_out
+
+        evap_set = EvaporatorSet(
+            juice_in               = juice_in,
+            supply_steam           = EvaporatorSteam(P_psia=STEAM_PSIA, flow_lb_per_hr=0),
+            last_effect_pressure_psia = LAST_PSIA,
+            target_brix_out        = 60,
+            effect_areas_ft2       = cfg['areas'],
+            vapor_bleeds           = cfg['bleeds'],
+            dessin_coefficient     = 20_000,
+            liquid_level_ft        = 2,
+            injection_water_temp_F = 100,
+            name                   = f"Birkett Case {case_num} — {cfg['desc']}",
+        )
+
+        evap_set.adjust_pressure_profile()
+        evap_set.show_summary()
+        evap_set.condenser.neat_display()
+        evap_set.generate_pfd(pre_evap=pre)
+
+        print(f"\nExecution time: {time.time() - start:.4f} s")

@@ -30,6 +30,7 @@ def plot_set_diagram(
     set_name: str = "",
     show: bool = True,
     save_path: str = None,
+    pre_evap=None,
 ) -> plt.Figure:
     """
     Draw a process flow diagram for a single EvaporatorSet.
@@ -45,7 +46,10 @@ def plot_set_diagram(
     L_PAD   = 3.6
     R_PAD   = 3.6
 
-    DW = L_PAD + n * BOX_W + (n - 1) * BOX_GAP + R_PAD
+    PRE_SHIFT = (BOX_W + BOX_GAP) if pre_evap else 0
+    pre_cx    = (L_PAD + BOX_W / 2) if pre_evap else None
+
+    DW = L_PAD + PRE_SHIFT + n * BOX_W + (n - 1) * BOX_GAP + R_PAD
     DH = 11.8
 
     Y_TTL   = DH - 0.25
@@ -57,7 +61,7 @@ def plot_set_diagram(
     Y_COND  = 1.45
     Y_FOOT  = 0.40
 
-    centers = [L_PAD + BOX_W / 2 + i * (BOX_W + BOX_GAP) for i in range(n)]
+    centers = [L_PAD + PRE_SHIFT + BOX_W / 2 + i * (BOX_W + BOX_GAP) for i in range(n)]
     x_lft   = 0.12 * L_PAD
     x_rgt   = DW - 0.12 * R_PAD
 
@@ -134,18 +138,64 @@ def plot_set_diagram(
         lbl(cx, Y_MID - 2.32,
             f'hfg vap: {evap.juice_side_out.latent_heat_btu_per_lb:.1f} BTU/lb', fs=7, color='#1a5276')
 
-    # ── Supply steam → centre-left of body 1 ──────────────────────────────
-    arr(x_lft, Y_MID, centers[0] - BOX_W / 2, Y_MID, color=SC, lw=2.2)
-    lbl(x_lft, Y_MID + 0.68, 'Supply Steam',                           ha='left', fs=9,   color=SC, bold=True)
-    lbl(x_lft, Y_MID + 0.28, f'{steam.flow_lb_per_hr:,.0f} lb/hr',    ha='left', fs=8.5, color=SC)
-    lbl(x_lft, Y_MID - 0.10, f'{steam.P_psia:.1f} psia',              ha='left', fs=7.5, color=SC)
-    lbl(x_lft, Y_MID - 0.44, _fmt_p2(steam.P_psia),                   ha='left', fs=7.5, color=SC)
+    # ── Supply steam ───────────────────────────────────────────────────────
+    if pre_evap:
+        # Pre-evap steam from far left
+        arr(x_lft, Y_MID, pre_cx - BOX_W / 2, Y_MID, color=SC, lw=2.2)
+        lbl(x_lft, Y_MID + 0.68, 'Supply Steam (Pre)',                                   ha='left', fs=8.5, color=SC, bold=True)
+        lbl(x_lft, Y_MID + 0.28, f'{pre_evap.exhaust_required_lb_per_hr:,.0f} lb/hr',   ha='left', fs=8,   color=SC)
+        lbl(x_lft, Y_MID - 0.10, f'{pre_evap.supply_steam.P_psia:.1f} psia',            ha='left', fs=7.5, color=SC)
+        lbl(x_lft, Y_MID - 0.44, _fmt_p2(pre_evap.supply_steam.P_psia),                 ha='left', fs=7.5, color=SC)
+        # Main set steam drops from Y_ROUTE into the gap between pre-evap and effect 1
+        x_stm = (pre_cx + centers[0]) / 2
+        seg(x_stm, Y_ROUTE, x_stm, Y_MID, color=SC, lw=2.2)
+        arr(x_stm, Y_MID, centers[0] - BOX_W / 2, Y_MID, color=SC, lw=2.2)
+        lbl(x_stm, Y_ROUTE + 0.55, 'Supply Steam',                        ha='center', fs=8.5, color=SC, bold=True)
+        lbl(x_stm, Y_ROUTE + 0.18, f'{steam.flow_lb_per_hr:,.0f} lb/hr', ha='center', fs=8,   color=SC)
+        lbl(x_stm, Y_ROUTE - 0.18, f'{steam.P_psia:.1f} psia',           ha='center', fs=7.5, color=SC)
+        lbl(x_stm, Y_ROUTE - 0.48, _fmt_p2(steam.P_psia),                ha='center', fs=7.5, color=SC)
+    else:
+        arr(x_lft, Y_MID, centers[0] - BOX_W / 2, Y_MID, color=SC, lw=2.2)
+        lbl(x_lft, Y_MID + 0.68, 'Supply Steam',                           ha='left', fs=9,   color=SC, bold=True)
+        lbl(x_lft, Y_MID + 0.28, f'{steam.flow_lb_per_hr:,.0f} lb/hr',    ha='left', fs=8.5, color=SC)
+        lbl(x_lft, Y_MID - 0.10, f'{steam.P_psia:.1f} psia',              ha='left', fs=7.5, color=SC)
+        lbl(x_lft, Y_MID - 0.44, _fmt_p2(steam.P_psia),                   ha='left', fs=7.5, color=SC)
 
     # ── Condensate ────────────────────────────────────────────────────────
     for i, (cx, evap) in enumerate(zip(centers, evaps)):
         arr(cx, Y_BOT, cx, Y_COND + 0.12, color=CC, lw=1.5)
         lbl(cx, Y_COND - 0.10,
             f'Condensate\n{evap.condensate_out:,.0f} lb/hr', fs=7.5, color=CC)
+
+    # ── Pre-evaporator body ────────────────────────────────────────────────
+    if pre_evap:
+        rect = mpatches.FancyBboxPatch(
+            (pre_cx - BOX_W / 2, Y_BOT), BOX_W, Y_TOP - Y_BOT,
+            boxstyle='round,pad=0.06', lw=2.0,
+            edgecolor=BOX_EC, facecolor=BOX_FC, zorder=3)
+        ax.add_patch(rect)
+
+        vp_pre = pre_evap.vapor_pressure_psia
+        lbl(pre_cx, Y_MID + 1.95, 'Pre-Evaporator',                                       fs=11,  bold=True, color='#1a3a5c')
+        lbl(pre_cx, Y_MID + 1.32, f'{pre_evap.area_ft2:,.0f} ft²',                        fs=9,   color='#566573')
+        lbl(pre_cx, Y_MID + 0.70, f'P: {vp_pre:.2f} psia',                                fs=8.5, color='#1a5276')
+        lbl(pre_cx, Y_MID + 0.30, _fmt_p2(vp_pre),                                        fs=8,   color='#1a5276')
+        lbl(pre_cx, Y_MID - 0.15, f'Cald: {pre_evap.supply_steam.sat_temp_deg_F:.1f} °F', fs=8,   color=SC)
+        lbl(pre_cx, Y_MID - 0.55, f'Juice: {pre_evap.liquid_temp_deg_F:.1f} °F',          fs=8,   color=JC)
+        lbl(pre_cx, Y_MID - 0.92, f'Ud = {pre_evap.dessin_U:.1f}  BTU/hr·ft²·°F',        fs=7,   color='#555555')
+        lbl(pre_cx, Y_MID - 1.28, f'U ratio = {pre_evap.U_ratio:.3f}',                    fs=7.5, color='#117a65')
+
+        # Pre-evap condensate
+        arr(pre_cx, Y_BOT, pre_cx, Y_COND + 0.12, color=CC, lw=1.5)
+        lbl(pre_cx, Y_COND - 0.10,
+            f'Condensate\n{pre_evap.exhaust_required_lb_per_hr:,.0f} lb/hr', fs=7.5, color=CC)
+
+        # Pre-evap vapor bleed: exits top, routes LEFT toward heaters/pans
+        seg(pre_cx, Y_TOP, pre_cx, Y_BLEED, color=BC, lw=1.8)
+        arr(pre_cx, Y_BLEED, x_lft, Y_BLEED, color=BC, lw=1.8, ls='dashed')
+        lbl(x_lft, Y_BLEED + 0.30, 'Bleed → Heaters / Pans',                                ha='left', fs=8.5, color=BC, bold=True)
+        lbl(x_lft, Y_BLEED - 0.08, f'{pre_evap.vapor_bleed_lb_per_hr:,.0f} lb/hr',          ha='left', fs=8,   color=BC)
+        lbl(x_lft, Y_BLEED - 0.38, f'{vp_pre:.2f} psia | {pre_evap.vapor_temp_deg_F:.1f} °F', ha='left', fs=7.5, color=BC)
 
     # ── Vapor routing: top-centre exit, inverted-U path, then bleed ───────
     for i, (cx, evap) in enumerate(zip(centers, evaps)):
@@ -192,14 +242,28 @@ def plot_set_diagram(
                 f'Bleed\n{bleed:,.0f} lb/hr', ha='right', fs=7.5, color=BC)
 
     # ── Juice stream at Y_BOT ─────────────────────────────────────────────
-    juice_in = evap_set.juice_in
-
-    arr(x_lft, Y_BOT, centers[0] - BOX_W / 2, Y_BOT, color=JC, lw=2.2)
-    lbl(x_lft, Y_BOT + 0.62, 'Juice In',                                ha='left', fs=9,   color=JC, bold=True)
-    lbl(x_lft, Y_BOT + 0.22, f'{juice_in.flow_lb_per_hr:,.0f} lb/hr',  ha='left', fs=8.5, color=JC)
-    lbl(x_lft, Y_BOT - 0.17,
-        f'{juice_in.brix:.2f}° Brix | {juice_in.temp_deg_F:.1f} °F',
-        ha='left', fs=7.5, color=JC)
+    if pre_evap:
+        orig_juice = pre_evap.juice_in
+        arr(x_lft, Y_BOT, pre_cx - BOX_W / 2, Y_BOT, color=JC, lw=2.2)
+        lbl(x_lft, Y_BOT + 0.62, 'Juice In',                                              ha='left', fs=9,   color=JC, bold=True)
+        lbl(x_lft, Y_BOT + 0.22, f'{orig_juice.flow_lb_per_hr:,.0f} lb/hr',               ha='left', fs=8.5, color=JC)
+        lbl(x_lft, Y_BOT - 0.17,
+            f'{orig_juice.brix:.2f}° Brix | {orig_juice.temp_deg_F:.1f} °F',
+            ha='left', fs=7.5, color=JC)
+        # Pre-evap juice out → effect 1
+        pre_out  = pre_evap.juice_out
+        mid_pre  = (pre_cx + centers[0]) / 2
+        arr(pre_cx + BOX_W / 2, Y_BOT, centers[0] - BOX_W / 2, Y_BOT, color=JC, lw=1.8)
+        lbl(mid_pre, Y_BOT - 0.25, f'{pre_out.flow_lb_per_hr:,.0f} lb/hr', fs=8,   color=JC)
+        lbl(mid_pre, Y_BOT - 0.60, f'{pre_out.brix:.2f}° Brix',            fs=8,   color=JC)
+    else:
+        juice_in = evap_set.juice_in
+        arr(x_lft, Y_BOT, centers[0] - BOX_W / 2, Y_BOT, color=JC, lw=2.2)
+        lbl(x_lft, Y_BOT + 0.62, 'Juice In',                                ha='left', fs=9,   color=JC, bold=True)
+        lbl(x_lft, Y_BOT + 0.22, f'{juice_in.flow_lb_per_hr:,.0f} lb/hr',  ha='left', fs=8.5, color=JC)
+        lbl(x_lft, Y_BOT - 0.17,
+            f'{juice_in.brix:.2f}° Brix | {juice_in.temp_deg_F:.1f} °F',
+            ha='left', fs=7.5, color=JC)
 
     for i in range(n - 1):
         cx, next_cx = centers[i], centers[i + 1]

@@ -1,0 +1,33 @@
+I need you to review my ThreeBoilingDoubleMagma.py file and make another one similar called FourBoilingDoubleMagma.
+
+Here is the logic to solve the balance
+
+define syrup from evaporators as a SugarStream, this enters the process
+
+make a copy of syrup called syrup_as_fed which combines syrup from evaporators, b_magma_remelt, and c_magma_remelt - this syrup is what actually feeds the pans. 
+Overall balance IN = OUT is checked by syrup from evaporators in, final molasses and raw sugar out
+you need to make some dummy streams for b_magma_A1_footing, b_magma_A2_footing, and c_magma_B_footing before the loop starts
+The syrup is split between A1 and A2 pans and grain pans (Pans is a class) per a global variable. like syrup_to_A1_pans = 75, syrup to A2 pans = 20, syrup to grain pans = 100 - syrup to A1 pans - syrup to A2 pans
+
+Loop can start here
+A1_pans are solved by input streams and the defined A1_pan parameters. 
+Then the A1 massecuite is sent to A1 centrifugals (Centrifugal is another class). A1 centrifugals are solved by input stream and defined parameters
+A1 Sugar is sent out as part of the total raw_sugar which leaves the process
+A1 molasses is then used to go to A2 pans, grain pans, and B pans. The split is determined by variables.
+A2_pans are then solved by inputting the syrup to A2 pans, A1 molasses to A2 pans, then the b magma to A2 pans. 
+A2 centrifugals are solved, A2 sugar is sent out as part of total raw_sugar which leaves the process
+The A2_molasses is sent to the B_Pans and grain pans via defined variable for splitting the stream up
+B_pans are solved by the input streams A2 molasses and c_magma footing and A1 molasses (although this can be zero)
+B centrifugals are solved by the incoming B massecuite and defined parameters
+B sugar is turned into B magma, which is split between footings for A1 pans, A2 pans, and remelt, all of which can by defined by variables. Right here you can now update b magma streams
+B molasses is split between grain pans and C pans, another variable split.
+grain pans can now be solved by the previosly defined splits of syrup, A1 molasses, A2 molasses, and B molasses as input streams. 
+grain massecuite needs to be transformed into a sugar stream, there is no centrifugal for grain massecuite, this is fed into the C pans.
+C pans are now solved by the input streams grain_massecuite_as_sugarstream and B molasses. 
+C centrifugals are now solved by input stream C massecuite and defined parameters
+C sugar coming out is turned into c magma, from this stream you can update the c magma B footing stream
+C molasses is the final molasses which leaves the process.
+b magma remelt and c magma remelt can now be updated based on this --> c magma remelt flow = c magma total - c magma for B footing ..... b magma remelt flow = b magma total  - b magma for A1 pans footing - b magma for A2 pan footing
+the loop is reran about 10 to 20 times. This can just be a hard input as it converges pretty easily assuming it is set up right
+
+I need a neat_display just like i have in ThreeBoilingDoubleMagma, that wa

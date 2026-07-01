@@ -22,6 +22,17 @@ class Condenser:
 
     _CP_WATER = 1.0  # BTU / (lb·°F)
 
+    _LABELS = {
+        'vapor_sat_temp_F':           'Vapor Saturation Temp (°F)',
+        'vapor_h_fg_btu_lb':          'Vapor h_fg (BTU/lb)',
+        'vapor_flow_lb_hr':           'Vapor Flow (lb/hr)',
+        'heat_load_btu_hr':           'Heat Load (BTU/hr)',
+        'water_inlet_temp_F':         'Injection Water Inlet (°F)',
+        'water_outlet_temp_F':        'Water Outlet Temp (°F)',
+        'injection_water_flow_lb_hr': 'Injection Water Flow (lb/hr)',
+        'total_outlet_flow_lb_hr':    'Total Outlet Flow (lb/hr)',
+    }
+
     def __init__(self, vapor, water_inlet_temp_F):
         self.vapor = vapor
         self.water_inlet_temp_F = water_inlet_temp_F
@@ -102,6 +113,12 @@ class Condenser:
         for k, v in props.items():
             print(f"  {k:<30}: {v:,.2f}")
 
+    def neat_display(self):
+        print("Condenser Summary:")
+        for key, value in self.properties().items():
+            label = self._LABELS.get(key, key.replace('_', ' ').title())
+            print(f"  {label}: {value:,.2f}")
+
 
 if __name__ == "__main__":
     # Example: 50,000 lb/hr of vapor at 26.5 in Hg vacuum, 75°F injection water
@@ -109,4 +126,4 @@ if __name__ == "__main__":
     cond  = Condenser(vapor, water_inlet_temp_F=75)
     print(cond)
     print()
-    cond.display_properties()
+    cond.neat_display()

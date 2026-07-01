@@ -220,6 +220,11 @@ class ThreeBoilingDoubleMagma:
     # Display
     # ------------------------------------------------------------------
 
+    def generate_pfd(self, show=True, save_path=None):
+        """Generate a process flow diagram. Returns the matplotlib Figure."""
+        from pan_floor_diagram import plot_three_boiling
+        return plot_three_boiling(self, show=show, save_path=save_path)
+
     def display_balance(self):
         W = 115
         HEAVY = "=" * W
