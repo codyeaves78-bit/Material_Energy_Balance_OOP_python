@@ -20,6 +20,14 @@ def make_remelt(magma=SugarStream(), remelt_brix=65):
     remelt.brix = new_brix
     return remelt
 
+
+def dilute_molasses(mol: SugarStream, diluted_brix: float) -> SugarStream:
+    """Dilute molasses to target brix by adding water. Solids are conserved."""
+    diluted = SugarStream.copy(mol)
+    diluted.brix = diluted_brix
+    diluted.flow_lb_per_hr = mol.solids_flow / (diluted_brix / 100)
+    return diluted
+
 class ThreeBoilingDoubleMagma:
     """An object to do the Three Boiling Double Magma Balance
     When inputting the Pan and Centrifugal Object, user does not need to define inlet streams"""
@@ -39,7 +47,8 @@ class ThreeBoilingDoubleMagma:
             a_mol_to_grain_pct: float = 5,
             b_mol_to_grain_pct: float = 10,
             a_mol_top_off_pct: float = 30,
-            
+            a_mol_dilution_brix: float = 70,
+            b_mol_dilution_brix: float = 70,
             ):
 
         self.syrup = syrup
@@ -61,6 +70,8 @@ class ThreeBoilingDoubleMagma:
         self.a_mol_top_off_pct = a_mol_top_off_pct
         self.a_mol_B_pans_pct = 100.0 - a_mol_top_off_pct - a_mol_to_grain_pct
         self.b_mol_C_pans_pct = 100.0 - b_mol_to_grain_pct
+        self.a_mol_dilution_brix = a_mol_dilution_brix
+        self.b_mol_dilution_brix = b_mol_dilution_brix
         self.syrup_to_A_pans_pct = 100.0 - syrup_to_grain_pct
 
         self._solve()
@@ -119,10 +130,12 @@ class ThreeBoilingDoubleMagma:
                 self._A_cen_cfg, self.A_pans.massecuite, self.A_pans.massecuite_flow_lb_hr
             )
 
-            top_off_a_mol = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            a_mol_diluted = dilute_molasses(self.A_centrifugals.molasses_stream, self.a_mol_dilution_brix)
+
+            top_off_a_mol = SugarStream.copy(a_mol_diluted)
             top_off_a_mol.flow_lb_per_hr = self.a_mol_top_off_pct / 100 * top_off_a_mol.flow_lb_per_hr
 
-            a_mol_B_pans = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            a_mol_B_pans = SugarStream.copy(a_mol_diluted)
             a_mol_B_pans.flow_lb_per_hr = self.a_mol_B_pans_pct / 100 * a_mol_B_pans.flow_lb_per_hr
 
             self.B_pans = self._rebuild_pan(
@@ -132,10 +145,12 @@ class ThreeBoilingDoubleMagma:
                 self._B_cen_cfg, self.B_pans.massecuite, self.B_pans.massecuite_flow_lb_hr
             )
 
-            b_mol_grain = SugarStream.copy(self.B_centrifugals.molasses_stream)
+            b_mol_diluted = dilute_molasses(self.B_centrifugals.molasses_stream, self.b_mol_dilution_brix)
+
+            b_mol_grain = SugarStream.copy(b_mol_diluted)
             b_mol_grain.flow_lb_per_hr = self.b_mol_to_grain_pct / 100 * b_mol_grain.flow_lb_per_hr
 
-            a_mol_grain = SugarStream.copy(self.A_centrifugals.molasses_stream)
+            a_mol_grain = SugarStream.copy(a_mol_diluted)
             a_mol_grain.flow_lb_per_hr = self.a_mol_to_grain_pct / 100 * a_mol_grain.flow_lb_per_hr
 
             syrup_to_grain = SugarStream.copy(syrup_as_fed)
@@ -154,7 +169,7 @@ class ThreeBoilingDoubleMagma:
                 level_ft=0,
             )
 
-            b_mol_C_pans = SugarStream.copy(self.B_centrifugals.molasses_stream)
+            b_mol_C_pans = SugarStream.copy(b_mol_diluted)
             b_mol_C_pans.flow_lb_per_hr = self.b_mol_C_pans_pct / 100 * b_mol_C_pans.flow_lb_per_hr
 
             self.C_pans = self._rebuild_pan(
@@ -195,13 +210,15 @@ class ThreeBoilingDoubleMagma:
 
         self.syrup_as_fed = syrup_as_fed
 
-        # Save final-iteration magma/remelt streams for water accounting
+        # Save final-iteration magma/remelt/dilution streams for water accounting
         self._b_magma          = b_magma
         self._c_magma          = c_magma
         self._b_magma_to_rmlt  = b_magma_to_rmlt
         self._c_magma_to_rmlt  = c_magma_to_rmlt
         self._b_remelt         = b_remelt
         self._c_remelt         = c_remelt
+        self._a_mol_diluted    = a_mol_diluted
+        self._b_mol_diluted    = b_mol_diluted
 
     @property
     def total_water(self) -> SugarStream:
@@ -213,7 +230,10 @@ class ThreeBoilingDoubleMagma:
         c_mingler    = self._c_magma.flow_lb_per_hr    - self.C_centrifugals.sugar_stream.flow_lb_per_hr
         b_rmlt_water = self._b_remelt.flow_lb_per_hr   - self._b_magma_to_rmlt.flow_lb_per_hr
         c_rmlt_water = self._c_remelt.flow_lb_per_hr   - self._c_magma_to_rmlt.flow_lb_per_hr
-        total_lb_hr  = cen_wash + b_mingler + c_mingler + b_rmlt_water + c_rmlt_water
+        a_dil_water  = self._a_mol_diluted.flow_lb_per_hr - self.A_centrifugals.molasses_stream.flow_lb_per_hr
+        b_dil_water  = self._b_mol_diluted.flow_lb_per_hr - self.B_centrifugals.molasses_stream.flow_lb_per_hr
+        total_lb_hr  = (cen_wash + b_mingler + c_mingler + b_rmlt_water + c_rmlt_water
+                        + a_dil_water + b_dil_water)
         return SugarStream(brix=0, purity=0, flow_lb_per_hr=total_lb_hr)
 
     # ------------------------------------------------------------------
@@ -317,6 +337,23 @@ class ThreeBoilingDoubleMagma:
             lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.0f} lb/hr")
             return lines
 
+        def _dil_station(undiluted, diluted, label):
+            lines = []
+            water_added = diluted.flow_lb_per_hr - undiluted.flow_lb_per_hr
+            lines.append("  ENTERING")
+            lines.append(_stream(f"    {label} (undiluted)", undiluted))
+            lines.append(_row("    Dilution Water", water_added, 0, 0, water_added))
+            lines.append(LIGHT)
+            lines.append(_row("  Total In", diluted.flow_lb_per_hr, undiluted.solids_flow,
+                               undiluted.pol_flow, diluted.flow_lb_per_hr - undiluted.solids_flow))
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_stream(f"    {label} (diluted)", diluted))
+            lines.append(LIGHT)
+            net = diluted.flow_lb_per_hr - (undiluted.flow_lb_per_hr + water_added)
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.2f} lb/hr")
+            return lines
+
         # ── Totals needed for Overall section ────────────────────────────
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.B_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr)
@@ -376,6 +413,12 @@ class ThreeBoilingDoubleMagma:
         out.append("")
         out.extend(_cen_station(self.A_centrifugals))
 
+        # ── A Molasses Dilution ──────────────────────────────────────────
+        out.append(_section(f"A MOLASSES DILUTION  (target {self.a_mol_dilution_brix:.1f} Bx)"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_dil_station(self.A_centrifugals.molasses_stream, self._a_mol_diluted, "A Molasses"))
+
         # ── B Pans ────────────────────────────────────────────────────────
         out.append(_section(f"B PANS  [{self.B_pans.name}]"))
         out.append(_hdr())
@@ -387,6 +430,12 @@ class ThreeBoilingDoubleMagma:
         out.append(_hdr())
         out.append("")
         out.extend(_cen_station(self.B_centrifugals))
+
+        # ── B Molasses Dilution ──────────────────────────────────────────
+        out.append(_section(f"B MOLASSES DILUTION  (target {self.b_mol_dilution_brix:.1f} Bx)"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_dil_station(self.B_centrifugals.molasses_stream, self._b_mol_diluted, "B Molasses"))
 
         # ── Grain Pans ────────────────────────────────────────────────────
         out.append(_section(f"GRAIN PANS  [{self.grain_pans.name}]"))
