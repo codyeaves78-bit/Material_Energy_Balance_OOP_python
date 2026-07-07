@@ -20,7 +20,17 @@
       "Bash(git push *)",
       "Bash(python MillTurbines.py)",
       "Bash(python CanePrepTurbines.py)",
-      "Bash(python AuxillaryTurbines.py)"
+      "Bash(python AuxillaryTurbines.py)",
+      "Bash(python -m py_compile AuxillaryTurbines.py MillTurbines.py CanePrepTurbines.py FourBoilingDoubleMagma.py ThreeBoilingDoubleMagma.py main.py Bagasse.py Boiler.py MillFloor.py)",
+      "Bash(python Bagasse.py)",
+      "Bash(/workspaces/Material_Energy_Balance_OOP_python/.venv/bin/python -c \"import matplotlib\")",
+      "Bash(pip show *)",
+      "Bash(/workspaces/Material_Energy_Balance_OOP_python/.venv/bin/pip install *)",
+      "Bash(/workspaces/Material_Energy_Balance_OOP_python/.venv/bin/python /workspaces/Material_Energy_Balance_OOP_python/FourBoilingDoubleMagma.py)",
+      "Bash(python Crystallizer_and_Reheater.py)",
+      "Bash(python ThreeBoilingDoubleMagma.py)",
+      "Bash(python main.py)",
+      "Bash(python FourBoilingDoubleMagma.py)"
     ]
   }
 }

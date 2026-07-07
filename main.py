@@ -30,6 +30,7 @@ from Condenser import Condenser
 from Pan import Pan
 from Centrifugal import Centrifugal
 from ThreeBoilingDoubleMagma import ThreeBoilingDoubleMagma
+from FourBoilingDoubleMagma import FourBoilingDoubleMagma
 from Deaerator import Deaerator
 from Turbine import Turbine
 from Boiler import Boiler
@@ -297,7 +298,7 @@ evap_station = solve_evaporator_sets(  # This returns a list
         verbose=False, # Set True if you want iteration details, False if you just want final results
     ) # Note that this whole function shows all evaporator information
 
-pan_floor.display_balance() # wait to display until after the 
+pan_floor.neat_display() # wait to display until after the 
 
 # Energy Balance Section
 # Deaerator, assume a standard steam production value

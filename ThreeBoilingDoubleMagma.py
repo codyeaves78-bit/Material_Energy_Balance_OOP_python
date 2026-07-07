@@ -1,5 +1,6 @@
 from Pan import Pan
 from Centrifugal import Centrifugal
+from Crystallizer_and_Reheater import Crystallizer, Reheater
 from SugarStream import SugarStream
 
 from time import time
@@ -41,6 +42,8 @@ class ThreeBoilingDoubleMagma:
             A_centrifugals: Centrifugal,
             B_centrifugals: Centrifugal,
             C_centrifugals: Centrifugal,
+            C_crystallizers: Crystallizer = None,
+            C_reheaters: Reheater = None,
             c_magma_remelt_pct: float = 20,
             b_magma_remelt_pct: float = 20,
             syrup_to_grain_pct: float = 5,
@@ -61,6 +64,13 @@ class ThreeBoilingDoubleMagma:
         self._A_cen_cfg = A_centrifugals
         self._B_cen_cfg = B_centrifugals
         self._C_cen_cfg = C_centrifugals
+        # Default: cool to 120°F / reheat to 130°F with no exhaustion (ml purity carried)
+        self._C_crys_cfg = (C_crystallizers if C_crystallizers is not None
+                            else Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0,
+                                              name='C Crystallizers'))
+        self._C_reheat_cfg = (C_reheaters if C_reheaters is not None
+                              else Reheater(massecuite_in=None, massecuite_flow_lb_hr=0,
+                                            name='C Reheaters'))
 
         self.c_magma_remelt_pct = c_magma_remelt_pct
         self.b_magma_remelt_pct = b_magma_remelt_pct
@@ -101,6 +111,28 @@ class ThreeBoilingDoubleMagma:
             name=config.name,
             sugar_temp=config.sugar_temp,
             molasses_temp=config.molasses_temp,
+        )
+
+    def _rebuild_crystallizer(self, config: Crystallizer, massecuite_in, massecuite_flow_lb_hr: float) -> Crystallizer:
+        return Crystallizer(
+            massecuite_in=massecuite_in,
+            massecuite_flow_lb_hr=massecuite_flow_lb_hr,
+            masse_temp_out_deg_F=config.masse_temp_out_deg_F,
+            ml_purity_out=config.ml_purity_out,
+            water_temp_in_deg_F=config.water_temp_in_deg_F,
+            water_temp_out_deg_F=config.water_temp_out_deg_F,
+            name=config.name,
+        )
+
+    def _rebuild_reheater(self, config: Reheater, massecuite_in, massecuite_flow_lb_hr: float) -> Reheater:
+        return Reheater(
+            massecuite_in=massecuite_in,
+            massecuite_flow_lb_hr=massecuite_flow_lb_hr,
+            masse_temp_out_deg_F=config.masse_temp_out_deg_F,
+            ml_purity_out=config.ml_purity_out,
+            water_temp_in_deg_F=config.water_temp_in_deg_F,
+            water_temp_out_deg_F=config.water_temp_out_deg_F,
+            name=config.name,
         )
 
     def _solve(self, iterations: int = 20):
@@ -175,8 +207,19 @@ class ThreeBoilingDoubleMagma:
             self.C_pans = self._rebuild_pan(
                 self._C_pans_cfg, [grain_massecuite, b_mol_C_pans]
             )
+
+            # C massecuite: cooling crystallizer → reheater → centrifugals.
+            # Mass flow is conserved (non-contact water); the crystallizer's ml purity
+            # drop carries into the centrifugal and lowers final molasses purity.
+            self.C_crystallizers = self._rebuild_crystallizer(
+                self._C_crys_cfg, self.C_pans.massecuite, self.C_pans.massecuite_flow_lb_hr
+            )
+            self.C_reheaters = self._rebuild_reheater(
+                self._C_reheat_cfg, self.C_crystallizers.massecuite_out,
+                self.C_pans.massecuite_flow_lb_hr
+            )
             self.C_centrifugals = self._rebuild_centrifugal(
-                self._C_cen_cfg, self.C_pans.massecuite, self.C_pans.massecuite_flow_lb_hr
+                self._C_cen_cfg, self.C_reheaters.massecuite_out, self.C_pans.massecuite_flow_lb_hr
             )
 
             b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=92)
@@ -245,7 +288,7 @@ class ThreeBoilingDoubleMagma:
         from pan_floor_diagram import plot_three_boiling
         return plot_three_boiling(self, show=show, save_path=save_path)
 
-    def display_balance(self):
+    def neat_display(self):
         W = 115
         HEAVY = "=" * W
         LIGHT = "-" * W
@@ -354,6 +397,31 @@ class ThreeBoilingDoubleMagma:
             lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.2f} lb/hr")
             return lines
 
+        def _heatx_station(unit, water_label):
+            """Crystallizer/reheater station — non-contact water, mass conserved."""
+            lines = []
+            m_in, m_out = unit.massecuite_in, unit.massecuite_out
+            flow = unit.massecuite_flow_lb_hr
+            sol  = flow * m_in.masse_brix / 100
+            pol  = flow * m_in.masse_purity * m_in.masse_brix / 10000
+            lines.append("  ENTERING")
+            lines.append(_row(f"    Massecuite In   (T={unit.masse_temp_in_deg_F:5.1f}F)",
+                               flow, sol, pol, flow - sol,
+                               m_in.masse_brix, m_in.masse_purity, vol_ft3_hr=flow / m_in.density))
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_row(f"    Massecuite Out  (T={unit.masse_temp_out_deg_F:5.1f}F)",
+                               flow, sol, pol, flow - sol,
+                               m_out.masse_brix, m_out.masse_purity, vol_ft3_hr=flow / m_out.density))
+            lines.append(LIGHT)
+            lines.append(f"  {'ML purity in -> out:':<{LBL}} {m_in.ml_purity:6.1f} -> {m_out.ml_purity:6.1f} %"
+                         f"     crystal content: {m_in.crystal_content:5.1f} -> {m_out.crystal_content:5.1f} %")
+            lines.append(f"  {'Duty:':<{LBL}} {unit.duty_btu_hr:{NUM},.0f} BTU/hr")
+            lines.append(f"  {water_label + ':':<{LBL}} {unit.water_lb_hr:{NUM},.0f} lb/hr"
+                         f" ({unit.water_gpm:,.0f} gpm), {unit.water_temp_in_deg_F:.0f} -> "
+                         f"{unit.water_temp_out_deg_F:.0f} F")
+            return lines
+
         # ── Totals needed for Overall section ────────────────────────────
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.B_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr)
@@ -449,6 +517,18 @@ class ThreeBoilingDoubleMagma:
         out.append("")
         out.extend(_pan_station(self.C_pans))
 
+        # ── C Crystallizers ──────────────────────────────────────────────
+        out.append(_section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_heatx_station(self.C_crystallizers, "Cooling Water"))
+
+        # ── C Reheaters ──────────────────────────────────────────────────
+        out.append(_section(f"C REHEATERS  [{self.C_reheaters.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_heatx_station(self.C_reheaters, "Hot Water"))
+
         # ── C Centrifugals ─────────────────────────────────────────────────
         out.append(_section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]"))
         out.append(_hdr())
@@ -507,8 +587,16 @@ if __name__ == "__main__":
                                    sugar_moisture=0.2, sugar_purity=99.7, sugar_temp=150, molasses_temp=145, name="A Centrifugals"),
         B_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=2, 
                                    sugar_moisture=5, sugar_purity=92, sugar_temp=150, molasses_temp=145, name="B Centrifugals"),
-        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=4, 
+        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=4,
                                    sugar_moisture=5, sugar_purity=82, sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
+        C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0,
+                                     masse_temp_out_deg_F=120, ml_purity_out=30,
+                                     water_temp_in_deg_F=85, water_temp_out_deg_F=105,
+                                     name="C Crystallizers"),
+        C_reheaters=Reheater(massecuite_in=None, massecuite_flow_lb_hr=0,
+                             masse_temp_out_deg_F=130,
+                             water_temp_in_deg_F=150, water_temp_out_deg_F=135,
+                             name="C Reheaters"),
         b_magma_remelt_pct=20,
         c_magma_remelt_pct=20,
         a_mol_to_grain_pct=3,
@@ -517,7 +605,7 @@ if __name__ == "__main__":
         a_mol_top_off_pct=0
     )
 
-    pan_floor.display_balance()
+    pan_floor.neat_display()
     pan_floor.A_pans.neat_display()
 
 

@@ -87,7 +87,7 @@ class AuxillaryTurbines:
     # Display
     # ------------------------------------------------------------------
 
-    def display_auxillary_turbine_information(self):
+    def neat_display(self):
         def fmt_x(x):
             return "Superheat" if x is None or x >= 1.0 else f"{x:.4f}"
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     )
     print(aux)
     print()
-    aux.display_auxillary_turbine_information()
+    aux.neat_display()
 
 # for your main script, you can finish up with these fd_hp_list = [233, 350] names ['7 FD Fan', '8 FD Fan']
 # then these [400, 400, 400, 400] and the names ['boiler_feed_water_1', 'boiler_feed_water_2', 'boiler_feed_water_3', 'juice_pump']

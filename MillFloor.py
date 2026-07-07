@@ -373,4 +373,4 @@ if __name__ == "__main__":
     print(mill.mixed_juice_stream)
 
     print("\nBagasse stream:")
-    mill.bagasse_stream.display()
+    mill.bagasse_stream.neat_display()

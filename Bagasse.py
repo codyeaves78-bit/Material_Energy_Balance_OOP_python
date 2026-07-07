@@ -17,7 +17,7 @@ class Bagasse:
         B = self.brix_pct
         return (19605 - 196.05 * M - 196.05 * A - 31.14 * B) * 0.4299
 
-    def display(self):
+    def neat_display(self):
         print("=" * 40)
         print(f"{'BAGASSE PROPERTIES':^40}")
         print("=" * 40)
@@ -42,4 +42,4 @@ if __name__ == "__main__":
         ash_pct=4.0,
         flowrate_lb_hr=125_000
     )
-    b.display()
+    b.neat_display()

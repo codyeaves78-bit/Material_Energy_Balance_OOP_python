@@ -5,7 +5,7 @@
 import functools
 import numpy as np
 from SteamStream import EvaporatorSteam
-from sugar_stream_properties import specific_gravity
+from sugar_stream_properties import specific_gravity, get_cp
 
 # --- BPR regression built once at import ---
 _PURITIES = [100,  90,   80,   70,   60  ]
@@ -34,9 +34,22 @@ class Massecuite:
     masse_purity    : overall massecuite apparent purity
     masse_brix      : overall massecuite Brix
     inches_vacuum   : vapor space vacuum in inches Hg
-    supersaturation : target supersaturation coefficient (e.g. 1.05)
-    head_ft         : massecuite depth in the pan (ft)
+    supersaturation : target supersaturation coefficient (e.g. 1.05) — boiling mode
+    head_ft         : massecuite depth in the pan (ft) — required in boiling mode
     flow_lb_hr      : massecuite flow rate (lb/hr) — optional; unlocks flow-based properties
+    temp_F          : explicit massecuite temperature (°F) — set-temperature mode
+
+    Two modes — give exactly one of supersaturation / temp_F:
+
+    Boiling mode (supersaturation given): the massecuite is boiling in a pan,
+    and its temperature is solved from vacuum, static head, and the BPR
+    regression. All boiling properties (water bp, BPR at surface/head) apply.
+
+    Set-temperature mode (temp_F given): the massecuite is off-boiling
+    (crystallizer, reheater, transport) and its temperature is imposed by
+    heat exchange. massecuite_temp returns temp_F directly; supersaturation
+    is None and the boiling-solve properties raise, since BPR-based
+    supersaturation is only meaningful at boiling equilibrium.
 
     Solve results are cached on first access — iterations run once per instance.
     """
@@ -45,7 +58,8 @@ class Massecuite:
     PURITY_MAX = 100
 
     def __init__(self, ml_purity, masse_purity, masse_brix,
-                 inches_vacuum, supersaturation, head_ft, flow_lb_hr=None):
+                 inches_vacuum, supersaturation=None, head_ft=None,
+                 flow_lb_hr=None, temp_F=None):
         if not (self.PURITY_MIN <= ml_purity <= self.PURITY_MAX):
             raise ValueError(
                 f"Mother liquor purity {ml_purity} is outside the supported range "
@@ -56,6 +70,13 @@ class Massecuite:
                 f"Massecuite purity ({masse_purity}) cannot be less than "
                 f"mother liquor purity ({ml_purity})."
             )
+        if (supersaturation is None) == (temp_F is None):
+            raise ValueError(
+                "Give exactly one of supersaturation (boiling mode) "
+                "or temp_F (set-temperature mode)."
+            )
+        if supersaturation is not None and head_ft is None:
+            raise ValueError("head_ft is required in boiling (supersaturation) mode.")
         self.ml_purity       = ml_purity
         self.masse_purity    = masse_purity
         self.masse_brix      = masse_brix
@@ -63,6 +84,41 @@ class Massecuite:
         self.supersaturation = supersaturation
         self.head_ft         = head_ft
         self.flow_lb_hr      = flow_lb_hr
+        self.temp_F          = temp_F
+
+    def copy(self, **changes):
+        """
+        Return a new Massecuite with the same inputs, overriding any given
+        as keyword arguments:
+
+            b_masse = a_masse.copy(masse_brix=93)
+
+        Overriding temp_F switches the copy to set-temperature mode (the old
+        supersaturation is dropped), and overriding supersaturation switches
+        back to boiling mode — so a pan massecuite can flow into a
+        crystallizer with:
+
+            out = pan_masse.copy(temp_F=120, ml_purity=64)
+
+        Goes back through __init__, so validation re-runs and the new
+        instance solves fresh (no stale cached results carry over).
+        """
+        params = {
+            'ml_purity':       self.ml_purity,
+            'masse_purity':    self.masse_purity,
+            'masse_brix':      self.masse_brix,
+            'inches_vacuum':   self.inches_vacuum,
+            'supersaturation': self.supersaturation,
+            'head_ft':         self.head_ft,
+            'flow_lb_hr':      self.flow_lb_hr,
+            'temp_F':          self.temp_F,
+        }
+        if changes.get('temp_F') is not None:
+            params['supersaturation'] = None
+        if changes.get('supersaturation') is not None:
+            params['temp_F'] = None
+        params.update(changes)
+        return type(self)(**params)
 
     # ------------------------------------------------------------------
     # Private helpers (temperature-parameterized, used during iteration)
@@ -70,6 +126,15 @@ class Massecuite:
 
     def _density_at(self):
         return specific_gravity(self.masse_brix) * 62.4
+
+    def _require_boiling(self):
+        if self.temp_F is not None:
+            raise AttributeError(
+                "This property needs the boiling solve, but this massecuite was "
+                "built with an explicit temp_F (set-temperature mode) — BPR-based "
+                "supersaturation is only meaningful at boiling equilibrium. "
+                "Use copy(supersaturation=...) if it is back in a pan."
+            )
 
     def _sat_bpr_at(self, temp_F):
         """Saturation BPR (°F) at a given temperature — used inside solve loops."""
@@ -91,6 +156,7 @@ class Massecuite:
     @functools.cached_property
     def _surface_solve(self):
         """Solve for massecuite temp at surface (head = 0). Returns (T, water_bp)."""
+        self._require_boiling()
         water_bp = EvaporatorSteam(self.vapor_pressure_psia).sat_temp_deg_F
         T = water_bp + 20
         for _ in range(100):
@@ -103,6 +169,7 @@ class Massecuite:
     @functools.cached_property
     def _head_solve(self):
         """Solve for massecuite temp at specified head depth. Returns (T, water_bp_at_head)."""
+        self._require_boiling()
         P_vapor = self.vapor_pressure_psia
         T = EvaporatorSteam(P_vapor).sat_temp_deg_F + 20
         for _ in range(100):
@@ -144,7 +211,10 @@ class Massecuite:
 
     @property
     def massecuite_temp(self):
-        """Massecuite temperature to reach target SS at the specified head depth (°F)."""
+        """Massecuite temperature (°F) — the given temp_F in set-temperature mode,
+        otherwise solved to reach target SS at the specified head depth."""
+        if self.temp_F is not None:
+            return self.temp_F
         return self._head_solve[0]
 
     @property
@@ -165,6 +235,10 @@ class Massecuite:
     def saturation_bpr(self):
         """Saturation BPR at the converged head temperature — SS = 1.0 reference (°F)."""
         return self._sat_bpr_at(self.massecuite_temp)
+    
+    @property
+    def specific_heat(self):
+        return get_cp(self.masse_brix)
 
     # ------------------------------------------------------------------
     # Composition
@@ -227,10 +301,12 @@ class Massecuite:
 
     def __repr__(self):
         flow_str = f", flow_lb_hr={self.flow_lb_hr:,.0f}" if self.flow_lb_hr is not None else ""
+        mode_str = (f"temp_F={self.temp_F}" if self.temp_F is not None else
+                    f"inches_vacuum={self.inches_vacuum}, "
+                    f"supersaturation={self.supersaturation}, head_ft={self.head_ft}")
         return (
             f"Massecuite(ml_purity={self.ml_purity}, masse_purity={self.masse_purity}, "
-            f"masse_brix={self.masse_brix}, inches_vacuum={self.inches_vacuum}, "
-            f"supersaturation={self.supersaturation}, head_ft={self.head_ft}{flow_str})"
+            f"masse_brix={self.masse_brix}, {mode_str}{flow_str})"
         )
 
     def properties(self):
@@ -241,19 +317,22 @@ class Massecuite:
             'crystal_content_pct':           self.crystal_content,
             'mother_liquor_brix':            self.mother_liquor_brix,
             'crystal_yield_pct_brix_pct':    self.crystal_yield_pct_brix,
-            'inches_vacuum':                 self.inches_vacuum,
-            'vapor_pressure_psia':           self.vapor_pressure_psia,
-            'supersaturation':               self.supersaturation,
-            'head_ft':                       self.head_ft,
             'density_lb_ft3':                self.density,
-            'sat_bpr':                       self.saturation_bpr,
-            'water_bp_surface':              self.water_bp_surface,
-            'massecuite_temp_surf':          self.massecuite_temp_surface,
-            'bpr_at_surface':                self.bpr_at_surface,
-            'water_bp_at_head':              self.water_bp_at_head,
             'massecuite_temp':               self.massecuite_temp,
-            'bpr_at_head':                   self.bpr_at_head,
+            'sat_bpr':                       self.saturation_bpr,
         }
+        if self.temp_F is None:   # boiling mode — full solve available
+            d.update({
+                'inches_vacuum':             self.inches_vacuum,
+                'vapor_pressure_psia':       self.vapor_pressure_psia,
+                'supersaturation':           self.supersaturation,
+                'head_ft':                   self.head_ft,
+                'water_bp_surface':          self.water_bp_surface,
+                'massecuite_temp_surf':      self.massecuite_temp_surface,
+                'bpr_at_surface':            self.bpr_at_surface,
+                'water_bp_at_head':          self.water_bp_at_head,
+                'bpr_at_head':               self.bpr_at_head,
+            })
         if self.flow_lb_hr is not None:
             d['flow_lb_hr']    = self.flow_lb_hr
             d['solids_flow']   = self.solids_flow
@@ -276,6 +355,10 @@ if __name__ == "__main__":
     print(masse)
     print()
     t0 = time.perf_counter()
+    masse.display_properties()
+    print(masse)
+    print(f"\nchanging temp test\n")
+    masse.temp_F = 160
     masse.display_properties()
     elapsed_ms = (time.perf_counter() - t0) * 1000
     print(f"\n  solved in {elapsed_ms:.3f} ms")

@@ -93,7 +93,7 @@ class CanePrepTurbines:
     # Display
     # ------------------------------------------------------------------
 
-    def display_cane_prep_turbine_information(self):
+    def neat_display(self):
         def fmt_x(x):
             return "Superheat" if x is None or x >= 1.0 else f"{x:.4f}"
 
@@ -147,4 +147,4 @@ if __name__ == "__main__":
     )
     print(prep)
     print()
-    prep.display_cane_prep_turbine_information()
+    prep.neat_display()

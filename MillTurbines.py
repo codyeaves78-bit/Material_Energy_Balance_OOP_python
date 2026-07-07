@@ -78,7 +78,7 @@ class MillTurbines:
     # Display
     # ------------------------------------------------------------------
 
-    def display_mill_turbine_information(self):
+    def neat_display(self):
         def fmt_x(x):
             return "Superheat" if x is None or x >= 1.0 else f"{x:.4f}"
 
@@ -130,4 +130,4 @@ if __name__ == "__main__":
     )
     print(mills)
     print()
-    mills.display_mill_turbine_information()
+    mills.neat_display()

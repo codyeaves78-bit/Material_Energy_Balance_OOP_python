@@ -99,5 +99,5 @@ if __name__ == "__main__":
     real_bagasse = Bagasse(moisture_pct=49.0, brix_pct=3.2, pol_pct=1.8, ash_pct=4.0, flowrate_lb_hr=100_000)
     b3 = Boiler(bagasse=real_bagasse, efficiency=62, pressure_psig=180, feed_water_temp=230, name='Boiler 3')
     b3.neat_display()
-    real_bagasse.display()
+    real_bagasse.neat_display()
 
