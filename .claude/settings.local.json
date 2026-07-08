@@ -30,7 +30,18 @@
       "Bash(python Crystallizer_and_Reheater.py)",
       "Bash(python ThreeBoilingDoubleMagma.py)",
       "Bash(python main.py)",
-      "Bash(python FourBoilingDoubleMagma.py)"
+      "Bash(python FourBoilingDoubleMagma.py)",
+      "Bash(python -c \"import FourBoilingDoubleMagma, ThreeBoilingDoubleMagma\")",
+      "Bash(python -c \"import openpyxl; print\\(openpyxl.__version__\\)\")",
+      "Bash(python MillFloor.py)",
+      "Bash(python -)",
+      "Bash(which soffice *)",
+      "Read(//usr/bin/**)",
+      "Bash(MPLBACKEND=Agg python MillFloor.py)",
+      "Bash(MPLBACKEND=Agg python -)",
+      "Bash(MPLBACKEND=Agg python FourBoilingDoubleMagma.py)",
+      "Bash(MPLBACKEND=Agg python ThreeBoilingDoubleMagma.py)",
+      "Bash(MPLBACKEND=Agg python Clarification.py)"
     ]
   }
 }

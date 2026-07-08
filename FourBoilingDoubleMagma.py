@@ -2,7 +2,6 @@ from Pan import Pan
 from Centrifugal import Centrifugal
 from Crystallizer_and_Reheater import Crystallizer, Reheater
 from SugarStream import SugarStream
-from pan_floor_diagram import plot_four_boiling
 
 
 def make_magma(sugar_stream: SugarStream, mingler_brix: float) -> SugarStream:
@@ -61,9 +60,11 @@ class FourBoilingDoubleMagma:
         a1_mol_dilution_brix: float = 70,
         a2_mol_dilution_brix: float = 70,
         b_mol_dilution_brix: float = 70,
+        injection_water_temp_F: float = 90,
         iterations: int = 15,
     ):
         self.syrup = syrup
+        self.injection_water_temp_F = injection_water_temp_F
 
         self._A1_pans_cfg = A1_pans
         self._A2_pans_cfg = A2_pans
@@ -303,10 +304,121 @@ class FourBoilingDoubleMagma:
         self._b_remelt        = b_remelt
         self._c_remelt        = c_remelt
 
-    def generate_pfd(self, show=True, save_path=None):
-        """Generate a process flow diagram. Returns the matplotlib Figure."""
-        from pan_floor_diagram import plot_four_boiling
-        return plot_four_boiling(self, show=show, save_path=save_path)
+    def generate_pfd(self, show=True, save_path=None, include_table=True):
+        """Generate a process flow diagram with a stream table. Returns the Figure."""
+        from four_boiling_diagram import plot_four_boiling
+        return plot_four_boiling(self, show=show, save_path=save_path,
+                                 include_table=include_table)
+
+    def to_excel(self, workbook):
+        """Write the full floor balance to its own styled sheet: the PFD
+        (diagram only), the numbered stream table, the water streams not
+        drawn, the overall balance, and every station from neat_display."""
+        import matplotlib.pyplot as plt
+        from excel_export import SheetWriter
+        from four_boiling_diagram import _collect_streams, _collect_water
+        from pan_floor_excel import (HDRS, FMTS, srow, wrow, totals_rows,
+                                     pan_table, cen_table, dil_table, heatx_table,
+                                     condenser_table)
+
+        # ── Sheet ──────────────────────────────────────────────────────────
+        a1s = self.A1_centrifugals.sugar_stream
+        a2s = self.A2_centrifugals.sugar_stream
+        c_mol = self.C_centrifugals.molasses_stream
+        total_evap = (self.A1_pans.water_evaporated_lb_hr + self.A2_pans.water_evaporated_lb_hr
+                      + self.B_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
+                      + self.C_pans.water_evaporated_lb_hr)
+        pol_extr = (a1s.pol_flow + a2s.pol_flow) / self.syrup.pol_flow * 100
+
+        sw = SheetWriter(workbook, "Pan Floor - Four Boiling", ncols=9)
+        sw.title("Four Boiling Double Magma — Pan Floor",
+                 f"Syrup {self.syrup.flow_lb_per_hr:,.0f} lb/hr @ {self.syrup.brix:.1f} Bx "
+                 f"| Pol recovered in raw sugar = {pol_extr:.2f}%")
+
+        sw.section("PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, include_table=False)
+        sw.image(fig, scale=0.45)
+        plt.close(fig)
+
+        sw.section("STREAM TABLE  (tags match the diagram)")
+        sw.table(["#", "Stream", "Flow (lb/hr)", "Brix %", "Purity %"],
+                 _collect_streams(self),
+                 fmts=["0", "@", "#,##0", "0.0", "0.0"])
+
+        sw.section("STREAMS NOT SHOWN — WATER")
+        wleft, wright, (total_in, total_evap_chk) = _collect_water(self)
+        sw.table(["Stream", "Flow (lb/hr)"], wleft + wright, fmts=["@", "#,##0"],
+                 totals=[("Total Fresh Water In (wash + mingler + remelt + dilution)", total_in),
+                         ("Total Water Evaporated (all pans)", total_evap_chk)])
+
+        sw.section("OVERALL FLOOR BALANCE")
+        tw = self.total_water
+        in_f  = self.syrup.flow_lb_per_hr + tw.flow_lb_per_hr
+        in_s  = self.syrup.solids_flow
+        in_p  = self.syrup.pol_flow
+        out_f = a1s.flow_lb_per_hr + a2s.flow_lb_per_hr + c_mol.flow_lb_per_hr + total_evap
+        out_s = a1s.solids_flow + a2s.solids_flow + c_mol.solids_flow
+        out_p = a1s.pol_flow + a2s.pol_flow + c_mol.pol_flow
+        sw.table(HDRS, [
+            srow("Syrup From Evaporators", "In", self.syrup),
+            wrow("Wash and Dilution Water", "In", tw.flow_lb_per_hr),
+            srow("A1 Product Sugar", "Out", a1s),
+            srow("A2 Product Sugar", "Out", a2s),
+            srow("C Final Molasses", "Out", c_mol),
+            wrow("Evaporated (all pans)", "Out", total_evap),
+        ], fmts=FMTS, totals=totals_rows(in_f, in_s, in_p, in_f - in_s,
+                                         out_f, out_s, out_p, out_f - out_s))
+        sw.row("Pol % recovered in raw sugar (A1+A2 / feed)", pol_extr, "%")
+
+        # ── Stations ───────────────────────────────────────────────────────
+        sw.section(f"A1 PANS  [{self.A1_pans.name}]")
+        pan_table(sw, self.A1_pans, ["Syrup", "B Magma"])
+        sw.section(f"A1 CENTRIFUGALS  [{self.A1_centrifugals.name}]")
+        cen_table(sw, self.A1_centrifugals)
+        sw.section(f"A1 MOLASSES DILUTION  (target {self.a1_mol_dilution_brix:.1f} Bx)")
+        dil_table(sw, self.A1_centrifugals.molasses_stream, self._a1_mol_diluted, "A1 Molasses")
+
+        sw.section(f"A2 PANS  [{self.A2_pans.name}]")
+        pan_table(sw, self.A2_pans, ["Syrup", "A1 Molasses", "B Magma"])
+        sw.section(f"A2 CENTRIFUGALS  [{self.A2_centrifugals.name}]")
+        cen_table(sw, self.A2_centrifugals)
+        sw.section(f"A2 MOLASSES DILUTION  (target {self.a2_mol_dilution_brix:.1f} Bx)")
+        dil_table(sw, self.A2_centrifugals.molasses_stream, self._a2_mol_diluted, "A2 Molasses")
+
+        sw.section(f"B PANS  [{self.B_pans.name}]")
+        pan_table(sw, self.B_pans, ["A2 Molasses", "C Magma", "A1 Molasses"])
+        sw.section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]")
+        cen_table(sw, self.B_centrifugals)
+        sw.section(f"B MOLASSES DILUTION  (target {self.b_mol_dilution_brix:.1f} Bx)")
+        dil_table(sw, self.B_centrifugals.molasses_stream, self._b_mol_diluted, "B Molasses")
+
+        sw.section(f"GRAIN PANS  [{self.grain_pans.name}]")
+        pan_table(sw, self.grain_pans, ["Syrup", "A1 Molasses", "A2 Molasses", "B Molasses"])
+
+        sw.section(f"C PANS  [{self.C_pans.name}]")
+        pan_table(sw, self.C_pans, ["Grain Massecuite", "B Molasses"])
+        sw.section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]")
+        heatx_table(sw, self.C_crystallizers, "Cooling Water")
+        sw.section(f"C REHEATERS  [{self.C_reheaters.name}]")
+        heatx_table(sw, self.C_reheaters, "Hot Water")
+        sw.section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]")
+        cen_table(sw, self.C_centrifugals)
+
+        sw.section("PAN VAPOR CONDENSERS  (one per pan)")
+        condenser_table(sw, self.pan_condensers, self.injection_water_temp_F)
+
+        return sw.finish()
+
+    @property
+    def pan_condensers(self):
+        """Each pan's vapor goes to its own barometric condenser: [(name, Condenser)]."""
+        from Condenser import Condenser
+        return [
+            (pan.name, Condenser(pan.vapor_evaporated, self.injection_water_temp_F))
+            for pan in (self.A1_pans, self.A2_pans, self.B_pans,
+                        self.grain_pans, self.C_pans)
+        ]
 
     @property
     def total_water(self) -> SugarStream:
@@ -618,6 +730,32 @@ class FourBoilingDoubleMagma:
         out.append(_hdr())
         out.append("")
         out.extend(_cen_station(self.C_centrifugals))
+
+        # ── Pan Vapor Condensers ──────────────────────────────────────────
+        out.append(_section(f"PAN VAPOR CONDENSERS  (one per pan, injection water @ "
+                            f"{self.injection_water_temp_F:.0f} F)"))
+        out.append(f"  {'Condenser':<16} {'Vapor lb/hr':>12} {'Sat T F':>8} {'h_fg':>8}"
+                   f" {'MM BTU/hr':>10} {'Inj lb/hr':>13} {'Inj GPM':>9}"
+                   f" {'Out T F':>8} {'Total lb/hr':>13}")
+        out.append("")
+        tot_v = tot_h = tot_w = tot_g = tot_t = 0.0
+        for cname, cond in self.pan_condensers:
+            inj = cond.injection_water_flow_lb_hr
+            gpm = inj / 500.4
+            out.append(f"  {cname:<16} {cond.vapor_flow_lb_hr:>12,.0f}"
+                       f" {cond.vapor_sat_temp_F:>8.1f} {cond.vapor_h_fg_btu_lb:>8.1f}"
+                       f" {cond.heat_load_btu_hr / 1e6:>10.3f} {inj:>13,.0f} {gpm:>9,.0f}"
+                       f" {cond.water_outlet_temp_F:>8.1f} {cond.total_outlet_flow_lb_hr:>13,.0f}")
+            tot_v += cond.vapor_flow_lb_hr
+            tot_h += cond.heat_load_btu_hr / 1e6
+            tot_w += inj
+            tot_g += gpm
+            tot_t += cond.total_outlet_flow_lb_hr
+        out.append(LIGHT)
+        out.append(f"  {'Total':<16} {tot_v:>12,.0f} {'':>8} {'':>8}"
+                   f" {tot_h:>10.3f} {tot_w:>13,.0f} {tot_g:>9,.0f}"
+                   f" {'':>8} {tot_t:>13,.0f}")
+
         out.append("")
         out.append(HEAVY)
 
@@ -720,4 +858,11 @@ if __name__ == "__main__":
     )
 
     pan_floor.neat_display()
-   # pan_floor.generate_pfd(show=True, save_path=None)
+    pan_floor.generate_pfd(show=True, save_path='four_boil_pfd')
+
+    # Excel export demo — one workbook, this unit on its own sheet
+    from excel_export import new_workbook
+    wb = new_workbook()
+    pan_floor.to_excel(wb)
+    wb.save("four_boiling.xlsx")
+    print("\nSaved four_boiling.xlsx")

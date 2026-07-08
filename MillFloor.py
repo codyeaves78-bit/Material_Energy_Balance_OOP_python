@@ -246,6 +246,7 @@ class MillFloor:
         row("Purity",               mj.purity,                  "%")
         row("Pol",                  mj.pol,                     "%")
         row("Temperature",          mj.temp_deg_F,              "°F")
+        row("Flow",                 mj.cu_ft_hr * 7.4805 / 60,  "GPM")
 
         section("BAGASSE")
         row("Flow",                 bag.flowrate_lb_hr,              "lb/hr")
@@ -326,6 +327,122 @@ class MillFloor:
         print(f"\n{hdrs_line}")
         self._print_stream_table()
 
+    def generate_pfd(self, show=True, save_path=None):
+        """Generate a process flow diagram. Returns the matplotlib Figure."""
+        from mill_floor_diagram import plot_mill_floor
+        return plot_mill_floor(self, show=show, save_path=save_path)
+
+    def to_excel(self, workbook):
+        """Write this mill floor's results to its own styled sheet in workbook."""
+        from excel_export import SheetWriter
+
+        mj  = self.mixed_juice_stream
+        bag = self.bagasse_stream
+
+        sw = SheetWriter(workbook, self.name, ncols=7)
+        sw.title(
+            self.name,
+            f"{self.number_of_mills} mills  |  extraction = {self.mill_extraction_pct:.2f}%",
+        )
+
+        sw.section("CANE FEED")
+        sw.row("Cane throughput",  self.cane_tpd,               "TPD", fmt="#,##0")
+        sw.row("Cane pol",         self.cane_pol_pct,           "%")
+        sw.row("Cane fiber",       self.cane_fiber_pct,         "%")
+        sw.row("Imbibition",       self.imbibition_pct_on_cane, "% on cane")
+        sw.row("Imbibition flow",  self.imbibition_gpm,         "GPM", fmt="#,##0")
+
+        sw.section("MIXED JUICE")
+        sw.row("Flow",        mj.flow_lb_per_hr, "lb/hr", fmt="#,##0")
+        sw.row("Brix",        mj.brix,           "%")
+        sw.row("Purity",      mj.purity,         "%")
+        sw.row("Pol",         mj.pol,            "%")
+        sw.row("Temperature", mj.temp_deg_F,     "°F", fmt="#,##0.0")
+        sw.row("Flow",        mj.cu_ft_hr * 7.4805 / 60, "GPM", fmt="#,##0")
+
+        sw.section("BAGASSE")
+        sw.row("Flow",     bag.flowrate_lb_hr,             "lb/hr", fmt="#,##0")
+        sw.row("Flow",     bag.flowrate_lb_hr / 2000 * 24, "TPD",   fmt="#,##0")
+        sw.row("Fiber",    bag.fiber_pct,    "%")
+        sw.row("Pol",      bag.pol_pct,      "%")
+        sw.row("Brix",     bag.brix_pct,     "%")
+        sw.row("Moisture", bag.moisture_pct, "%")
+
+        sw.section("PERFORMANCE")
+        sw.row("Mill extraction", self.mill_extraction_pct, "% pol in cane")
+
+        sw.section("STREAM TABLE  (TPH)")
+        stream_rows, in_tot, out_tot = self._stream_table_rows()
+        diff = [i - o for i, o in zip(in_tot, out_tot)]
+        sw.table(
+            headers=["Stream", "Dir", "Flow (TPH)", "Pol (TPH)",
+                     "Brix (TPH)", "Fiber (TPH)", "Water (TPH)"],
+            rows=stream_rows,
+            fmts=["@", "@", "#,##0.00", "#,##0.00", "#,##0.00", "#,##0.00", "#,##0.00"],
+            totals=[
+                ("Total In",   "", *in_tot),
+                ("Total Out",  "", *out_tot),
+                ("Difference", "", *diff),
+            ],
+        )
+
+        sw.section("PER-MILL MACERATION BALANCE  (TPD)")
+        sw.table(
+            headers=["Mill", "Bagasse In", "Liquid In", "Liquid In Source",
+                     "Bagasse Out", "Juice Out", "Juice Out Dest"],
+            rows=[
+                (m["mill"], m["bagasse_in_tpd"], m["mac_in_tpd"], m["mac_in_source"],
+                 m["bagasse_out_tpd"], m["juice_out_tpd"], m["juice_out_dest"])
+                for m in self.mill_balances
+            ],
+            fmts=["0", "#,##0.0", "#,##0.0", "@", "#,##0.0", "#,##0.0", "@"],
+        )
+
+        sw.section("PROCESS FLOW DIAGRAM")
+        sw.blank()
+        import matplotlib.pyplot as plt
+        fig = self.generate_pfd(show=False)
+        sw.image(fig, scale=0.5)
+        plt.close(fig)
+
+        return sw.finish()
+
+    def _stream_table_rows(self):
+        """Stream component flows (TPH) as data: (rows, in_totals, out_totals)."""
+        mj  = self.mixed_juice_stream
+        bag = self.bagasse_stream
+
+        mj_tph       = mj.flow_lb_per_hr / 2000
+        mj_brix_tph  = mj.solids_flow    / 2000
+        mj_pol_tph   = mj.pol_flow       / 2000
+        mj_water_tph = mj_tph - mj_brix_tph
+
+        bag_tph       = bag.flowrate_lb_hr / 2000
+        bag_pol_tph   = bag_tph * bag.pol_pct      / 100
+        bag_brix_tph  = bag_tph * bag.brix_pct     / 100
+        bag_fiber_tph = bag_tph * bag.fiber_pct    / 100
+        bag_water_tph = bag_tph * bag.moisture_pct / 100
+
+        cane_pol_tph   = self.cane_tph * self.cane_pol_pct   / 100
+        cane_brix_tph  = self.cane_tph * self.cane_brix_pct  / 100
+        cane_fiber_tph = self.cane_tph * self.cane_fiber_pct / 100
+        cane_water_tph = self.cane_tph * self.cane_moist_pct / 100
+
+        rows = [
+            ("Cane",        "In",  self.cane_tph,       cane_pol_tph, cane_brix_tph, cane_fiber_tph, cane_water_tph),
+            ("Imbibition",  "In",  self.imbibition_tph, 0.0,          0.0,           0.0,            self.imbibition_tph),
+            ("Mixed Juice", "Out", mj_tph,              mj_pol_tph,   mj_brix_tph,   0.0,            mj_water_tph),
+            ("Bagasse",     "Out", bag_tph,             bag_pol_tph,  bag_brix_tph,  bag_fiber_tph,  bag_water_tph),
+        ]
+
+        in_tot  = [0.0] * 5
+        out_tot = [0.0] * 5
+        for _, direction, *vals in rows:
+            totals = in_tot if direction == "In" else out_tot
+            for i, v in enumerate(vals):
+                totals[i] += v
+        return rows, in_tot, out_tot
+
     def display_mill_balances(self):
         mc_w   = [6, 16, 16, 22, 16, 26]
         mc_hdr = ["Mill", "Bagasse In (TPD)", "Liquid In (TPD)",
@@ -360,7 +477,7 @@ if __name__ == "__main__":
         last_roll_purity=72.0,
         bagasse_moisture_pct=49.0,
         mix_juice_purity=88.0,
-        number_of_mills=5,
+        number_of_mills=6,
         juice_temp_F=90.0,
         mill_1_fiber_rise_load_fraction=0.35,
     )
@@ -374,3 +491,10 @@ if __name__ == "__main__":
 
     print("\nBagasse stream:")
     mill.bagasse_stream.neat_display()
+
+    # Excel export demo — one workbook, this unit on its own sheet
+    from excel_export import new_workbook
+    wb = new_workbook()
+    mill.to_excel(wb)
+    wb.save("mill_floor.xlsx")
+    print("\nSaved mill_floor.xlsx")

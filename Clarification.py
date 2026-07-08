@@ -238,6 +238,77 @@ class Clarification:
             totals["difference"][key] = in_ - out_
         return totals
 
+    def generate_pfd(self, show=True, save_path=None, include_table=True):
+        """Generate a process flow diagram with a stream table. Returns the Figure."""
+        from clarification_diagram import plot_clarification
+        return plot_clarification(self, show=show, save_path=save_path,
+                                  include_table=include_table)
+
+    def to_excel(self, workbook):
+        """Write the clarification balance to its own styled sheet: the PFD
+        (diagram only), the numbered stream table, balance check, parameters,
+        and key results."""
+        import matplotlib.pyplot as plt
+        from excel_export import SheetWriter
+        from clarification_diagram import _collect_streams
+
+        cj = self.clarified_juice_stream
+        sw = SheetWriter(workbook, self.name, ncols=12)
+        sw.title(self.name,
+                 f"{self.cane_tpd:,.0f} TPD cane  |  CJ {cj.flow_lb_per_hr:,.0f} lb/hr "
+                 f"@ {cj.brix:.2f} Bx, {cj.purity:.1f} purity")
+
+        sw.section("PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, include_table=False)
+        sw.image(fig, scale=0.55)
+        plt.close(fig)
+
+        sw.section("STREAM TABLE  (tags match the diagram)")
+        bal = self.balance_check
+        sw.table(
+            ["#", "Stream", "Dir", "lb/hr", "GPM", "Brix lb/hr", "Pol lb/hr",
+             "Brix %", "Pol %", "Purity %", "% on Cane", "°F"],
+            _collect_streams(self),
+            fmts=["0", "@", "@", "#,##0", "#,##0", "#,##0", "#,##0",
+                  "0.00", "0.00", "0.0", "0.00", "0.0"],
+            totals=[
+                ("", "Total In (external)",  "", bal["in"]["lb_per_hr"],  "",
+                 bal["in"]["brix_lb_per_hr"],  bal["in"]["pol_lb_per_hr"],  "", "", "", "", ""),
+                ("", "Total Out (external)", "", bal["out"]["lb_per_hr"], "",
+                 bal["out"]["brix_lb_per_hr"], bal["out"]["pol_lb_per_hr"], "", "", "", "", ""),
+                ("", "Net (In - Out)", "", bal["difference"]["lb_per_hr"], "",
+                 bal["difference"]["brix_lb_per_hr"], bal["difference"]["pol_lb_per_hr"],
+                 "", "", "", "", ""),
+            ],
+        )
+
+        sw.section("PARAMETERS")
+        sw.row("Cane throughput",         self.cane_tpd, "TPD", fmt="#,##0")
+        sw.row("Filter wash water",       self.filter_wash_water_pct_on_cane, "% on cane")
+        sw.row("Filter cake",             self.filter_cake_pct_on_cane, "% on cane")
+        sw.row("Filter cake pol",         self.filter_cake_pol_pct, "%")
+        sw.row("Clarified juice purity",  self.clarified_juice_purity, "%")
+        sw.row("Limed juice cold temp",   self.limed_juice_cold_temp_f, "°F", fmt="#,##0.0")
+        sw.row("Limed juice hot temp",    self.limed_juice_hot_temp_f, "°F", fmt="#,##0.0")
+        sw.row("Clarified juice temp",    self.clarified_juice_temp_f, "°F", fmt="#,##0.0")
+        sw.row("Lime dose",               self.lime_lb_per_ton_cane, "lb/ton cane")
+        sw.row("Milk of lime",            self.lime_baume, "°Baumé", fmt="#,##0.0")
+        sw.row("Polymer dose",            self.polymer_lb_per_ton_cane, "lb/ton cane", fmt="0.000")
+        sw.row("Polymer concentration",   self.polymer_conc_ppm, "ppm", fmt="#,##0")
+        sw.row("Clarifier underflow",     self.clarifier_underflow_pct_cane, "% on cane")
+
+        sw.section("KEY RESULTS")
+        sw.row("Flash vapor",             self.flash_vapor_pct, "% of limed juice", fmt="0.000")
+        sw.row("Filter cake pol loss",    self.filter_cake_pol_lb_per_day, "lb/day", fmt="#,##0")
+        sw.row("Clarified juice flow",    cj.flow_lb_per_hr, "lb/hr", fmt="#,##0")
+        sw.row("Clarified juice flow",    cj.cu_ft_hr * 7.4805 / 60, "GPM", fmt="#,##0")
+        sw.row("Clarified juice brix",    cj.brix, "%")
+        sw.row("Clarified juice purity",  cj.purity, "%")
+        sw.row("Clarified juice temp",    cj.temp_deg_F, "°F", fmt="#,##0.0")
+
+        return sw.finish()
+
     # ── Display ───────────────────────────────────────────────────────────────
 
     def __repr__(self):
@@ -339,3 +410,11 @@ if __name__ == "__main__":
 
     print("Clarified juice stream:")
     print(clarifier.clarified_juice_stream)
+    # clarifier.generate_pfd(show=True, save_path=None)
+
+    # Excel export demo — one workbook, this unit on its own sheet
+    from excel_export import new_workbook
+    wb = new_workbook()
+    clarifier.to_excel(wb)
+    wb.save("clarification.xlsx")
+    print("\nSaved clarification.xlsx")

@@ -268,9 +268,13 @@ class EvaporatorSet:
     
     @property
     def condenser(self):
-        """Returns a Condenser object for the last effect's vapor"""
-        last_effect_vapor = self.evaporator_list[-1].vapor_out
-        return Condenser(vapor=last_effect_vapor, water_inlet_temp_F=self.injection_water_temp_F)
+        """Condenser for the last effect's vapor (net of any last-effect bleed)."""
+        last = self.evaporator_list[-1]
+        to_condenser = EvaporatorSteam(
+            P_psia=last.vapor_pressure_psia,
+            flow_lb_per_hr=last.lbs_evaporated_per_hr - last.vapor_bleed.flow_lb_per_hr,
+        )
+        return Condenser(vapor=to_condenser, water_inlet_temp_F=self.injection_water_temp_F)
 
     def generate_pfd(self, show: bool = True, save_path: str = None, pre_evap=None):
         """Render the process flow diagram. Pass a solved PreEvaporator to include it on the same figure."""
@@ -412,6 +416,122 @@ class EvaporatorSet:
             print(f"  {'-' * (W - 2)}")
         print(f"\n{light}\n")
 
+        # ── Last effect condenser ────────────────────────────────────────
+        cond = self.condenser
+        print(light)
+        print(f"  LAST EFFECT CONDENSER  —  {self.name}"
+              f"  (injection water @ {self.injection_water_temp_F:.0f} °F)")
+        print(light)
+        print(f"  Vapor to condenser    : {cond.vapor_flow_lb_hr:>12,.0f} lb/hr"
+              f"  @ {cond.vapor_sat_temp_F:.1f} °F sat, h_fg = {cond.vapor_h_fg_btu_lb:.1f} BTU/lb")
+        print(f"  Heat load             : {cond.heat_load_btu_hr:>12,.0f} BTU/hr"
+              f"  ({cond.heat_load_btu_hr / 1e6:.2f} MM BTU/hr)")
+        print(f"  Injection water       : {cond.injection_water_flow_lb_hr:>12,.0f} lb/hr"
+              f"  ({cond.injection_water_flow_lb_hr / 500.4:,.0f} GPM)"
+              f"  {self.injection_water_temp_F:.0f} -> {cond.water_outlet_temp_F:.1f} °F")
+        print(f"  Total outlet flow     : {cond.total_outlet_flow_lb_hr:>12,.0f} lb/hr")
+        print(f"{light}\n")
+
+    def to_excel(self, workbook, sheet_writer=None):
+        """Write this set (summary, effect detail, energy balance, condenser,
+        PFD) to Excel. Pass an existing SheetWriter to append this set onto a
+        shared sheet (see sets_to_excel); otherwise a new sheet is created."""
+        import matplotlib.pyplot as plt
+        from excel_export import SheetWriter
+
+        n  = self.number_of_effects
+        ef = self.evaporator_list
+        standalone = sheet_writer is None
+        sw = sheet_writer or SheetWriter(workbook, self.name, ncols=max(7, n + 1))
+        if standalone:
+            sw.title(self.name,
+                     f"{n} effects | steam = {self.supply_steam.flow_lb_per_hr:,.0f} lb/hr "
+                     f"| syrup out = {ef[-1].juice_side_out.brix:.2f} Bx")
+
+        syrup_out = ef[-1].juice_side_out
+        sw.section(f"{self.name} — SUMMARY")
+        sw.table(
+            ["Stream", "Flow (lb/hr)", "Brix / P (psia)", "Temp (°F)"],
+            [
+                ("Juice In",     self.juice_in.flow_lb_per_hr, self.juice_in.brix, self.juice_in.temp_deg_F),
+                ("Syrup Out",    syrup_out.flow_lb_per_hr,     syrup_out.brix,     syrup_out.temp_deg_F),
+                ("Steam Req'd",  self.supply_steam.flow_lb_per_hr, self.supply_steam.P_psia,
+                                 self.supply_steam.sat_temp_deg_F),
+            ],
+            fmts=["@", "#,##0", "0.00", "0.0"],
+        )
+        sw.row("Steam pressure", convert_psia_to_psig(self.supply_steam.P_psia), "psig")
+        sw.row("Last effect vacuum", convert_psia_to_inHgVac(self.last_effect_pressure_psia), '"Hg')
+        sw.row("Avg U ratio (calc/Dessin)", self.U_ratio_avg, "", fmt="0.000")
+
+        eff_hdrs = [""] + [f"Effect {i + 1}" for i in range(n)]
+
+        sw.section(f"{self.name} — EFFECT FLOWS")
+        sw.table(eff_hdrs, [
+            ("Juice in (lb/hr)",    *[e.juice_side_in.flow_lb_per_hr  for e in ef]),
+            ("Syrup out (lb/hr)",   *[e.juice_side_out.flow_lb_per_hr for e in ef]),
+            ("Steam in (lb/hr)",    *[e.calandria_side.flow_lb_per_hr for e in ef]),
+            ("Evaporated (lb/hr)",  *[e.lbs_evaporated_per_hr         for e in ef]),
+            ("Vapor bleed (lb/hr)", *[e.vapor_bleed.flow_lb_per_hr    for e in ef]),
+            ("Heating surface (ft²)", *[e.area_ft2                    for e in ef]),
+        ], fmts=["@"] + ["#,##0"] * n)
+
+        sw.section(f"{self.name} — EFFECT CONDITIONS")
+        sw.table(eff_hdrs, [
+            ("Brix in",              *[e.juice_side_in.brix                  for e in ef]),
+            ("Brix out",             *[e.juice_side_out.brix                 for e in ef]),
+            ("Juice temp (°F)",      *[e.juice_side_in.temp_deg_F            for e in ef]),
+            ("Syrup temp (°F)",      *[e.juice_side_out.temp_deg_F           for e in ef]),
+            ("Juice cp",             *[e.juice_side_in.cp_btu_per_lb_deg_F   for e in ef]),
+            ("Syrup cp",             *[e.juice_side_out.cp_btu_per_lb_deg_F  for e in ef]),
+            ("Vapor P (psia)",       *[e.vapor_pressure_psia                 for e in ef]),
+            ("Vapor temp (°F)",      *[e.vapor_temperature                   for e in ef]),
+            ("Vapor h_fg (BTU/lb)",  *[e.vapor_out.h_fg                      for e in ef]),
+            ("Calandria P (psia)",   *[e.calandria_side.P_psia               for e in ef]),
+            ("Calandria temp (°F)",  *[e.calandria_side.sat_temp_deg_F       for e in ef]),
+            ("Calandria h_fg (BTU/lb)", *[e.calandria_side.h_fg              for e in ef]),
+            ("Duty (MM BTU/hr)",     *[e.heat_duty_btu_per_hr / 1e6          for e in ef]),
+            ("U calc (BTU/hr·ft²·°F)",  *[e.heat_xfer_U                      for e in ef]),
+            ("U Dessin (BTU/hr·ft²·°F)", *[e.dessin_U                        for e in ef]),
+        ], fmts=["@"] + ["#,##0.00"] * n)
+
+        sw.section(f"{self.name} — ENERGY BALANCE PER EFFECT")
+        sw.table(
+            ["Effect", "Steam (lb/hr)", "h_fg (BTU/lb)", "Entering (MM BTU/hr)",
+             "Sensible (MM BTU/hr)", "Net for Evap (MM BTU/hr)", "Evaporated (lb/hr)"],
+            [
+                (f"Effect {i + 1}",
+                 e.calandria_side.flow_lb_per_hr,
+                 e.calandria_side.h_fg,
+                 e.heat_duty_btu_per_hr / 1e6,
+                 e.heat_from_flash / 1e6,
+                 e.heat_available_for_evaporation / 1e6,
+                 e.lbs_evaporated_per_hr)
+                for i, e in enumerate(ef)
+            ],
+            fmts=["@", "#,##0", "0.0", "0.000", "0.000", "0.000", "#,##0"],
+        )
+
+        cond = self.condenser
+        sw.section(f"{self.name} — LAST EFFECT CONDENSER")
+        sw.row("Vapor to condenser",    cond.vapor_flow_lb_hr, "lb/hr", fmt="#,##0")
+        sw.row("Vapor saturation temp", cond.vapor_sat_temp_F, "°F", fmt="0.0")
+        sw.row("Vapor h_fg",            cond.vapor_h_fg_btu_lb, "BTU/lb", fmt="0.0")
+        sw.row("Heat load",             cond.heat_load_btu_hr, "BTU/hr", fmt="#,##0")
+        sw.row("Injection water in",    self.injection_water_temp_F, "°F", fmt="0.0")
+        sw.row("Water outlet temp",     cond.water_outlet_temp_F, "°F", fmt="0.0")
+        sw.row("Injection water flow",  cond.injection_water_flow_lb_hr, "lb/hr", fmt="#,##0")
+        sw.row("Injection water flow",  cond.injection_water_flow_lb_hr / 500.4, "GPM", fmt="#,##0")
+        sw.row("Total outlet flow",     cond.total_outlet_flow_lb_hr, "lb/hr", fmt="#,##0")
+
+        sw.section(f"{self.name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False)
+        sw.image(fig, scale=0.4)
+        plt.close(fig)
+
+        return sw.finish() if standalone else sw
+
     def check_material_balance(self):
         """Checks the material balance of the system"""
         print(f"\n Checking Material Balance \n")
@@ -471,6 +591,32 @@ class EvaporatorSet:
                 print(f"Balance: {energy_balance:,.2f} BTU/hr")
             else:
                 print(f"Energy Balance OK in effect {i+1}")
+
+
+def sets_to_excel(evap_sets, workbook, sheet_name="Evaporator Station"):
+    """Write several solved EvaporatorSets onto ONE shared sheet, each with
+    its summary, effect tables, energy balance, condenser, and PFD.
+
+    Usage with solve_evaporator_sets:
+        evap_station = solve_evaporator_sets(...)
+        wb = new_workbook()
+        sets_to_excel(evap_station, wb)
+        wb.save("factory_balance.xlsx")
+    """
+    from excel_export import SheetWriter
+
+    ncols = max(7, max(s.number_of_effects for s in evap_sets) + 1)
+    sw = SheetWriter(workbook, sheet_name, ncols=ncols)
+    total_steam = sum(s.supply_steam.flow_lb_per_hr for s in evap_sets)
+    total_inj   = sum(s.condenser.injection_water_flow_lb_hr for s in evap_sets)
+    sw.title(sheet_name,
+             f"{len(evap_sets)} sets  |  total steam = {total_steam:,.0f} lb/hr  "
+             f"|  total condenser injection water = {total_inj:,.0f} lb/hr "
+             f"({total_inj / 500.4:,.0f} GPM)")
+    for es in evap_sets:
+        es.to_excel(workbook, sheet_writer=sw)
+        sw.blank()
+    return sw.finish()
 
 
 if __name__ == "__main__":
@@ -557,5 +703,12 @@ if __name__ == "__main__":
         evap_set.show_summary()
         evap_set.condenser.neat_display()
         evap_set.generate_pfd(pre_evap=pre)
+
+        # Excel export demo — one workbook, this unit on its own sheet
+        from excel_export import new_workbook
+        wb = new_workbook()
+        evap_set.to_excel(wb)
+        wb.save("evaporation.xlsx")
+        print("\nSaved evaporation.xlsx")
 
         print(f"\nExecution time: {time.time() - start:.4f} s")
