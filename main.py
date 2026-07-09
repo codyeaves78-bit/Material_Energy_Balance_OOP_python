@@ -129,7 +129,7 @@ par_heaters = JuiceHeatingStation(
     cold_stream=cold_juice,
     heaters=[v1_heaters, exh_heaters],
     mode='parallel',
-    split_pcts=[75, 25],
+    split_pcts=[75, 25], # 75% of the juice goes to the v1_heaters
     name='Parallel Juice Heating Station'
 )
 
@@ -212,12 +212,21 @@ if boiling_scheme == 'TBDM':
             ml_purity=33,
             calandria_pressure_psia=21.696,   # V1 (7 psig)
             heat_loss_factor=0.05, name='C Pans'),
-        A_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=0, 
-                                   sugar_moisture=0.2, sugar_purity=99.7, sugar_temp=150, molasses_temp=145, name="A Centrifugals"),
-        B_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=0, 
-                                   sugar_moisture=5, sugar_purity=92, sugar_temp=150, molasses_temp=145, name="B Centrifugals"),
-        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=0,
-                                   sugar_moisture=5, sugar_purity=82, sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
+        A_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, 
+            target_molasses_brix=82, purity_rise=0, 
+            sugar_moisture=0.2, sugar_purity=99.7, 
+            sugar_temp=150, molasses_temp=145, name="A Centrifugals"),
+        B_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, 
+            target_molasses_brix=82, purity_rise=0, 
+            sugar_moisture=5, sugar_purity=92, 
+            sugar_temp=150, molasses_temp=145, name="B Centrifugals"),
+        C_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, 
+            target_molasses_brix=82, purity_rise=0,
+            sugar_moisture=5, sugar_purity=82, 
+            sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
         C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0,
                                      masse_temp_out_deg_F=120, ml_purity_out=30,
                                      water_temp_in_deg_F=85, water_temp_out_deg_F=105,
@@ -333,18 +342,29 @@ if boiling_scheme == 'FBDM':
 pan_floor.neat_display()
 pan_floor.to_excel(wb)
 
-# test here to see progress so far
-wb.save(filename='main_balance.xlsx')
 # Now solve Evaporation since steam demands are known
-# No pre or clear juice heater in this balance
-# For tomorrow, add a Pre before the sets, distribute V1 accordingly
-"""
+
+# Clarified Juice Heater juice as supply to Pre 3
+juice_to_pre = st_mary_clar.clarified_juice_stream
+
+# Vapor bleeds distribution
+# Pre will take the lionshare of bleeding, followed by S1E1, S2E1
+# V2 is not done in this balance, but if you desire, distribute according to heating surfaces
+v1_distr = [80, 13, 7] # Pre3, S1E1, S2E1
+v1_demand = (
+    par_heaters.heaters[0].steam_required_lb_per_hr # V1 Heaters
+    + pan_floor.A1_pans.steam_flow_lb_hr            # A1 Pans
+    + pan_floor.A2_pans.steam_flow_lb_hr            # A2 Pans
+    + pan_floor.C_pans.steam_flow_lb_hr             # C Pans
+)
+v1_flows = [perc * v1_demand / 100 for perc in v1_distr] # stopped working here
+
 pre_3 = PreEvaporator(
     juice_in=st_mary_clar.clarified_juice_stream,
     supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
     vapor_bleed_lb_per_hr=primary_heaters.steam_required_lb_per_hr
 )
-"""
+
 
 # Define vapor demands
 v1_demand = (
@@ -404,7 +424,7 @@ evap_station = solve_evaporator_sets(  # This returns a list
         verbose=False, # Set True if you want iteration details, False if you just want final results
     ) # Note that this whole function shows all evaporator information
 
-pan_floor.neat_display() # wait to display until after the 
+ 
 
 # Energy Balance Section
 # Deaerator, assume a standard steam production value
