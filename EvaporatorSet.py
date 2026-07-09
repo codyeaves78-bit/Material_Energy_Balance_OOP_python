@@ -430,6 +430,8 @@ class EvaporatorSet:
               f"  ({cond.injection_water_flow_lb_hr / 500.4:,.0f} GPM)"
               f"  {self.injection_water_temp_F:.0f} -> {cond.water_outlet_temp_F:.1f} °F")
         print(f"  Total outlet flow     : {cond.total_outlet_flow_lb_hr:>12,.0f} lb/hr")
+        print(f"  Note: if using CoolingTowerSystem, ignore this injection water"
+              f" demand - it is re-solved there at the delivered water temp.")
         print(f"{light}\n")
 
     def to_excel(self, workbook, sheet_writer=None):
@@ -523,6 +525,8 @@ class EvaporatorSet:
         sw.row("Injection water flow",  cond.injection_water_flow_lb_hr, "lb/hr", fmt="#,##0")
         sw.row("Injection water flow",  cond.injection_water_flow_lb_hr / 500.4, "GPM", fmt="#,##0")
         sw.row("Total outlet flow",     cond.total_outlet_flow_lb_hr, "lb/hr", fmt="#,##0")
+        sw.row("Note: if using CoolingTowerSystem, ignore this injection water "
+               "demand - it is re-solved there at the delivered water temp.", "")
 
         sw.section(f"{self.name} — PROCESS FLOW DIAGRAM")
         sw.blank()

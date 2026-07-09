@@ -87,6 +87,17 @@ class AuxillaryTurbines:
     # Display
     # ------------------------------------------------------------------
 
+    def generate_pfd(self, show=True, save_path=None, include_table=True):
+        """Generate a process flow diagram with the turbine table. Returns the Figure."""
+        from turbine_diagram import plot_turbine_group
+        return plot_turbine_group(self, show=show, save_path=save_path,
+                                  include_table=include_table)
+
+    def to_excel(self, workbook):
+        """Write this turbine group to its own styled sheet (PFD + tables)."""
+        from turbine_diagram import group_to_excel
+        return group_to_excel(self, workbook)
+
     def neat_display(self):
         def fmt_x(x):
             return "Superheat" if x is None or x >= 1.0 else f"{x:.4f}"
@@ -134,6 +145,7 @@ class AuxillaryTurbines:
 
 
 if __name__ == "__main__":
+    from excel_export import new_workbook
     aux = AuxillaryTurbines(
         group_name='ID Fan Turbines',
         name_list=['123 ID Fan', '4 ID Fan', '5 ID Fan', '6 ID Fan', '7 ID Fan', '8 ID Fan'],
@@ -145,6 +157,10 @@ if __name__ == "__main__":
     print(aux)
     print()
     aux.neat_display()
+    wb = new_workbook()
+    aux.to_excel(wb)
+    wb.save(filename='aux_turbines.xlsx')
+    print('Saved excel workbook as aux_turbine.xlsx')
 
 # for your main script, you can finish up with these fd_hp_list = [233, 350] names ['7 FD Fan', '8 FD Fan']
 # then these [400, 400, 400, 400] and the names ['boiler_feed_water_1', 'boiler_feed_water_2', 'boiler_feed_water_3', 'juice_pump']

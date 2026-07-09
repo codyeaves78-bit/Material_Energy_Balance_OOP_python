@@ -41,7 +41,11 @@
       "Bash(MPLBACKEND=Agg python -)",
       "Bash(MPLBACKEND=Agg python FourBoilingDoubleMagma.py)",
       "Bash(MPLBACKEND=Agg python ThreeBoilingDoubleMagma.py)",
-      "Bash(MPLBACKEND=Agg python Clarification.py)"
+      "Bash(MPLBACKEND=Agg python Clarification.py)",
+      "Bash(MPLBACKEND=Agg python CoolingTowerSystem.py)",
+      "Bash(python -c \"import PIL; print\\('Pillow', PIL.__version__\\)\")",
+      "Bash(MPLBACKEND=Agg python JuiceHeatingStation.py)",
+      "Bash(MPLBACKEND=Agg python JuiceHeater.py)"
     ]
   }
 }

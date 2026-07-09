@@ -78,6 +78,17 @@ class MillTurbines:
     # Display
     # ------------------------------------------------------------------
 
+    def generate_pfd(self, show=True, save_path=None, include_table=True):
+        """Generate a process flow diagram with the turbine table. Returns the Figure."""
+        from turbine_diagram import plot_turbine_group
+        return plot_turbine_group(self, show=show, save_path=save_path,
+                                  include_table=include_table)
+
+    def to_excel(self, workbook):
+        """Write this turbine group to its own styled sheet (PFD + tables)."""
+        from turbine_diagram import group_to_excel
+        return group_to_excel(self, workbook)
+
     def neat_display(self):
         def fmt_x(x):
             return "Superheat" if x is None or x >= 1.0 else f"{x:.4f}"

@@ -32,6 +32,12 @@ class JuiceHeaterShellTube:
             self.cold_stream.level_ft,
         )
 
+        # Stamp the required steam flow onto the supply stream so downstream
+        # code can read hot_stream.flow_lb_per_hr directly. NOTE: if one
+        # SteamStream object is shared by several heaters, the last heater
+        # constructed wins — give each heater its own SteamStream.
+        self.hot_stream.flow_lb_per_hr = self.steam_required_lb_per_hr
+
     # ------------------------------------------------------------------ #
     #  Properties                                                          #
     # ------------------------------------------------------------------ #
@@ -130,3 +136,46 @@ class JuiceHeaterShellTube:
         for key, value in props.items():
             formatted = f"{value:,.2f}" if isinstance(value, (int, float)) else str(value)
             print(f"{key}: {formatted}")
+
+    # ------------------------------------------------------------------ #
+    #  PFD / Excel export (reuses JuiceHeatingStation with one heater)     #
+    # ------------------------------------------------------------------ #
+
+    def _as_station(self):
+        """Wrap this heater in a one-unit JuiceHeatingStation so the PFD and
+        Excel machinery can be reused (lazy import avoids the circular one)."""
+        from JuiceHeatingStation import JuiceHeatingStation
+        return JuiceHeatingStation(cold_stream=self.cold_stream, heaters=[self],
+                                   mode='series', name=self.name)
+
+    def generate_pfd(self, show=True, save_path=None, include_table=True):
+        """Generate a single-heater PFD. Returns the matplotlib Figure."""
+        return self._as_station().generate_pfd(show=show, save_path=save_path,
+                                               include_table=include_table)
+
+    def to_excel(self, workbook):
+        """Write this heater to its own styled sheet (PFD + stream and
+        performance tables)."""
+        return self._as_station().to_excel(workbook)
+
+
+if __name__ == "__main__":
+    # Clarified juice heater example (like main.py) + Excel export demo
+    clar_juice = SugarStream(brix=14.6, purity=88.5, flow_lb_per_hr=1_390_000,
+                             temp_deg_F=205, pressure_psia=14.7, level_ft=0)
+    heater = JuiceHeaterShellTube(
+        cold_stream=clar_juice,
+        hot_stream=SteamStream(x=1, P=30),
+        name="Clarified Juice Heater",
+        juice_out_temp_degF=225,
+        U_btu_per_ft2_degF=185,
+        installed_area_ft2=6000,
+    )
+    heater.neat_display()
+    # heater.generate_pfd(show=True, save_path=None)
+
+    from excel_export import new_workbook
+    wb = new_workbook()
+    heater.to_excel(wb)
+    wb.save("juice_heater.xlsx")
+    print("Saved juice_heater.xlsx")

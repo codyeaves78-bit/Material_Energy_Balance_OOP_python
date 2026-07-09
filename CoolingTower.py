@@ -32,5 +32,4 @@ class CoolingTower:
     def cool_water_gpm(self):
         return self.cool_water_lb_hr / 60 / 8.3 # simple
     
-    # need to include condenser to calculate makeup flowrate
 

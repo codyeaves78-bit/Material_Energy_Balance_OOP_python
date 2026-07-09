@@ -109,8 +109,8 @@ def plot_clarification(cl, show: bool = True, save_path: str = None,
     # ── Equipment ─────────────────────────────────────────────────────────
     open_tank(2.2, 12.3, 1.4, 1.0)            # MOL tank
     lbl(2.2, 13.15, 'MOL Tank', fs=7.5, color=GRAY)
-    open_tank(6.2, 12.3, 1.4, 1.0)             # polymer tank
-    lbl(6.2, 13.15, 'Polymer Tank', fs=7.5, color=GRAY)
+    open_tank(14.6, 12.3, 1.4, 1.0)            # polymer tank
+    lbl(14.6, 13.15, 'Polymer Tank', fs=7.5, color=GRAY)
     open_tank(4.1, 8.6, 2.2, 1.4)               # liming tank
     lbl(4.1, 7.5, 'Liming Tank', fs=7.5, color=GRAY)
 
@@ -144,24 +144,23 @@ def plot_clarification(cl, show: bool = True, save_path: str = None,
     lbl(0.4, 11.55, 'Water', fs=8, bold=True, color=WATC, ha='left')
     tag(0.95, 11.95, 3, WATC)
 
-    # 4/5 polymer + water into polymer tank
-    arr(4.4, 12.55, 5.5, 12.55, POLC)
-    lbl(4.4, 12.95, 'Polymer', fs=8, bold=True, color=POLC, ha='left')
-    tag(4.95, 12.55, 4, POLC)
-    arr(4.4, 11.95, 5.5, 11.95, WATC)
-    lbl(4.4, 11.55, 'Water', fs=8, bold=True, color=WATC, ha='left')
-    tag(4.95, 11.95, 5, WATC)
+    # 4/5 polymer + water into the polymer tank from the right
+    arr(16.4, 12.55, 15.3, 12.55, POLC)
+    lbl(16.5, 12.95, 'Polymer', fs=8, bold=True, color=POLC, ha='left')
+    tag(15.95, 12.55, 4, POLC)
+    arr(16.4, 11.95, 15.3, 11.95, WATC)
+    lbl(16.5, 11.55, 'Water', fs=8, bold=True, color=WATC, ha='left')
+    tag(15.95, 11.95, 5, WATC)
 
     # 10 milk of lime down into the liming tank
     seg([(2.2, 11.8), (2.2, 10.3), (3.6, 10.3)], LIMC)
     arr(3.6, 10.3, 3.6, 9.3, LIMC)
     tag(2.2, 10.9, 10, LIMC)
 
-    # 11 polymer solution dosed into the flashed juice ahead of the clarifier
-    seg([(6.2, 11.8), (6.2, 10.15), (14.6, 10.15)], POLC)
-    arr(14.6, 10.15, 14.6, 8.4, POLC)
+    # 11 polymer solution straight down into the flashed juice ahead of the clarifier
+    arr(14.6, 11.8, 14.6, 8.4, POLC)
     dot(14.6, 8.4, JC)
-    tag(9.5, 10.15, 11, POLC)
+    tag(14.6, 10.4, 11, POLC)
 
     # 12 limed juice cold -> heaters ; 13 hot -> flash tank
     arr(5.2, 8.6, 8.0, 8.6, JC, lw=2.0)

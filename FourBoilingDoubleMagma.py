@@ -407,6 +407,8 @@ class FourBoilingDoubleMagma:
 
         sw.section("PAN VAPOR CONDENSERS  (one per pan)")
         condenser_table(sw, self.pan_condensers, self.injection_water_temp_F)
+        sw.row("Note: if using CoolingTowerSystem, ignore these injection water "
+               "demands - they are re-solved there at the delivered water temp.", "")
 
         return sw.finish()
 
@@ -755,6 +757,9 @@ class FourBoilingDoubleMagma:
         out.append(f"  {'Total':<16} {tot_v:>12,.0f} {'':>8} {'':>8}"
                    f" {tot_h:>10.3f} {tot_w:>13,.0f} {tot_g:>9,.0f}"
                    f" {'':>8} {tot_t:>13,.0f}")
+        out.append("")
+        out.append("  Note: if using CoolingTowerSystem, ignore these injection water"
+                   " demands - they are re-solved there at the delivered water temp.")
 
         out.append("")
         out.append(HEAVY)
