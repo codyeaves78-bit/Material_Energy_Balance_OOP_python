@@ -350,7 +350,7 @@ juice_to_pre = st_mary_clar.clarified_juice_stream
 # Vapor bleeds distribution
 # Pre will take the lionshare of bleeding, followed by S1E1, S2E1
 # V2 is not done in this balance, but if you desire, distribute according to heating surfaces
-v1_distr = [80, 13, 7] # Pre3, S1E1, S2E1
+v1_distr = [80, 13, 7] # Pre3, S1E1, S2E1 #!!! must add up to 100
 v1_demand = (
     par_heaters.heaters[0].steam_required_lb_per_hr # V1 Heaters
     + pan_floor.A1_pans.steam_flow_lb_hr            # A1 Pans
@@ -360,29 +360,20 @@ v1_demand = (
 v1_flows = [perc * v1_demand / 100 for perc in v1_distr] # stopped working here
 
 pre_3 = PreEvaporator(
-    juice_in=st_mary_clar.clarified_juice_stream,
+    juice_in=juice_to_pre,
     supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
-    vapor_bleed_lb_per_hr=primary_heaters.steam_required_lb_per_hr
+    vapor_bleed_lb_per_hr=v1_demand[0] # refers to Pre 3 v1 bleed
 )
+pre_3.to_excel(wb)
 
-
-# Define vapor demands
-v1_demand = (
-     
-    + pan_floor.A_pans.steam_flow_lb_hr 
-    + pan_floor.C_pans.steam_flow_lb_hr
-)
-
-# Estimate distribution of vapors
-v1_set1 = v1_demand * 0.65 # 65 % from set 1
-v1_set2 = v1_demand - v1_set1 # pause here
+juice_to_sets = pre_3.juice_out
 
 evap_station = solve_evaporator_sets(  # This returns a list
         # ── Clarified juice feed ───────────────────────────────────────────
-        juice_brix=st_mary_clar.clarified_juice_stream.brix,
-        juice_purity=st_mary_clar.clarified_juice_stream.purity,
-        juice_flow_lb_per_hr=st_mary_clar.clarified_juice_stream.flow_lb_per_hr,
-        juice_temp_deg_F=st_mary_clar.clarified_juice_stream.temp_deg_F,
+        juice_brix=juice_to_sets.brix,
+        juice_purity=juice_to_sets.purity,
+        juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
+        juice_temp_deg_F=juice_to_sets.temp_deg_F,
         juice_pressure_psia=40, # User input
 
         # ── Global defaults (override per set in set_configs if needed) ────
@@ -404,14 +395,14 @@ evap_station = solve_evaporator_sets(  # This returns a list
                 "effect_areas_ft2": [25000, 25000, 25000, 25000], # User input
                 "supply_steam_psia": fabrication_exhaust_psia, #  User input, use global exhaust pressure or a pressure lower to simulate control valve
                 "last_effect_psia": 2.4, #~25" vac # User input
-                "vapor_bleeds": [v1_set1], # User input
+                "vapor_bleeds": [v1_demand[1]], # User input
             },
             {
                 "name": "Set 2 (4-eff 12k ft²)", # User input
                 "effect_areas_ft2": [12000, 12000, 12000, 12000], # User input
                 "supply_steam_psia": fabrication_exhaust_psia, # User input, use global exhaust pressure or a pressure lower to simulate control valve
                 "last_effect_psia": 2.4, # User input
-                "vapor_bleeds": [v1_set2], # User input
+                "vapor_bleeds": [v1_demand[2]], # User input
             },
             {
                 "name": "Set 3 (3-eff 11-9k ft²)", # User input
@@ -424,7 +415,9 @@ evap_station = solve_evaporator_sets(  # This returns a list
         verbose=False, # Set True if you want iteration details, False if you just want final results
     ) # Note that this whole function shows all evaporator information
 
- 
+sets_to_excel(evap_station, workbook=wb)
+
+wb.save(filename='main_balance.xlsx')
 
 # Energy Balance Section
 # Deaerator, assume a standard steam production value
