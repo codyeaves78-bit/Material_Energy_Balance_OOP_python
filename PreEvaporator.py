@@ -123,3 +123,54 @@ class PreEvaporator:
         print(f"  Heat duty:         {self.heat_duty_btu_per_hr:,.0f} BTU/hr")
         print(f"  Heating surface:   {self.area_ft2:,} ft²")
         print(f"  U dessin:          {self.dessin_U:.4f} BTU/hr·ft²·°F")
+
+    def generate_pfd(self, show=True, save_path=None, name="Pre Evaporator"):
+        """Render the process flow diagram. Returns the matplotlib Figure."""
+        from evaporator_diagram import plot_pre_diagram  # lazy import avoids circular dependency
+        return plot_pre_diagram(self, pre_name=name, show=show, save_path=save_path)
+
+    def to_excel(self, workbook, sheet_writer=None, name="Pre-Evaporator"):
+        """Write this pre-evaporator to its own styled sheet (streams,
+        performance tables, and PFD). Pass an existing SheetWriter to append
+        onto a shared sheet instead of creating a new one."""
+        import matplotlib.pyplot as plt
+        from excel_export import SheetWriter
+
+        standalone = sheet_writer is None
+        sw = sheet_writer or SheetWriter(workbook, name, ncols=4)
+        if standalone:
+            sw.title(name,
+                     f"vapor bleed = {self.vapor_bleed_lb_per_hr:,.0f} lb/hr | "
+                     f"area = {self.area_ft2:,.0f} ft² | U ratio = {self.U_ratio:.3f}")
+
+        vap_psig = self.vapor_pressure_psia - 14.696
+        sw.section(f"{name} — STREAMS")
+        sw.table(
+            ["Stream", "Flow (lb/hr)", "Brix / P (psia)", "Temp (°F)"],
+            [
+                ("Juice In",      self.juice_in.flow_lb_per_hr,      self.juice_in.brix,       self.juice_in.temp_deg_F),
+                ("Juice Out",     self.juice_out_flow_lb_per_hr,     self.juice_out_brix,      self.liquid_temp_deg_F),
+                ("Vapor Bleed",   self.vapor_bleed_lb_per_hr,        self.vapor_pressure_psia, self.vapor_temp_deg_F),
+                ("Exhaust Steam", self.exhaust_required_lb_per_hr,   self.supply_steam.P_psia, self.supply_steam.sat_temp_deg_F),
+            ],
+            fmts=["@", "#,##0", "0.00", "0.0"],
+        )
+
+        sw.section(f"{name} — PERFORMANCE")
+        sw.row("Vapor pressure",           self.vapor_pressure_psia,       "psia",          fmt="0.0000")
+        sw.row("Vapor pressure",           vap_psig,                       "psig",          fmt="0.0000")
+        sw.row("Vapor temp",               self.vapor_temp_deg_F,          "°F",            fmt="0.0000")
+        sw.row("Calandria temp",           self.supply_steam.sat_temp_deg_F, "°F",          fmt="0.0000")
+        sw.row("Heat duty",                self.heat_duty_btu_per_hr,      "BTU/hr",        fmt="#,##0")
+        sw.row("Heating surface",          self.area_ft2,                  "ft²",           fmt="#,##0")
+        sw.row("U Dessin",                 self.dessin_U,                  "BTU/hr·ft²·°F", fmt="0.0000")
+        sw.row("U calc",                   self.U_calc,                    "BTU/hr·ft²·°F", fmt="0.0000")
+        sw.row("U ratio (calc/Dessin)",    self.U_ratio,                   "",              fmt="0.000")
+
+        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, name=name)
+        sw.image(fig, scale=0.4)
+        plt.close(fig)
+
+        return sw.finish() if standalone else sw

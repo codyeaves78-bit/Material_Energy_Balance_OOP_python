@@ -135,8 +135,67 @@ class Deaerator:
         print(f"\n  {'Net (In - Out):':<{w}} {net:>12,.4f}  lb/hr")
         print(f"{'=' * 59}\n")
 
+    # ------------------------------------------------------------------
+    # PFD / Excel export
+    # ------------------------------------------------------------------
+
+    def generate_pfd(self, show=True, save_path=None, name="Deaerator"):
+        """Render the process flow diagram. Returns the matplotlib Figure."""
+        from deaerator_diagram import plot_deaerator_diagram  # lazy import avoids circular dependency
+        return plot_deaerator_diagram(self, name=name, show=show, save_path=save_path)
+
+    def to_excel(self, workbook, sheet_writer=None, name="Deaerator"):
+        """Write this deaerator to its own styled sheet (streams, energy
+        balance, and PFD). Pass an existing SheetWriter to append onto a
+        shared sheet instead of creating a new one."""
+        import matplotlib.pyplot as plt
+        from excel_export import SheetWriter
+
+        standalone = sheet_writer is None
+        sw = sheet_writer or SheetWriter(workbook, name, ncols=4)
+        if standalone:
+            sw.title(name,
+                     f"{self.psia - 14.696:.1f} psig | water in = {self.water_in_lb_hr:,.0f} lb/hr "
+                     f"| steam = {self.steam_flow_lb_hr:,.0f} lb/hr")
+
+        sw.section(f"{name} — STREAMS")
+        sw.table(
+            ["Stream", "Flow (lb/hr)", "P (psia)", "Temp (°F)"],
+            [
+                ("Steam In",   self.steam_flow_lb_hr,     self.psia,  self._steam_state.T),
+                ("Feedwater In", self.water_in_lb_hr,      14.696,     self.water_in_deg_F),
+                ("Water Out",  self.water_out_flow_lb_hr, self.psia,  self._water_out_state.T),
+                ("Vent",       self.vent_flow_lb_hr,      14.696,     self._water_out_state.T),
+            ],
+            fmts=["@", "#,##0", "0.00", "0.0"],
+        )
+
+        net = (self.water_in_lb_hr + self.steam_flow_lb_hr
+               - self.water_out_flow_lb_hr - self.vent_flow_lb_hr)
+        sw.section(f"{name} — ENERGY / MASS BALANCE")
+        sw.row("Operating pressure",   self.psia,                 "psia",   fmt="0.00")
+        sw.row("Operating pressure",   self.psia - 14.696,        "psig",   fmt="0.00")
+        sw.row("Saturation temp",      self._water_out_state.T,   "°F",     fmt="0.0")
+        sw.row("Feedwater enthalpy",   self._water_in_state.h,    "BTU/lb", fmt="0.00")
+        sw.row("Water out enthalpy",   self._water_out_state.h,   "BTU/lb", fmt="0.00")
+        sw.row("Steam h_fg",           self._steam_state.h_fg,    "BTU/lb", fmt="0.00")
+        sw.row("Vent pct",             self.vent_pct,             "%",      fmt="0.00")
+        sw.row("Net (In - Out)",       net,                       "lb/hr",  fmt="0.0000")
+
+        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, name=name)
+        sw.image(fig, scale=0.4)
+        plt.close(fig)
+
+        return sw.finish() if standalone else sw
+
 
 if __name__ == "__main__":
+    from excel_export import new_workbook
+    wb = new_workbook()
     da = Deaerator(deaerator_psig=10, water_in_deg_F=205, water_in_lb_hr=100_000, vent_pct=5.0)
     print(da)
     da.display_properties()
+    da.to_excel(workbook=wb)
+    wb.save(filename='Deaerator_excel.xlsx')

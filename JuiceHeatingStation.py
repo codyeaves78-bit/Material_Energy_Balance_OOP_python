@@ -76,6 +76,7 @@ class JuiceHeatingStation:
             juice_out_temp_degF=cfg.juice_out_temp_degF,
             U_btu_per_ft2_degF=cfg.U,
             installed_area_ft2=cfg.installed_area_ft2,
+            steam_type=cfg.steam_type,
         )
 
     def _solve(self):
@@ -108,6 +109,34 @@ class JuiceHeatingStation:
     @property
     def total_steam_lb_hr(self):
         return sum(h.steam_required_lb_per_hr for h in self.heaters)
+
+    def _steam_demand_lb_hr(self, steam_type: int) -> float:
+        return sum(h.steam_required_lb_per_hr for h in self.heaters if h.steam_type == steam_type)
+
+    @property
+    def total_exhaust_steam_lb_hr(self) -> float:
+        """Total live/exhaust steam consumed by heaters on steam_type 0 (lb/hr)."""
+        return self._steam_demand_lb_hr(0)
+
+    @property
+    def total_V1_steam_lb_hr(self) -> float:
+        """Total V1 vapor consumed by heaters on steam_type 1 (lb/hr)."""
+        return self._steam_demand_lb_hr(1)
+
+    @property
+    def total_V2_steam_lb_hr(self) -> float:
+        """Total V2 vapor consumed by heaters on steam_type 2 (lb/hr)."""
+        return self._steam_demand_lb_hr(2)
+
+    @property
+    def total_V3_steam_lb_hr(self) -> float:
+        """Total V3 vapor consumed by heaters on steam_type 3 (lb/hr)."""
+        return self._steam_demand_lb_hr(3)
+
+    @property
+    def total_V4_steam_lb_hr(self) -> float:
+        """Total V4 vapor consumed by heaters on steam_type 4 (lb/hr)."""
+        return self._steam_demand_lb_hr(4)
 
     @property
     def total_duty_btu_hr(self):
@@ -169,8 +198,9 @@ class JuiceHeatingStation:
         import matplotlib.pyplot as plt
         from excel_export import SheetWriter
         from juice_heater_diagram import _collect_streams
+        from pan_floor_excel import STEAM_TYPE_LABELS
 
-        sw = SheetWriter(workbook, self.name, ncols=11)
+        sw = SheetWriter(workbook, self.name, ncols=12)
         mode_txt = f" — {self.mode.title()}" if len(self.heaters) > 1 else ""
         sw.title(f"{self.name}{mode_txt}",
                  f"{len(self.heaters)} heaters | juice out "
@@ -191,19 +221,20 @@ class JuiceHeatingStation:
 
         sw.section("HEATER PERFORMANCE")
         sw.table(
-            ["Heater", "Juice (lb/hr)", "T in (°F)", "T out (°F)", "LMTD (°F)",
+            ["Heater", "Steam Type", "Juice (lb/hr)", "T in (°F)", "T out (°F)", "LMTD (°F)",
              "Duty (BTU/hr)", "U (BTU/hr·ft²·°F)", "Req Area (ft²)",
              "Inst Area (ft²)", "Steam (psia)", "Steam (lb/hr)"],
             [
-                (h.name, h.cold_stream.flow_lb_per_hr, h.cold_stream.temp_deg_F,
+                (h.name, STEAM_TYPE_LABELS.get(h.steam_type, str(h.steam_type)),
+                 h.cold_stream.flow_lb_per_hr, h.cold_stream.temp_deg_F,
                  h.juice_out_temp_degF, h.LMTD_degF, h.Q_btu_per_hr, h.U,
                  h.required_area_ft2, h.installed_area_ft2, h.hot_stream.P,
                  h.steam_required_lb_per_hr)
                 for h in self.heaters
             ],
-            fmts=["@", "#,##0", "0.0", "0.0", "0.0", "#,##0", "0.0",
+            fmts=["@", "@", "#,##0", "0.0", "0.0", "0.0", "#,##0", "0.0",
                   "#,##0", "#,##0", "0.0", "#,##0"],
-            totals=[("TOTAL", "", "", "", "", self.total_duty_btu_hr, "", "", "",
+            totals=[("TOTAL", "", "", "", "", "", self.total_duty_btu_hr, "", "", "",
                      "", self.total_steam_lb_hr)],
         )
         if self.mode == 'parallel':
@@ -222,11 +253,11 @@ if __name__ == "__main__":
                         temp_deg_F=95, pressure_psia=14.7, level_ft=0)
 
     primary = JuiceHeaterShellTube(
-        cold_stream=juice, hot_stream=SteamStream(x=1, P=19),
+        cold_stream=juice, hot_stream=SteamStream(x=1, P=19), steam_type=1, # V1
         name="Primary Heaters", juice_out_temp_degF=220,
         U_btu_per_ft2_degF=220, installed_area_ft2=8000)
     secondary = JuiceHeaterShellTube(
-        cold_stream=juice, hot_stream=SteamStream(x=1, P=30),
+        cold_stream=juice, hot_stream=SteamStream(x=1, P=30), steam_type=0, # Exhaust
         name="Secondary Heaters", juice_out_temp_degF=220,
         U_btu_per_ft2_degF=220, installed_area_ft2=8000)
 
@@ -251,3 +282,4 @@ if __name__ == "__main__":
     par.heaters[0].hot_stream.display_properties()
     print(f'secondary heaters steam flow: {par.heaters[1].hot_stream.flow_lb_per_hr:,.0f}')
     par.heaters[1].hot_stream.display_properties()
+    print(f"Exhaust Consumption: {par.total_exhaust_steam_lb_hr} \nV1: {par.total_V1_steam_lb_hr}")

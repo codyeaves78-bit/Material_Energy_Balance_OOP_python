@@ -275,6 +275,38 @@ class ThreeBoilingDoubleMagma:
         ]
 
     @property
+    def _pans(self):
+        return (self.A_pans, self.B_pans, self.grain_pans, self.C_pans)
+
+    def _steam_demand_lb_hr(self, steam_type: int) -> float:
+        return sum(pan.steam_flow_lb_hr for pan in self._pans if pan.steam_type == steam_type)
+
+    @property
+    def total_exhaust_steam_lb_hr(self) -> float:
+        """Total live/exhaust steam consumed by pans on steam_type 0 (lb/hr)."""
+        return self._steam_demand_lb_hr(0)
+
+    @property
+    def total_V1_steam_lb_hr(self) -> float:
+        """Total V1 vapor consumed by pans on steam_type 1 (lb/hr)."""
+        return self._steam_demand_lb_hr(1)
+
+    @property
+    def total_V2_steam_lb_hr(self) -> float:
+        """Total V2 vapor consumed by pans on steam_type 2 (lb/hr)."""
+        return self._steam_demand_lb_hr(2)
+
+    @property
+    def total_V3_steam_lb_hr(self) -> float:
+        """Total V3 vapor consumed by pans on steam_type 3 (lb/hr)."""
+        return self._steam_demand_lb_hr(3)
+
+    @property
+    def total_V4_steam_lb_hr(self) -> float:
+        """Total V4 vapor consumed by pans on steam_type 4 (lb/hr)."""
+        return self._steam_demand_lb_hr(4)
+
+    @property
     def total_water(self) -> SugarStream:
         """All fresh water added to the pan floor (lb/hr): centrifugal wash + magma minglers + remelts."""
         cen_wash     = (self.A_centrifugals.wash_water_lb_hr

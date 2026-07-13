@@ -17,7 +17,7 @@ sys.stdout = _Tee('output.txt') # The output file name
 
 # import all neccesary items
 
-from excel_export import new_workbook
+from excel_export import new_workbook, SheetWriter
 from MillFloor import MillFloor
 from Clarification import Clarification
 from SugarStream import SugarStream
@@ -43,6 +43,7 @@ from PreEvaporator import PreEvaporator
 from CoolingTowerSystem import CoolingTowerSystem
 from JuiceHeatingStation import JuiceHeatingStation
 from Crystallizer_and_Reheater import Crystallizer, Reheater
+from steam_summary_excel import steam_summary_to_excel
 
 
 start_time = time() * 1000 # in ms
@@ -161,7 +162,7 @@ syrup_lb_hr = (st_mary_clar.clarified_juice_stream.flow_lb_per_hr
                * st_mary_clar.clarified_juice_stream.brix / syrup_brix)
 
 syrup = SugarStream.copy(st_mary_clar.clarified_juice_stream)
-syrup.flow_lb_per_hr = syrup_lb_hr
+syrup.flow_lb_per_hr = syrup_lb_hr # type: ignore
 syrup.brix = syrup_brix
 
 # Now solve pan floor
@@ -227,11 +228,11 @@ if boiling_scheme == 'TBDM':
             target_molasses_brix=82, purity_rise=0,
             sugar_moisture=5, sugar_purity=82, 
             sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
-        C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0,
+        C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0, # type: ignore
                                      masse_temp_out_deg_F=120, ml_purity_out=30,
                                      water_temp_in_deg_F=85, water_temp_out_deg_F=105,
                                      name="C Crystallizers"),
-        C_reheaters=Reheater(massecuite_in=None, massecuite_flow_lb_hr=0,
+        C_reheaters=Reheater(massecuite_in=None, massecuite_flow_lb_hr=0, # type: ignore
                              masse_temp_out_deg_F=140,
                              water_temp_in_deg_F=150, water_temp_out_deg_F=135,
                              name="C Reheaters"),
@@ -255,7 +256,7 @@ if boiling_scheme == 'FBDM':
             head_ft=2,
             masse_brix=92,
             ml_purity=75,
-            calandria_pressure_psia=21.696,
+            calandria_pressure_psia=21.696, steam_type=1, # V1
             heat_loss_factor=0.02, name='A1 Pans'),
         A2_pans=Pan(
             feed_streams=None,
@@ -265,7 +266,7 @@ if boiling_scheme == 'FBDM':
             head_ft=2,
             masse_brix=92,
             ml_purity=70,
-            calandria_pressure_psia=21.696,
+            calandria_pressure_psia=21.696, steam_type=1, # V1
             heat_loss_factor=0.02, name='A2 Pans'),
         B_pans=Pan(
             feed_streams=None,
@@ -275,7 +276,7 @@ if boiling_scheme == 'FBDM':
             head_ft=2,
             masse_brix=94,
             ml_purity=52,
-            calandria_pressure_psia=29.696,
+            calandria_pressure_psia=29.696, steam_type=0, # Exhaust
             heat_loss_factor=0.05, name='B Pans'),
         grain_pans=Pan(
             feed_streams=None,
@@ -285,7 +286,7 @@ if boiling_scheme == 'FBDM':
             head_ft=2,
             masse_brix=88,
             ml_purity=45,
-            calandria_pressure_psia=29.696,
+            calandria_pressure_psia=29.696, steam_type=0, # Exhaust
             heat_loss_factor=0.05, name='Grain Pans'),
         C_pans=Pan(
             feed_streams=None,
@@ -295,7 +296,7 @@ if boiling_scheme == 'FBDM':
             head_ft=2,
             masse_brix=95.5,
             ml_purity=33,
-            calandria_pressure_psia=21.696,
+            calandria_pressure_psia=21.696, steam_type=1, # V1
             heat_loss_factor=0.05, name='C Pans'),
         A1_centrifugals=Centrifugal(
             massecuite=None, massecuite_flow_lb_hr=0,
@@ -318,12 +319,12 @@ if boiling_scheme == 'FBDM':
             sugar_moisture=5, sugar_purity=82,
             sugar_temp=150, molasses_temp=145, name="C Centrifugals"),
         C_crystallizers=Crystallizer(
-            massecuite_in=None, massecuite_flow_lb_hr=0,
+            massecuite_in=None, massecuite_flow_lb_hr=0, # pyright: ignore[reportArgumentType]
             masse_temp_out_deg_F=120, ml_purity_out=30,
             water_temp_in_deg_F=85, water_temp_out_deg_F=105,
             name="C Crystallizers"),
         C_reheaters=Reheater(
-            massecuite_in=None, massecuite_flow_lb_hr=0,
+            massecuite_in=None, massecuite_flow_lb_hr=0, # type: ignore
             masse_temp_out_deg_F=140,
             water_temp_in_deg_F=150, water_temp_out_deg_F=135,
             name="C Reheaters"),
@@ -339,34 +340,33 @@ if boiling_scheme == 'FBDM':
         iterations=15,
     )
 
-pan_floor.neat_display()
-pan_floor.to_excel(wb)
+pan_floor.neat_display() # type: ignore
+pan_floor.to_excel(wb) # pyright: ignore[reportPossiblyUnboundVariable]
 
 # Now solve Evaporation since steam demands are known
 
 # Clarified Juice Heater juice as supply to Pre 3
-juice_to_pre = st_mary_clar.clarified_juice_stream
+juice_to_pre = SugarStream.copy(st_mary_clar.clarified_juice_stream)
 
 # Vapor bleeds distribution
 # Pre will take the lionshare of bleeding, followed by S1E1, S2E1
 # V2 is not done in this balance, but if you desire, distribute according to heating surfaces
 v1_distr = [80, 13, 7] # Pre3, S1E1, S2E1 #!!! must add up to 100
 v1_demand = (
-    par_heaters.heaters[0].steam_required_lb_per_hr # V1 Heaters
-    + pan_floor.A1_pans.steam_flow_lb_hr            # A1 Pans
-    + pan_floor.A2_pans.steam_flow_lb_hr            # A2 Pans
-    + pan_floor.C_pans.steam_flow_lb_hr             # C Pans
+    par_heaters.total_V1_steam_lb_hr                # V1 Heaters
+    + pan_floor.total_V1_steam_lb_hr                # V1 in pans
 )
-v1_flows = [perc * v1_demand / 100 for perc in v1_distr] # stopped working here
+v1_flows = [perc * v1_demand / 100 for perc in v1_distr] # [pre v1, s1e1 v1, s2e1 v1]
 
 pre_3 = PreEvaporator(
     juice_in=juice_to_pre,
     supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
-    vapor_bleed_lb_per_hr=v1_demand[0] # refers to Pre 3 v1 bleed
+    vapor_bleed_lb_per_hr=v1_flows[0], # refers to Pre 3 v1 bleed
+    area_ft2=35000
 )
 pre_3.to_excel(wb)
 
-juice_to_sets = pre_3.juice_out
+juice_to_sets = SugarStream.copy(pre_3.juice_out)
 
 evap_station = solve_evaporator_sets(  # This returns a list
         # ── Clarified juice feed ───────────────────────────────────────────
@@ -395,14 +395,14 @@ evap_station = solve_evaporator_sets(  # This returns a list
                 "effect_areas_ft2": [25000, 25000, 25000, 25000], # User input
                 "supply_steam_psia": fabrication_exhaust_psia, #  User input, use global exhaust pressure or a pressure lower to simulate control valve
                 "last_effect_psia": 2.4, #~25" vac # User input
-                "vapor_bleeds": [v1_demand[1]], # User input
+                "vapor_bleeds": [v1_flows[1]], # User input
             },
             {
                 "name": "Set 2 (4-eff 12k ft²)", # User input
                 "effect_areas_ft2": [12000, 12000, 12000, 12000], # User input
                 "supply_steam_psia": fabrication_exhaust_psia, # User input, use global exhaust pressure or a pressure lower to simulate control valve
                 "last_effect_psia": 2.4, # User input
-                "vapor_bleeds": [v1_demand[2]], # User input
+                "vapor_bleeds": [v1_flows[2]], # User input
             },
             {
                 "name": "Set 3 (3-eff 11-9k ft²)", # User input
@@ -417,28 +417,32 @@ evap_station = solve_evaporator_sets(  # This returns a list
 
 sets_to_excel(evap_station, workbook=wb)
 
-wb.save(filename='main_balance.xlsx')
-
 # Energy Balance Section
 # Deaerator, assume a standard steam production value
 da = Deaerator(deaerator_psig=10, water_in_deg_F=200, water_in_lb_hr=800_000, vent_pct=4)
+da.to_excel(wb)
 
+exhaust_for_Pre = pre_3.supply_steam.flow_lb_per_hr
 exhaust_for_evaporators = sum([evap.supply_steam.flow_lb_per_hr for evap in evap_station])
-exhaust_for_pans = pan_floor.B_pans.steam_flow_lb_hr + pan_floor.grain_pans.steam_flow_lb_hr
-exhaust_for_heaters = secondary_heaters.steam_required_lb_per_hr + clar_juice_heater.steam_required_lb_per_hr
+exhaust_for_pans = pan_floor.total_exhaust_steam_lb_hr
+exhaust_for_heaters = (
+    par_heaters.total_exhaust_steam_lb_hr 
+    + clar_juice_heater.steam_required_lb_per_hr
+)
 exhaust_for_da = da.steam_flow_lb_hr
 subtotal_exh = exhaust_for_evaporators + exhaust_for_pans + exhaust_for_heaters + exhaust_for_da
 exh_losses_pct = 5 # percent of subtotal User Input
-total_exhaust = subtotal_exh + exh_losses_pct / 100 * subtotal_exh
+total_exhaust_required = subtotal_exh + exh_losses_pct / 100 * subtotal_exh
 
 exh_dict = {
     'Exhaust for Evaporators': exhaust_for_evaporators,
-    'Exhausr for Pans': exhaust_for_pans,
+    'Exhaust for Pans': exhaust_for_pans,
     'Exhaust for Heaters': exhaust_for_heaters,
     'Exhaust for Deaerator': exhaust_for_da,
     'Exhaust Losses': subtotal_exh * exh_losses_pct / 100,
-    'Total Exhaust': total_exhaust,
+    'Total Exhaust': total_exhaust_required,
 }
+
 
 print(f"\n")
 for key, item in exh_dict.items():
@@ -447,204 +451,76 @@ print(f"\n")
 
 # Now steam demand from turbines
 # Cane Preparation
-knife_live_steam = SteamStream(P=180, x=1) # about 165 psig
-knife_exhaust_psia = 30 # about 15 psig
-knife_turbine_eff = 50 # issentropic efficiency
-knife_hp_ton_fiber_hr = 14 # hp per ton of fiber per hr
-number_of_knives = 3 # User Input
+tons_fiber_hr = st_mary_mills.cane_fiber_pct / 100 * st_mary_mills.cane_tph
 
-ton_fiber_hr = st_mary_mills.cane_fiber_pct / 100 * st_mary_mills.cane_tph
-knife_hp_demand = ton_fiber_hr * knife_hp_ton_fiber_hr
-
-knife_turbine_list = []
-for i in range(number_of_knives):
-    name = f"Knife Number {i+1}"
-    trb = Turbine(
-        inlet_steam=knife_live_steam, 
-        outlet_pressure_psia=knife_exhaust_psia, 
-        isentropic_efficiency=knife_turbine_eff / 100, # in decimal form
-        hp_demand=knife_hp_demand,
-        name=name
-        )
-    knife_turbine_list.append(trb)
-    trb.neat_display()
+knf_trbs = CanePrepTurbines(
+    name_list            =['Knife 1', 'Knife 2', 'Knife 3'],
+    hp_ton_fiber_hr      =[16,        16,        16],
+    isentropic_efficiency=[50,        50,        50],
+    live_steam_object=SteamStream(P=180, x=1), # 165 psig
+    exhaust_psia=30, # 15 psig
+    tons_fiber_hr=tons_fiber_hr,
     
-live_steam_subtotal = sum([trb.steam_flow_lb_hr for trb in knife_turbine_list])
-exhaust_available = sum([trb.exhaust_available for trb in knife_turbine_list])
+)
+    
+live_steam_subtotal = knf_trbs.total_inlet_flow_lb_hr
+exhaust_available = knf_trbs.total_exhaust_available_lb_hr
+knf_trbs.to_excel(wb)
+knf_trbs.neat_display()
 
 # Mill Floor Turbines
-mill_live_steam = SteamStream(P=175, x=1) # about 160 psig
-mill_exhaust_psia = 30 # about 15 psig
-hp_fib_hr_mill_1 = 16 # first mill hp per ton fiber per hr
-hp_fib_hr_mill_last = 16 # last mill hp per ton fiber per hr
-hp_fib_hr_int_mill = 14 # intermediate mill hp per ton fiber per hr
-mill_turbine_eff = 50 # isentropic efficiency for mill turbine
+mill_trbs = MillTurbines(
+    hp_ton_fiber_hr      =[18, 16, 16, 16, 16, 18],
+    isentropic_efficiency=[50, 50, 50, 50, 50, 50],
+    live_steam_object=SteamStream(P=180, x=1), # 165 psig
+    exhaust_psia=30,
+    tons_fiber_hr=tons_fiber_hr
+)
 
-n_mills = st_mary_mills.number_of_mills
-
-mill_turbine_list = []
-for i in range(n_mills):
-    name = f"Mill Number {i+1}"
-    if i == 0:
-        hp_mill_n = hp_fib_hr_mill_1 * ton_fiber_hr
-    elif i == n_mills - 1:
-        hp_mill_n = hp_fib_hr_mill_last * ton_fiber_hr
-    else:
-        hp_mill_n = hp_fib_hr_int_mill * ton_fiber_hr
-    trb = Turbine(
-        inlet_steam=mill_live_steam, 
-        outlet_pressure_psia=mill_exhaust_psia, 
-        isentropic_efficiency=mill_turbine_eff / 100, # in decimal form
-        hp_demand=hp_mill_n,
-        name=name
-        )
-    mill_turbine_list.append(trb)
-    trb.neat_display()
-
-live_steam_subtotal += sum([trb.steam_flow_lb_hr for trb in mill_turbine_list])
-exhaust_available += sum([trb.exhaust_available for trb in mill_turbine_list])
+live_steam_subtotal += mill_trbs.total_inlet_flow_lb_hr
+exhaust_available   += mill_trbs.total_exhaust_available_lb_hr
+mill_trbs.to_excel(wb)
+mill_trbs.neat_display()
 
 # Misc Turbines
-misc_live_steam = SteamStream(P=175, x=1) # about 160 psig
-misc_exhaust_psia = 30 # about 15 psig
-
-id_fan_123 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=750,
-    name='123 ID Fan'
-    )
-id_fan_123.neat_display()
-live_steam_subtotal += id_fan_123.steam_flow_lb_hr
-exhaust_available += id_fan_123.exhaust_available
-
-id_fan_4 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=235,
-    name='4 ID Fan'
-    )
-id_fan_4.neat_display()
-live_steam_subtotal += id_fan_4.steam_flow_lb_hr
-exhaust_available += id_fan_4.exhaust_available
-
-id_fan_5 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=400,
-    name='5 ID Fan'
-    )
-id_fan_5.neat_display()
-live_steam_subtotal += id_fan_5.steam_flow_lb_hr
-exhaust_available += id_fan_5.exhaust_available
-
-id_fan_6 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=795,
-    name='6 ID Fan'
-    )
-id_fan_6.neat_display()
-live_steam_subtotal += id_fan_6.steam_flow_lb_hr
-exhaust_available += id_fan_6.exhaust_available
-
-fd_fan_7 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=233,
-    name='7 FD Fan'
-    )
-fd_fan_7.neat_display()
-live_steam_subtotal += fd_fan_7.steam_flow_lb_hr
-exhaust_available += fd_fan_7.exhaust_available
-
-id_fan_7 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=1200,
-    name='7 ID Fan'
-    )
-id_fan_7.neat_display()
-live_steam_subtotal += id_fan_7.steam_flow_lb_hr
-exhaust_available += id_fan_7.exhaust_available
-
-fd_fan_8 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=350,
-    name='8 FD Fan'
-    )
-fd_fan_8.neat_display()
-live_steam_subtotal += fd_fan_8.steam_flow_lb_hr
-exhaust_available += fd_fan_8.exhaust_available
-
-id_fan_8 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=1300,
-    name='8 ID Fan'
-    )
-id_fan_8.neat_display()
-live_steam_subtotal += id_fan_8.steam_flow_lb_hr
-exhaust_available += id_fan_8.exhaust_available
-
-bfw_pump_1 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=400,
-    name='Boiler Feed Water Pump 1'
-    )
-bfw_pump_1.neat_display()
-live_steam_subtotal += bfw_pump_1.steam_flow_lb_hr
-exhaust_available += bfw_pump_1.exhaust_available
-
-bfw_pump_2 = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=400,
-    name='Boiler Feed Water Pump 2'
-    )
-bfw_pump_2.neat_display()
-live_steam_subtotal += bfw_pump_2.steam_flow_lb_hr
-exhaust_available += bfw_pump_2.exhaust_available
-
-juice_pump = Turbine(
-    inlet_steam=misc_live_steam, 
-    outlet_pressure_psia=misc_exhaust_psia, 
-    isentropic_efficiency=50 / 100, # in decimal form
-    hp_demand=400,
-    name='Limed Juice Pump'
-    )
-juice_pump.neat_display()
-live_steam_subtotal += juice_pump.steam_flow_lb_hr
-exhaust_available += juice_pump.exhaust_available
+misc_trbs = AuxillaryTurbines(
+    group_name='Fan and pump Turbines',
+    name_list            =['ID 123', 'ID 4', 'ID 5', 'ID 6', 'ID 7', 'FD 7', 'ID 8', 'FD 8', 'BFW 1', 'BFW 2', 'BFW 3', 'JCE 1'],
+    hp_list              =[750,      235,    400,    795,    1200,   233,    1300,   350,    400,     400,     400,     400],
+    isentropic_efficiency=[50,       50,     50,     50,     50,     50,     50,     50,     50,      50,      50,      50],
+    live_steam_object=SteamStream(P=180, x=1), # 165 psig
+    exhaust_psia=30
+)
+live_steam_subtotal += misc_trbs.total_inlet_flow_lb_hr
+exhaust_available += misc_trbs.total_exhaust_available_lb_hr
+misc_trbs.to_excel(wb)
+misc_trbs.neat_display()
 
 # Losses and steam jets
-live_steam_jets_lb_hr = 25000 # lb/hr
+live_steam_jets_lb_hr = 25000 # lb/hr Manual Input
 live_steam_subtotal += live_steam_jets_lb_hr
 
-live_steam_loss_pct = 5 # percent of subtotal
+live_steam_loss_pct = 2 # percent of subtotal
 live_steam_loss_lb_hr = live_steam_subtotal * live_steam_loss_pct / 100
 
 # total
 live_steam_total_lb_hr = live_steam_subtotal + live_steam_loss_lb_hr
 
 # required Makeup
-makeup_steam = total_exhaust - exhaust_available if total_exhaust > exhaust_available else 0
+makeup_steam = total_exhaust_required - exhaust_available if total_exhaust_required > exhaust_available else 0
+
+live_steam_dict = {
+    'Cane Prep Turbines': knf_trbs.total_inlet_flow_lb_hr,
+    'Mill Turbines': mill_trbs.total_inlet_flow_lb_hr,
+    'Fan and Pump Turbines': misc_trbs.total_inlet_flow_lb_hr,
+    'Steam Jets': live_steam_jets_lb_hr,
+    'Live Steam Losses': live_steam_loss_lb_hr,
+    'Total Live Steam': live_steam_total_lb_hr,
+}
 
 print(f"\nSteam Summary")
 print(f"Total Live Steam Demand:           {live_steam_total_lb_hr:,.0f} lb/hr")
-print(f"Exhaust Required:                  {total_exhaust:,.0f} lb/hr")
+print(f"Exhaust Required:                  {total_exhaust_required:,.0f} lb/hr")
 print(f"Exhaust Available from turbines:   {exhaust_available:,.0f} lb/hr")
 print(f"Makeup Required:                   {makeup_steam:,.0f} lb/hr")
 
@@ -660,8 +536,33 @@ blrs = Boiler(
 )
 
 blrs.neat_display()
+blrs.to_excel(wb)
+
+steam_summary_to_excel(wb, live_steam_dict, exh_dict,
+                       exhaust_available_lb_hr=exhaust_available,
+                       makeup_steam_lb_hr=makeup_steam,
+                       steam_available_lb_hr=blrs.steam_availabe_lb_hr)
+
+# Cooling Tower section
+condenser_list = pan_floor.pan_condensers
+for evap in evap_station:
+    condenser_list.append(evap.condenser)
+
+ctwrs = CoolingTowerSystem(
+    condensers=condenser_list,
+    cool_water_temp_F=85,
+    percent_blowdown=10,
+    makeup_water_temp_F=70,
+    iterations=20,
+    name='Cooling Tower System'
+)
+ctwrs.neat_display()
+ctwrs.to_excel(wb)
 
 end_time = time() * 1000 # in ms
 solve_time = end_time - start_time
 print(f"\n\nTime to solve factory balance {solve_time:,.2f} ms")
 
+excel_name = 'main_balance.xlsx'
+wb.save(filename=excel_name)
+print(f"Excel Export save successful. Filename = '{excel_name}'")

@@ -47,7 +47,8 @@ class Pan:
                  masse_brix, ml_purity: float,
                  calandria_pressure_psia: float = 21.696,
                  heat_loss_factor: float = 0.0,
-                 name: str = 'Pan'):
+                 name: str = 'Pan',
+                 steam_type: int = 0):
         if feed_streams is None:
             self.feed_streams = [SugarStream(brix=65, purity=88, flow_lb_per_hr=100, temp_deg_F=140)]
         else:
@@ -63,6 +64,7 @@ class Pan:
         self.calandria_pressure_psia  = calandria_pressure_psia
         self.heat_loss_factor         = heat_loss_factor
         self.name                     = name
+        self.steam_type               = steam_type # 0 = Exh,  1 = V1,  2 = V2,  3 = V3,  4 = V4
 
         # Build the Massecuite using the pol/solids-derived purity
         self.massecuite = Massecuite(

@@ -15,6 +15,7 @@ class JuiceHeaterShellTube:
         juice_out_temp_degF: float = 220,
         U_btu_per_ft2_degF : float = 220,
         installed_area_ft2 : float = 22_000,
+        steam_type         : int   = 0, # 0 = Exh,  1 = V1,  2 = V2,  3 = V3,  4 = V4
     ):
         self.name               = name
         self.U                  = U_btu_per_ft2_degF
@@ -22,6 +23,7 @@ class JuiceHeaterShellTube:
         self.hot_stream         = hot_stream
         self.juice_out_temp_degF = juice_out_temp_degF
         self.installed_area_ft2 = installed_area_ft2
+        self.steam_type         = steam_type # 0 = Exh,  1 = V1,  2 = V2,  3 = V3,  4 = V4
 
         self.juice_out = SugarStream(
             self.cold_stream.brix,

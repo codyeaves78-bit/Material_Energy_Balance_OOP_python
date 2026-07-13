@@ -63,7 +63,7 @@ class CoolingTowerSystem:
 
     _GPM = 8.3 * 60  # lb/hr per GPM, consistent with CoolingTower / MillFloor
 
-    def __init__(self, condensers, cool_water_temp_F: float = 90,
+    def __init__(self, condensers: list, cool_water_temp_F: float = 90,
                  percent_blowdown: float = 1.0,
                  makeup_water_temp_F: float = None,
                  iterations: int = 15,

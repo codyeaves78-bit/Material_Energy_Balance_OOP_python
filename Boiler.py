@@ -82,6 +82,60 @@ class Boiler:
         print(f"Rated Steam Capacity: {self.capacity:,.0f}")
         print("=" * 50)
 
+    def to_excel(self, workbook, sheet_writer=None, name=None):
+        """Write this boiler to its own styled sheet (parameters, feed water
+        / steam streams, bagasse fuel, and performance). Pass an existing
+        SheetWriter to append onto a shared sheet instead of creating a new one."""
+        from excel_export import SheetWriter
+
+        name = name or self.name
+        fw = self.feed_water_stream
+        st = self.steam_stream
+        pressure_psig = self.psia - 14.696
+        condition = "Superheated" if self.deg_sh > 0 else "Saturated"
+
+        standalone = sheet_writer is None
+        sw = sheet_writer or SheetWriter(workbook, name, ncols=4)
+        if standalone:
+            sw.title(name,
+                     f"{pressure_psig:.0f} psig | {condition} | "
+                     f"steam available = {self.steam_availabe_lb_hr:,.0f} lb/hr")
+
+        sw.section(f"{name} — PARAMETERS")
+        sw.row("Efficiency",        self.efficiency,    "%",    fmt="0.0")
+        sw.row("Pressure",          pressure_psig,       "psig", fmt="0.0")
+        sw.row("Pressure",          self.psia,           "psia", fmt="0.000")
+        sw.row("Feed water temp",   self.feed_wat_temp,  "°F",   fmt="0.0")
+        sw.row("Superheat",         self.deg_sh,         "°F above sat", fmt="0.0")
+        sw.row("Rated capacity",    self.capacity,       "lb/hr", fmt="#,##0")
+
+        sw.section(f"{name} — FEED WATER / STEAM")
+        sw.table(
+            ["Stream", "Temp (°F)", "Enthalpy (BTU/lb)", "Condition"],
+            [
+                ("Feed Water", fw.T, fw.h, ""),
+                ("Steam Out",  st.T, st.h, condition),
+            ],
+            fmts=["@", "0.00", "0.00", "@"],
+        )
+
+        sw.section(f"{name} — BAGASSE FUEL")
+        bg = self.bagasse
+        sw.row("Flowrate",  bg.flowrate_lb_hr, "lb/hr", fmt="#,##0")
+        sw.row("Fiber",     bg.fiber_pct,      "%",     fmt="0.00")
+        sw.row("Moisture",  bg.moisture_pct,   "%",     fmt="0.00")
+        sw.row("Brix",      bg.brix_pct,       "%",     fmt="0.00")
+        sw.row("Pol",       bg.pol_pct,        "%",     fmt="0.00")
+        sw.row("Ash",       bg.ash_pct,        "%",     fmt="0.00")
+        sw.row("GCV",       bg.gcv,            "BTU/lb", fmt="#,##0")
+
+        sw.section(f"{name} — PERFORMANCE")
+        sw.row("Heat to make 1 lb steam",     self.btu_for_1_lb,                  "BTU/lb", fmt="#,##0")
+        sw.row("Steam/Bagasse ratio",         self.steam_available_per_lb_bagasse, "lb/lb",  fmt="0.000")
+        sw.row("Steam available from bagasse", self.steam_availabe_lb_hr,          "lb/hr",  fmt="#,##0")
+
+        return sw.finish() if standalone else sw
+
 
 if __name__ == "__main__":
     # Test 1: Default boiler — saturated steam

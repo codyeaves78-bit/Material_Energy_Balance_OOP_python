@@ -9,6 +9,8 @@ HDRS = ["Stream", "Dir", "Flow (lb/hr)", "Solids (lb/hr)", "Pol (lb/hr)",
         "Water (lb/hr)", "Brix %", "Purity %", "ft³/hr"]
 FMTS = ["@", "@", "#,##0", "#,##0", "#,##0", "#,##0", "0.0", "0.0", "#,##0"]
 
+STEAM_TYPE_LABELS = {0: "Exhaust", 1: "V1", 2: "V2", 3: "V3", 4: "V4"}
+
 
 def srow(label, dir_, s):
     """Table row from a SugarStream."""
@@ -43,6 +45,9 @@ def pan_table(sw, pan, feed_names):
     sw.table(HDRS, rows, fmts=FMTS,
              totals=totals_rows(ff, fs, fp, ff - fs,
                                 mf + evap, fs, fp, mf - fs + evap))
+    sw.row("Calandria steam type", STEAM_TYPE_LABELS.get(pan.steam_type, str(pan.steam_type)), "")
+    sw.row("Calandria pressure", pan.calandria_pressure_psia, "psia", fmt="0.00")
+    sw.row("Calandria steam flow", pan.steam_flow_lb_hr, "lb/hr", fmt="#,##0")
 
 
 def cen_table(sw, cen):

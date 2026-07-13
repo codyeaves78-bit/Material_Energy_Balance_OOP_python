@@ -22,7 +22,8 @@ class MillTurbines:
     The class maps these into the mill_turbines dictionary internally.
     """
 
-    def __init__(self, hp_ton_fiber_hr, isentropic_efficiency, live_steam_object, exhaust_psia, tons_fiber_hr):
+    def __init__(self, hp_ton_fiber_hr: list, isentropic_efficiency: list,
+                 live_steam_object: SteamStream, exhaust_psia: float, tons_fiber_hr: float):
         if len(isentropic_efficiency) != len(hp_ton_fiber_hr):
             raise ValueError(
                 f"isentropic_efficiency has {len(isentropic_efficiency)} entries "
