@@ -100,6 +100,7 @@ class ThreeBoilingDoubleMagma:
             calandria_pressure_psia=config.calandria_pressure_psia,
             heat_loss_factor=config.heat_loss_factor,
             name=config.name,
+            steam_type=config.steam_type,
         )
 
     def _rebuild_centrifugal(self, config: Centrifugal, massecuite, massecuite_flow_lb_hr: float) -> Centrifugal:

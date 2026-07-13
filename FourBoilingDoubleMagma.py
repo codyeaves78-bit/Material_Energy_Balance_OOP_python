@@ -122,6 +122,7 @@ class FourBoilingDoubleMagma:
             calandria_pressure_psia=config.calandria_pressure_psia,
             heat_loss_factor=config.heat_loss_factor,
             name=config.name,
+            steam_type=config.steam_type,
         )
 
     def _rebuild_centrifugal(self, config: Centrifugal, massecuite, massecuite_flow_lb_hr: float) -> Centrifugal:
@@ -810,7 +811,7 @@ if __name__ == "__main__":
             head_ft=2,
             masse_brix=92,
             ml_purity=75,
-            calandria_pressure_psia=21.696,
+            calandria_pressure_psia=21.696, steam_type=1, # V1
             heat_loss_factor=0.02, name='A1 Pans'),
         A2_pans=Pan(
             feed_streams=None,

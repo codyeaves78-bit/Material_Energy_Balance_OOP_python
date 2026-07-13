@@ -115,15 +115,18 @@ v1_heaters = JuiceHeaterShellTube(
     name='V1 Heaters', 
     juice_out_temp_degF=juice_T_out,
     U_btu_per_ft2_degF=200,
-    installed_area_ft2=11000
+    installed_area_ft2=11000,
+    steam_type=1 # V1
 )
 
 exh_heaters = JuiceHeaterShellTube(
     cold_stream=cold_juice,
     hot_stream=SteamStream(x=1, P=fabrication_exhaust_psia),
+    name='Exhaust Heaters',
     juice_out_temp_degF=juice_T_out,
     U_btu_per_ft2_degF=200,
-    installed_area_ft2=5000
+    installed_area_ft2=5000,
+    steam_type=0 # Exhaust
 )
 
 par_heaters = JuiceHeatingStation(
@@ -181,7 +184,7 @@ if boiling_scheme == 'TBDM':
             head_ft=2,
             masse_brix=92,
             ml_purity=73,
-            calandria_pressure_psia=21.696,   # V1 (7 psig)
+            calandria_pressure_psia=21.696, steam_type=1,  # V1 (7 psig)
             heat_loss_factor=0.02, name='A Pans'),
         B_pans=Pan(
             feed_streams=None,
@@ -191,7 +194,7 @@ if boiling_scheme == 'TBDM':
             head_ft=2,
             masse_brix=94,
             ml_purity=53,
-            calandria_pressure_psia=29.696,   # Exhaust (15 psig)
+            calandria_pressure_psia=29.696, steam_type=0,   # Exhaust (15 psig)
             heat_loss_factor=0.05, name='B Pans'),
         grain_pans=Pan(
             feed_streams=None,
@@ -201,7 +204,7 @@ if boiling_scheme == 'TBDM':
             head_ft=2,
             masse_brix=88,
             ml_purity=45,
-            calandria_pressure_psia=29.696,   # Exhaust (15 psig)
+            calandria_pressure_psia=29.696, steam_type=0,  # Exhaust (15 psig)
             heat_loss_factor=0.05, name='Grain Pans'),
         C_pans=Pan(
             feed_streams=None,
@@ -211,7 +214,7 @@ if boiling_scheme == 'TBDM':
             head_ft=2,
             masse_brix=95.5,
             ml_purity=33,
-            calandria_pressure_psia=21.696,   # V1 (7 psig)
+            calandria_pressure_psia=21.696, steam_type=1,  # V1 (7 psig)
             heat_loss_factor=0.05, name='C Pans'),
         A_centrifugals=Centrifugal(
             massecuite=None, massecuite_flow_lb_hr=0, 
@@ -430,17 +433,18 @@ exhaust_for_heaters = (
     + clar_juice_heater.steam_required_lb_per_hr
 )
 exhaust_for_da = da.steam_flow_lb_hr
-subtotal_exh = exhaust_for_evaporators + exhaust_for_pans + exhaust_for_heaters + exhaust_for_da
+subtotal_exh = exhaust_for_Pre + exhaust_for_evaporators + exhaust_for_pans + exhaust_for_heaters + exhaust_for_da
 exh_losses_pct = 5 # percent of subtotal User Input
 total_exhaust_required = subtotal_exh + exh_losses_pct / 100 * subtotal_exh
 
 exh_dict = {
+    'Exhaust for Pre': exhaust_for_Pre,
     'Exhaust for Evaporators': exhaust_for_evaporators,
     'Exhaust for Pans': exhaust_for_pans,
     'Exhaust for Heaters': exhaust_for_heaters,
     'Exhaust for Deaerator': exhaust_for_da,
     'Exhaust Losses': subtotal_exh * exh_losses_pct / 100,
-    'Total Exhaust': total_exhaust_required,
+    'Total Exhaust Required': total_exhaust_required,
 }
 
 

@@ -77,6 +77,7 @@ class PreEvaporator:
             self.vapor_pressure_psia = sat_pressure_from_temp(vap_temp)
 
         self.exhaust_required_lb_per_hr = exh_req
+        self.supply_steam.flow_lb_per_hr = exh_req # sync with solved value
         self.liquid_temp_deg_F = liq_temp
         self.vapor_temp_deg_F  = vap_temp
 

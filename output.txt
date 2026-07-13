@@ -118,7 +118,7 @@ Diff                    -0                      0.0
   Heater                    Juice lb/hr   T in F  T out F   LMTD F    Duty BTU/hr      U   Req ft2  Inst ft2 Steam psia  Steam lb/hr
 -------------------------------------------------------------------------------------------------------------------
   V1 Heaters                  1,444,925     95.0    220.0     76.5    165,414,649    200    10,813    11,000       30.0      175,003
-  Heater                        481,642     95.0    220.0     76.5     55,138,216    200     3,604     5,000       30.0       58,334
+  Exhaust Heaters               481,642     95.0    220.0     76.5     55,138,216    200     3,604     5,000       30.0       58,334
 -------------------------------------------------------------------------------------------------------------------
   TOTAL                                                               220,552,865                                            233,337
 
@@ -436,48 +436,48 @@ Diff                    -0                      0.0
 ===================================================================================================================
 
 ============================================================
-  EVAPORATION RESULTS   (73.3 ms total)
+  EVAPORATION RESULTS   (43.4 ms total)
 ============================================================
 
-Set 1 (4-eff 25k ft²)  —  58.06% of juice  (926,181 lb/hr)
+Set 1 (4-eff 25k ft²)  —  57.97% of juice  (765,725 lb/hr)
 -------------------------
 
 =============================================================================
   Set 1 (4-eff 25k ft²)
 =============================================================================
-  Juice In     :      926,181 lb/hr  |   14.31 brix  |   248.5 deg F
-  Syrup Out    :      203,947 lb/hr  |   64.99 brix  |   148.9 deg F
-  Steam Req'd  :      160,485 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Juice In     :      765,725 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :      203,633 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      165,639 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.071
+  Avg U Ratio  :  0.885
 
 -----------------------------------------------------------------------------
 Set 1 (4-eff 25k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
 -----------------------------------------------------------------------------
-juice in lb/hr     |     926,181 |     759,133 |     583,052 |     398,488
-syrup out lb/hr    |     759,133 |     583,052 |     398,488 |     203,947
-steam in lb/hr     |     160,485 |     167,048 |     176,081 |     184,563
-evaporated lb/hr   |     167,048 |     176,081 |     184,563 |     194,541
-vap bleed lb/hr    |           0 |           0 |           0 |           0
+juice in lb/hr     |     765,725 |     602,529 |     477,049 |     344,654
+syrup out lb/hr    |     602,529 |     477,049 |     344,654 |     203,633
+steam in lb/hr     |     165,639 |     118,594 |     125,480 |     132,395
+evaporated lb/hr   |     163,195 |     125,480 |     132,395 |     141,021
+vap bleed lb/hr    |      44,601 |           0 |           0 |           0
 -----------------------------------------------------------------------------
-brix in            |       14.31 |       17.46 |       22.73 |       33.26
-brix out           |       17.46 |       22.73 |       33.26 |       64.99
-juice temp deg F   |       248.5 |       239.5 |       224.3 |       202.8
-syrup temp deg F   |       239.5 |       224.3 |       202.8 |       148.9
-juice cp           |       0.915 |       0.898 |       0.868 |       0.808
-syrup cp           |       0.898 |       0.868 |       0.808 |       0.629
+brix in            |       17.29 |       21.97 |       27.75 |       38.40
+brix out           |       21.97 |       27.75 |       38.40 |       65.00
+juice temp deg F   |       235.3 |       236.1 |       221.2 |       199.7
+syrup temp deg F   |       236.1 |       221.2 |       199.7 |       148.9
+juice cp           |       0.899 |       0.872 |       0.839 |       0.779
+syrup cp           |       0.872 |       0.839 |       0.779 |       0.629
 -----------------------------------------------------------------------------
-vapor psia         |       23.93 |       17.82 |       11.21 |        2.40
-vapor temp deg F   |       237.6 |       221.9 |       198.6 |       132.8
-vapor h_fg BTU/lb  |       953.6 |       963.8 |       978.3 |      1017.4
-calandria psia     |       30.00 |       23.93 |       17.82 |       11.21
-calandria deg F    |       250.3 |       237.6 |       221.9 |       198.6
-cal h_fg BTU/lb    |       945.3 |       953.6 |       963.8 |       978.3
+vapor psia         |       22.35 |       16.61 |       10.34 |        2.40
+vapor temp deg F   |       233.9 |       218.2 |       194.7 |       132.8
+vapor h_fg BTU/lb  |       956.1 |       966.1 |       980.7 |      1017.4
+calandria psia     |       30.00 |       22.35 |       16.61 |       10.34
+calandria deg F    |       250.3 |       233.9 |       218.2 |       194.7
+cal h_fg BTU/lb    |       945.3 |       956.1 |       966.1 |       980.7
 -----------------------------------------------------------------------------
-Duty MM BTU/hr     |     151.702 |     159.302 |     169.705 |     180.558
+Duty MM BTU/hr     |     156.574 |     113.383 |     121.226 |     129.836
 HS ft2             |      25,000 |      25,000 |      25,000 |      25,000
-U calc             |       563.3 |       476.8 |       356.7 |       145.3
-U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
+U calc             |       441.1 |       356.4 |       261.8 |       113.3
+U Dessin           |       498.7 |       403.0 |       296.0 |       128.1
 -----------------------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
 
@@ -487,31 +487,31 @@ U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
 -----------------------------------------------------------------------------
 
   Effect 1
-  Entering         160,485 lb/hr *   945.3 BTU/lb / 10^6  =   151.702 MM BTU/hr
-  Sensible         926,181 lb/hr * 0.915 cp * (248.5 - 239.5) degF / 10^6  =     7.601 MM BTU/hr
-  Net for Evaporation  -->  151.702 + (7.601)  =  159.302 MM BTU/hr
-  Evaporated  =  159.302 MM BTU/hr * 10^6 / 953.6 BTU/lb  =  167,048 lb/hr
+  Entering         165,639 lb/hr *   945.3 BTU/lb / 10^6  =   156.574 MM BTU/hr
+  Sensible         765,725 lb/hr * 0.899 cp * (235.3 - 236.1) degF / 10^6  =    -0.550 MM BTU/hr
+  Net for Evaporation  -->  156.574 + (-0.550)  =  156.024 MM BTU/hr
+  Evaporated  =  156.024 MM BTU/hr * 10^6 / 956.1 BTU/lb  =  163,195 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 2
-  Entering         167,048 lb/hr *   953.6 BTU/lb / 10^6  =   159.302 MM BTU/hr
-  Sensible         759,133 lb/hr * 0.898 cp * (239.5 - 224.3) degF / 10^6  =    10.403 MM BTU/hr
-  Net for Evaporation  -->  159.302 + (10.403)  =  169.706 MM BTU/hr
-  Evaporated  =  169.706 MM BTU/hr * 10^6 / 963.8 BTU/lb  =  176,081 lb/hr
+  Entering         118,594 lb/hr *   956.1 BTU/lb / 10^6  =   113.383 MM BTU/hr
+  Sensible         602,529 lb/hr * 0.872 cp * (236.1 - 221.2) degF / 10^6  =     7.843 MM BTU/hr
+  Net for Evaporation  -->  113.383 + (7.843)  =  121.226 MM BTU/hr
+  Evaporated  =  121.226 MM BTU/hr * 10^6 / 966.1 BTU/lb  =  125,480 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 3
-  Entering         176,081 lb/hr *   963.8 BTU/lb / 10^6  =   169.705 MM BTU/hr
-  Sensible         583,052 lb/hr * 0.868 cp * (224.3 - 202.8) degF / 10^6  =    10.853 MM BTU/hr
-  Net for Evaporation  -->  169.705 + (10.853)  =  180.559 MM BTU/hr
-  Evaporated  =  180.559 MM BTU/hr * 10^6 / 978.3 BTU/lb  =  184,563 lb/hr
+  Entering         125,480 lb/hr *   966.1 BTU/lb / 10^6  =   121.226 MM BTU/hr
+  Sensible         477,049 lb/hr * 0.839 cp * (221.2 - 199.7) degF / 10^6  =     8.610 MM BTU/hr
+  Net for Evaporation  -->  121.226 + (8.610)  =  129.836 MM BTU/hr
+  Evaporated  =  129.836 MM BTU/hr * 10^6 / 980.7 BTU/lb  =  132,395 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 4
-  Entering         184,563 lb/hr *   978.3 BTU/lb / 10^6  =   180.558 MM BTU/hr
-  Sensible         398,488 lb/hr * 0.808 cp * (202.8 - 148.9) degF / 10^6  =    17.366 MM BTU/hr
-  Net for Evaporation  -->  180.558 + (17.366)  =  197.924 MM BTU/hr
-  Evaporated  =  197.924 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  194,541 lb/hr
+  Entering         132,395 lb/hr *   980.7 BTU/lb / 10^6  =   129.836 MM BTU/hr
+  Sensible         344,654 lb/hr * 0.779 cp * (199.7 - 148.9) degF / 10^6  =    13.637 MM BTU/hr
+  Net for Evaporation  -->  129.836 + (13.637)  =  143.472 MM BTU/hr
+  Evaporated  =  143.472 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  141,021 lb/hr
   ---------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -519,53 +519,53 @@ U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
 -----------------------------------------------------------------------------
   LAST EFFECT CONDENSER  —  Set 1 (4-eff 25k ft²)  (injection water @ 90 °F)
 -----------------------------------------------------------------------------
-  Vapor to condenser    :      194,541 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :  197,923,603 BTU/hr  (197.92 MM BTU/hr)
-  Injection water       :    4,622,926 lb/hr  (9,238 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    4,817,467 lb/hr
+  Vapor to condenser    :      141,021 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :  143,472,413 BTU/hr  (143.47 MM BTU/hr)
+  Injection water       :    3,351,103 lb/hr  (6,697 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    3,492,123 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 -----------------------------------------------------------------------------
 
 
-Set 2 (4-eff 12k ft²)  —  27.87% of juice  (444,567 lb/hr)
+Set 2 (4-eff 12k ft²)  —  27.82% of juice  (367,417 lb/hr)
 -------------------------
 
 =============================================================================
   Set 2 (4-eff 12k ft²)
 =============================================================================
-  Juice In     :      444,567 lb/hr  |   14.31 brix  |   248.5 deg F
-  Syrup Out    :       97,895 lb/hr  |   64.99 brix  |   148.9 deg F
-  Steam Req'd  :       77,033 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Juice In     :      367,417 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :       97,706 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       81,408 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.071
+  Avg U Ratio  :  0.885
 
 -----------------------------------------------------------------------------
 Set 2 (4-eff 12k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
 -----------------------------------------------------------------------------
-juice in lb/hr     |     444,567 |     364,384 |     279,865 |     191,274
-syrup out lb/hr    |     364,384 |     279,865 |     191,274 |      97,895
-steam in lb/hr     |      77,033 |      80,183 |      84,519 |      88,590
-evaporated lb/hr   |      80,183 |      84,519 |      88,590 |      93,380
-vap bleed lb/hr    |           0 |           0 |           0 |           0
+juice in lb/hr     |     367,417 |     287,098 |     227,529 |     164,671
+syrup out lb/hr    |     287,098 |     227,529 |     164,671 |      97,706
+steam in lb/hr     |      81,408 |      56,303 |      59,569 |      62,858
+evaporated lb/hr   |      80,319 |      59,569 |      62,858 |      66,964
+vap bleed lb/hr    |      24,016 |           0 |           0 |           0
 -----------------------------------------------------------------------------
-brix in            |       14.31 |       17.46 |       22.73 |       33.26
-brix out           |       17.46 |       22.73 |       33.26 |       64.99
-juice temp deg F   |       248.5 |       239.5 |       224.3 |       202.8
-syrup temp deg F   |       239.5 |       224.3 |       202.8 |       148.9
-juice cp           |       0.915 |       0.898 |       0.868 |       0.808
-syrup cp           |       0.898 |       0.868 |       0.808 |       0.629
+brix in            |       17.29 |       22.12 |       27.91 |       38.57
+brix out           |       22.12 |       27.91 |       38.57 |       65.00
+juice temp deg F   |       235.3 |       235.8 |       220.9 |       199.4
+syrup temp deg F   |       235.8 |       220.9 |       199.4 |       148.9
+juice cp           |       0.899 |       0.871 |       0.839 |       0.778
+syrup cp           |       0.871 |       0.839 |       0.778 |       0.629
 -----------------------------------------------------------------------------
-vapor psia         |       23.93 |       17.82 |       11.21 |        2.40
-vapor temp deg F   |       237.6 |       221.9 |       198.6 |       132.8
-vapor h_fg BTU/lb  |       953.6 |       963.8 |       978.3 |      1017.4
-calandria psia     |       30.00 |       23.93 |       17.82 |       11.21
-calandria deg F    |       250.3 |       237.6 |       221.9 |       198.6
-cal h_fg BTU/lb    |       945.3 |       953.6 |       963.8 |       978.3
+vapor psia         |       22.20 |       16.50 |       10.28 |        2.40
+vapor temp deg F   |       233.5 |       217.9 |       194.5 |       132.8
+vapor h_fg BTU/lb  |       956.3 |       966.3 |       980.8 |      1017.4
+calandria psia     |       30.00 |       22.20 |       16.50 |       10.28
+calandria deg F    |       250.3 |       233.5 |       217.9 |       194.5
+cal h_fg BTU/lb    |       945.3 |       956.3 |       966.3 |       980.8
 -----------------------------------------------------------------------------
-Duty MM BTU/hr     |      72.817 |      76.465 |      81.458 |      86.668
+Duty MM BTU/hr     |      76.952 |      53.842 |      57.562 |      61.654
 HS ft2             |      12,000 |      12,000 |      12,000 |      12,000
-U calc             |       563.3 |       476.8 |       356.7 |       145.3
-U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
+U calc             |       440.3 |       354.4 |       260.2 |       112.8
+U Dessin           |       497.8 |       400.7 |       294.2 |       127.5
 -----------------------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
 
@@ -575,31 +575,31 @@ U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
 -----------------------------------------------------------------------------
 
   Effect 1
-  Entering          77,033 lb/hr *   945.3 BTU/lb / 10^6  =    72.817 MM BTU/hr
-  Sensible         444,567 lb/hr * 0.915 cp * (248.5 - 239.5) degF / 10^6  =     3.648 MM BTU/hr
-  Net for Evaporation  -->  72.817 + (3.648)  =  76.465 MM BTU/hr
-  Evaporated  =  76.465 MM BTU/hr * 10^6 / 953.6 BTU/lb  =  80,183 lb/hr
+  Entering          81,408 lb/hr *   945.3 BTU/lb / 10^6  =    76.952 MM BTU/hr
+  Sensible         367,417 lb/hr * 0.899 cp * (235.3 - 235.8) degF / 10^6  =    -0.144 MM BTU/hr
+  Net for Evaporation  -->  76.952 + (-0.144)  =  76.809 MM BTU/hr
+  Evaporated  =  76.809 MM BTU/hr * 10^6 / 956.3 BTU/lb  =  80,319 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 2
-  Entering          80,183 lb/hr *   953.6 BTU/lb / 10^6  =    76.465 MM BTU/hr
-  Sensible         364,384 lb/hr * 0.898 cp * (239.5 - 224.3) degF / 10^6  =     4.994 MM BTU/hr
-  Net for Evaporation  -->  76.465 + (4.994)  =  81.459 MM BTU/hr
-  Evaporated  =  81.459 MM BTU/hr * 10^6 / 963.8 BTU/lb  =  84,519 lb/hr
+  Entering          56,303 lb/hr *   956.3 BTU/lb / 10^6  =    53.842 MM BTU/hr
+  Sensible         287,098 lb/hr * 0.871 cp * (235.8 - 220.9) degF / 10^6  =     3.720 MM BTU/hr
+  Net for Evaporation  -->  53.842 + (3.720)  =  57.562 MM BTU/hr
+  Evaporated  =  57.562 MM BTU/hr * 10^6 / 966.3 BTU/lb  =  59,569 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 3
-  Entering          84,519 lb/hr *   963.8 BTU/lb / 10^6  =    81.458 MM BTU/hr
-  Sensible         279,865 lb/hr * 0.868 cp * (224.3 - 202.8) degF / 10^6  =     5.210 MM BTU/hr
-  Net for Evaporation  -->  81.458 + (5.210)  =  86.668 MM BTU/hr
-  Evaporated  =  86.668 MM BTU/hr * 10^6 / 978.3 BTU/lb  =  88,590 lb/hr
+  Entering          59,569 lb/hr *   966.3 BTU/lb / 10^6  =    57.562 MM BTU/hr
+  Sensible         227,529 lb/hr * 0.839 cp * (220.9 - 199.4) degF / 10^6  =     4.091 MM BTU/hr
+  Net for Evaporation  -->  57.562 + (4.091)  =  61.654 MM BTU/hr
+  Evaporated  =  61.654 MM BTU/hr * 10^6 / 980.8 BTU/lb  =  62,858 lb/hr
   ---------------------------------------------------------------------------
 
   Effect 4
-  Entering          88,590 lb/hr *   978.3 BTU/lb / 10^6  =    86.668 MM BTU/hr
-  Sensible         191,274 lb/hr * 0.808 cp * (202.8 - 148.9) degF / 10^6  =     8.335 MM BTU/hr
-  Net for Evaporation  -->  86.668 + (8.335)  =  95.003 MM BTU/hr
-  Evaporated  =  95.003 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  93,380 lb/hr
+  Entering          62,858 lb/hr *   980.8 BTU/lb / 10^6  =    61.654 MM BTU/hr
+  Sensible         164,671 lb/hr * 0.778 cp * (199.4 - 148.9) degF / 10^6  =     6.475 MM BTU/hr
+  Net for Evaporation  -->  61.654 + (6.475)  =  68.129 MM BTU/hr
+  Evaporated  =  68.129 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  66,964 lb/hr
   ---------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -607,53 +607,53 @@ U Dessin           |       526.1 |       445.3 |       333.2 |       135.7
 -----------------------------------------------------------------------------
   LAST EFFECT CONDENSER  —  Set 2 (4-eff 12k ft²)  (injection water @ 90 °F)
 -----------------------------------------------------------------------------
-  Vapor to condenser    :       93,380 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :   95,003,330 BTU/hr  (95.00 MM BTU/hr)
-  Injection water       :    2,219,004 lb/hr  (4,434 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    2,312,384 lb/hr
+  Vapor to condenser    :       66,964 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :   68,128,572 BTU/hr  (68.13 MM BTU/hr)
+  Injection water       :    1,591,287 lb/hr  (3,180 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    1,658,252 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 -----------------------------------------------------------------------------
 
 
-Set 3 (3-eff 11-9k ft²)  —  14.08% of juice  (224,601 lb/hr)
+Set 3 (3-eff 11-9k ft²)  —  14.21% of juice  (187,738 lb/hr)
 -------------------------
 
 ===============================================================
   Set 3 (3-eff 11-9k ft²)
 ===============================================================
-  Juice In     :      224,601 lb/hr  |   14.31 brix  |   248.5 deg F
-  Syrup Out    :       49,453 lb/hr  |   65.00 brix  |   148.9 deg F
-  Steam Req'd  :       50,093 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
+  Juice In     :      187,738 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :       49,926 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       41,232 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
   Last Eff Vac :  25.03 inHg
-  Avg U Ratio  :  1.071
+  Avg U Ratio  :  0.884
 
 ---------------------------------------------------------------
 Set 3 (3-eff 11-9k ft²) |    Effect 1 |    Effect 2 |    Effect 3
 ---------------------------------------------------------------
-juice in lb/hr     |     224,601 |     168,493 |     110,169
-syrup out lb/hr    |     168,493 |     110,169 |      49,453
-steam in lb/hr     |      50,093 |      56,109 |      58,324
-evaporated lb/hr   |      56,109 |      58,324 |      60,716
+juice in lb/hr     |     187,738 |     143,822 |      97,978
+syrup out lb/hr    |     143,822 |      97,978 |      49,926
+steam in lb/hr     |      41,232 |      43,916 |      45,844
+evaporated lb/hr   |      43,916 |      45,844 |      48,052
 vap bleed lb/hr    |           0 |           0 |           0
 ---------------------------------------------------------------
-brix in            |       14.31 |       19.08 |       29.18
-brix out           |       19.08 |       29.18 |       65.00
-juice temp deg F   |       248.5 |       218.4 |       199.0
-syrup temp deg F   |       218.4 |       199.0 |       148.9
-juice cp           |       0.915 |       0.888 |       0.831
-syrup cp           |       0.888 |       0.831 |       0.629
+brix in            |       17.29 |       22.56 |       33.12
+brix out           |       22.56 |       33.12 |       65.00
+juice temp deg F   |       235.3 |       218.0 |       198.1
+syrup temp deg F   |       218.0 |       198.1 |       148.9
+juice cp           |       0.899 |       0.869 |       0.809
+syrup cp           |       0.869 |       0.809 |       0.629
 ---------------------------------------------------------------
-vapor psia         |       15.90 |       10.40 |        2.40
-vapor temp deg F   |       216.0 |       195.0 |       132.8
-vapor h_fg BTU/lb  |       967.5 |       980.5 |      1017.4
-calandria psia     |       20.00 |       15.90 |       10.40
-calandria deg F    |       227.9 |       216.0 |       195.0
-cal h_fg BTU/lb    |       959.9 |       967.5 |       980.5
+vapor psia         |       15.69 |       10.12 |        2.40
+vapor temp deg F   |       215.3 |       193.7 |       132.8
+vapor h_fg BTU/lb  |       967.9 |       981.3 |      1017.4
+calandria psia     |       20.00 |       15.69 |       10.12
+calandria deg F    |       227.9 |       215.3 |       193.7
+cal h_fg BTU/lb    |       959.9 |       967.9 |       981.3
 ---------------------------------------------------------------
-Duty MM BTU/hr     |      48.085 |      54.286 |      57.185
+Duty MM BTU/hr     |      39.579 |      42.508 |      44.986
 HS ft2             |      11,000 |       9,000 |       9,000
-U calc             |       456.1 |       355.1 |       137.7
-U Dessin           |       426.0 |       331.6 |       128.7
+U calc             |       360.7 |       275.1 |       111.5
+U Dessin           |       407.8 |       311.0 |       126.1
 ---------------------------------------------------------------
   U is in BTU/(hr*ft2*degF)
 
@@ -663,24 +663,24 @@ U Dessin           |       426.0 |       331.6 |       128.7
 ---------------------------------------------------------------
 
   Effect 1
-  Entering          50,093 lb/hr *   959.9 BTU/lb / 10^6  =    48.085 MM BTU/hr
-  Sensible         224,601 lb/hr * 0.915 cp * (248.5 - 218.4) degF / 10^6  =     6.201 MM BTU/hr
-  Net for Evaporation  -->  48.085 + (6.201)  =  54.286 MM BTU/hr
-  Evaporated  =  54.286 MM BTU/hr * 10^6 / 967.5 BTU/lb  =  56,109 lb/hr
+  Entering          41,232 lb/hr *   959.9 BTU/lb / 10^6  =    39.579 MM BTU/hr
+  Sensible         187,738 lb/hr * 0.899 cp * (235.3 - 218.0) degF / 10^6  =     2.928 MM BTU/hr
+  Net for Evaporation  -->  39.579 + (2.928)  =  42.508 MM BTU/hr
+  Evaporated  =  42.508 MM BTU/hr * 10^6 / 967.9 BTU/lb  =  43,916 lb/hr
   -------------------------------------------------------------
 
   Effect 2
-  Entering          56,109 lb/hr *   967.5 BTU/lb / 10^6  =    54.286 MM BTU/hr
-  Sensible         168,493 lb/hr * 0.888 cp * (218.4 - 199.0) degF / 10^6  =     2.900 MM BTU/hr
-  Net for Evaporation  -->  54.286 + (2.900)  =  57.185 MM BTU/hr
-  Evaporated  =  57.185 MM BTU/hr * 10^6 / 980.5 BTU/lb  =  58,324 lb/hr
+  Entering          43,916 lb/hr *   967.9 BTU/lb / 10^6  =    42.508 MM BTU/hr
+  Sensible         143,822 lb/hr * 0.869 cp * (218.0 - 198.1) degF / 10^6  =     2.479 MM BTU/hr
+  Net for Evaporation  -->  42.508 + (2.479)  =  44.986 MM BTU/hr
+  Evaporated  =  44.986 MM BTU/hr * 10^6 / 981.3 BTU/lb  =  45,844 lb/hr
   -------------------------------------------------------------
 
   Effect 3
-  Entering          58,324 lb/hr *   980.5 BTU/lb / 10^6  =    57.185 MM BTU/hr
-  Sensible         110,169 lb/hr * 0.831 cp * (199.0 - 148.9) degF / 10^6  =     4.586 MM BTU/hr
-  Net for Evaporation  -->  57.185 + (4.586)  =  61.771 MM BTU/hr
-  Evaporated  =  61.771 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  60,716 lb/hr
+  Entering          45,844 lb/hr *   981.3 BTU/lb / 10^6  =    44.986 MM BTU/hr
+  Sensible          97,978 lb/hr * 0.809 cp * (198.1 - 148.9) degF / 10^6  =     3.901 MM BTU/hr
+  Net for Evaporation  -->  44.986 + (3.901)  =  48.887 MM BTU/hr
+  Evaporated  =  48.887 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  48,052 lb/hr
   -------------------------------------------------------------
 
 ---------------------------------------------------------------
@@ -688,10 +688,10 @@ U Dessin           |       426.0 |       331.6 |       128.7
 ---------------------------------------------------------------
   LAST EFFECT CONDENSER  —  Set 3 (3-eff 11-9k ft²)  (injection water @ 90 °F)
 ---------------------------------------------------------------
-  Vapor to condenser    :       60,716 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :   61,771,423 BTU/hr  (61.77 MM BTU/hr)
-  Injection water       :    1,442,803 lb/hr  (2,883 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    1,503,519 lb/hr
+  Vapor to condenser    :       48,052 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :   48,887,142 BTU/hr  (48.89 MM BTU/hr)
+  Injection water       :    1,141,863 lb/hr  (2,282 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    1,189,915 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 ---------------------------------------------------------------
 
@@ -700,12 +700,13 @@ U Dessin           |       426.0 |       331.6 |       128.7
 
 
 
-Exhaust for Evaporators: 287,611 lb/hr
-Exhaust for Pans: 224,067 lb/hr
-Exhaust for Heaters: 264,239 lb/hr
+Exhaust for Pre: 293,606 lb/hr
+Exhaust for Evaporators: 288,279 lb/hr
+Exhaust for Pans: 55,982 lb/hr
+Exhaust for Heaters: 89,237 lb/hr
 Exhaust for Deaerator: 34,753 lb/hr
-Exhaust Losses: 40,534 lb/hr
-Total Exhaust: 851,204 lb/hr
+Exhaust Losses: 38,093 lb/hr
+Total Exhaust Required: 799,951 lb/hr
 
 
 =====================================================================================================================================
@@ -759,9 +760,9 @@ Total Exhaust: 851,204 lb/hr
 
 Steam Summary
 Total Live Steam Demand:           914,484 lb/hr
-Exhaust Required:                  851,204 lb/hr
+Exhaust Required:                  799,951 lb/hr
 Exhaust Available from turbines:   839,490 lb/hr
-Makeup Required:                   11,714 lb/hr
+Makeup Required:                   0 lb/hr
 ==================================================
                BOILER — All Boilers               
 ==================================================
@@ -795,46 +796,46 @@ Rated Steam Capacity: 900,000
 -------------------------------------------------------------------------------------------------------------------
   Condenser                     Vapor lb/hr  Sat T F     h_fg  MM BTU/hr     Inj lb/hr   Inj GPM  Out T F   Total lb/hr
 
-  A1 Pans                            85,464    143.4   1011.2     86.425     1,443,311     2,898    143.4     1,528,775
-  A2 Pans                            48,875    143.4   1011.2     49.425       825,408     1,657    143.4       874,284
-  B Pans                             39,397    133.1   1017.2     40.076       807,875     1,622    133.1       847,272
-  Grain Pans                          7,810    129.1   1019.6      7.962       174,677       351    129.1       182,487
-  C Pans                             24,270    119.7   1025.0     24.876       687,055     1,380    119.7       711,325
-  Condenser 6                       194,541    132.8   1017.4    197.924     4,011,640     8,056    132.8     4,206,182
-  Condenser 7                        93,380    132.8   1017.4     95.003     1,925,587     3,867    132.8     2,018,967
-  Condenser 8                        60,716    132.8   1017.4     61.771     1,252,022     2,514    132.8     1,312,738
+  A1 Pans                            85,464    143.4   1011.2     86.425     1,443,303     2,898    143.4     1,528,766
+  A2 Pans                            48,875    143.4   1011.2     49.425       825,404     1,657    143.4       874,279
+  B Pans                             39,397    133.1   1017.2     40.076       807,869     1,622    133.1       847,267
+  Grain Pans                          7,810    129.1   1019.6      7.962       174,676       351    129.1       182,486
+  C Pans                             24,270    119.7   1025.0     24.876       687,049     1,380    119.7       711,318
+  Condenser 6                       141,021    132.8   1017.4    143.472     2,907,969     5,839    132.8     3,048,989
+  Condenser 7                        66,964    132.8   1017.4     68.129     1,380,863     2,773    132.8     1,447,827
+  Condenser 8                        48,052    132.8   1017.4     48.887       990,868     1,990    132.8     1,038,920
 -------------------------------------------------------------------------------------------------------------------
-  Total                             554,453                      563.463    11,127,577    22,345             11,682,030
+  Total                             461,852                      469.253     9,218,000    18,510              9,679,853
 
 -------------------------------------------------------------------------------------------------------------------
   HOT WATER RETURN TO TOWER
 -------------------------------------------------------------------------------------------------------------------
-  Injection water (all condensers)       11,127,577 lb/hr    22,345 GPM  
-  Vapor condensed (all condensers)          554,453 lb/hr     1,113 GPM  
+  Injection water (all condensers)        9,218,000 lb/hr    18,510 GPM  
+  Vapor condensed (all condensers)          461,852 lb/hr       927 GPM  
 -------------------------------------------------------------------------------------------------------------------
-  Total return                           11,682,030 lb/hr    23,458 GPM  @ 134.1 F mixed
+  Total return                            9,679,853 lb/hr    19,437 GPM  @ 134.4 F mixed
 
 -------------------------------------------------------------------------------------------------------------------
-  COOLING TOWER  (134.1 F -> 85 F, blowdown 10.0%)
+  COOLING TOWER  (134.4 F -> 85 F, blowdown 10.0%)
 -------------------------------------------------------------------------------------------------------------------
-  Blowdown                                1,168,203 lb/hr     2,346 GPM  
-  Evaporated to atmosphere                  516,686 lb/hr     1,038 GPM  
-  Cool water from tower                   9,997,141 lb/hr    20,075 GPM  @ 85 F
+  Blowdown                                  967,985 lb/hr     1,944 GPM  
+  Evaporated to atmosphere                  430,528 lb/hr       865 GPM  
+  Cool water from tower                   8,281,339 lb/hr    16,629 GPM  @ 85 F
 
 -------------------------------------------------------------------------------------------------------------------
   SYSTEM BALANCE
 -------------------------------------------------------------------------------------------------------------------
-  Cold water demand (condensers)         11,127,577 lb/hr    22,345 GPM  
-  Cool water available (tower)            9,997,141 lb/hr    20,075 GPM  @ 85 F
-  MAKEUP WATER REQUIRED                   1,130,437 lb/hr     2,270 GPM  @ 70 F
+  Cold water demand (condensers)          9,218,000 lb/hr    18,510 GPM  
+  Cool water available (tower)            8,281,339 lb/hr    16,629 GPM  @ 85 F
+  MAKEUP WATER REQUIRED                     936,661 lb/hr     1,881 GPM  @ 70 F
 
   Delivered injection water temp (cool + makeup blend): 83.5 F
 
-  Water in (vapor + makeup)  :      1,684,889 lb/hr
-  Water out (evap + BD + surplus):  1,684,889 lb/hr
-  Net (In - Out)             :          -0.00 lb/hr
+  Water in (vapor + makeup)  :      1,398,514 lb/hr
+  Water out (evap + BD + surplus):  1,398,514 lb/hr
+  Net (In - Out)             :           0.00 lb/hr
 ===================================================================================================================
 
 
-Time to solve factory balance 3,493.61 ms
+Time to solve factory balance 3,414.40 ms
 Excel Export save successful. Filename = 'main_balance.xlsx'
