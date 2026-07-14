@@ -319,6 +319,7 @@ class CoolingTowerSystem:
         sw.section(f"CONDENSER INVENTORY  ({len(self.condensers)} condensers)")
         condenser_table(sw, self.condensers, self.delivered_water_temp_F)
 
+        sw.page_break()
         sw.section("HOT WATER RETURN TO TOWER")
         sw.row("Injection water (all condensers)", self.total_injection_water_lb_hr, "lb/hr", fmt="#,##0")
         sw.row("Vapor condensed (all condensers)", self.total_vapor_lb_hr, "lb/hr", fmt="#,##0")
@@ -342,7 +343,7 @@ class CoolingTowerSystem:
         sw.row("Makeup water required", self.makeup_lb_hr, "lb/hr", fmt="#,##0")
         sw.row("Makeup water required", self.makeup_lb_hr / self._GPM, "GPM", fmt="#,##0")
         sw.row("Makeup water temperature", self.makeup_temp_F, "°F", fmt="0.0")
-        sw.row("Delivered injection water temp (cool + makeup blend)",
+        sw.row("Injection Water",
                self.delivered_water_temp_F, "°F", fmt="0.0")
         sw.row("Surplus (overflow)", self.surplus_lb_hr, "lb/hr", fmt="#,##0")
         bal = self.balance_check
@@ -350,7 +351,12 @@ class CoolingTowerSystem:
         sw.row("Water out (evap + BD + surplus)", bal['out_lb_hr'], "lb/hr", fmt="#,##0")
         sw.row("Net (In - Out)", bal['diff_lb_hr'], "lb/hr", fmt="#,##0.00")
 
-        return sw.finish()
+        ws = sw.finish()
+        col_widths_px = {'A': 198, 'B': 184, 'C': 62, 'D': 78, 'E': 109,
+                         'F': 98, 'G': 96, 'H': 87, 'I': 98}
+        for letter, px in col_widths_px.items():
+            ws.column_dimensions[letter].width = (px - 5) / 7
+        return ws
 
 
 if __name__ == "__main__":

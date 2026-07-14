@@ -153,10 +153,17 @@ class Deaerator:
 
         standalone = sheet_writer is None
         sw = sheet_writer or SheetWriter(workbook, name, ncols=4)
+        sw.ws.page_setup.fitToHeight = 1  # fit the whole sheet onto one page
         if standalone:
             sw.title(name,
                      f"{self.psia - 14.696:.1f} psig | water in = {self.water_in_lb_hr:,.0f} lb/hr "
                      f"| steam = {self.steam_flow_lb_hr:,.0f} lb/hr")
+
+        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, name=name)
+        sw.image(fig, scale=0.4)
+        plt.close(fig)
 
         sw.section(f"{name} — STREAMS")
         sw.table(
@@ -181,12 +188,6 @@ class Deaerator:
         sw.row("Steam h_fg",           self._steam_state.h_fg,    "BTU/lb", fmt="0.00")
         sw.row("Vent pct",             self.vent_pct,             "%",      fmt="0.00")
         sw.row("Net (In - Out)",       net,                       "lb/hr",  fmt="0.0000")
-
-        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
-        sw.blank()
-        fig = self.generate_pfd(show=False, name=name)
-        sw.image(fig, scale=0.4)
-        plt.close(fig)
 
         return sw.finish() if standalone else sw
 

@@ -261,7 +261,7 @@ class Clarification:
         sw.section("PROCESS FLOW DIAGRAM")
         sw.blank()
         fig = self.generate_pfd(show=False, include_table=False)
-        sw.image(fig, scale=0.55)
+        sw.image(fig, width_in=8.64)
         plt.close(fig)
 
         sw.section("STREAM TABLE  (tags match the diagram)")
@@ -283,31 +283,40 @@ class Clarification:
             ],
         )
 
-        sw.section("PARAMETERS")
-        sw.row("Cane throughput",         self.cane_tpd, "TPD", fmt="#,##0")
-        sw.row("Filter wash water",       self.filter_wash_water_pct_on_cane, "% on cane")
-        sw.row("Filter cake",             self.filter_cake_pct_on_cane, "% on cane")
-        sw.row("Filter cake pol",         self.filter_cake_pol_pct, "%")
-        sw.row("Clarified juice purity",  self.clarified_juice_purity, "%")
-        sw.row("Limed juice cold temp",   self.limed_juice_cold_temp_f, "°F", fmt="#,##0.0")
-        sw.row("Limed juice hot temp",    self.limed_juice_hot_temp_f, "°F", fmt="#,##0.0")
-        sw.row("Clarified juice temp",    self.clarified_juice_temp_f, "°F", fmt="#,##0.0")
-        sw.row("Lime dose",               self.lime_lb_per_ton_cane, "lb/ton cane")
-        sw.row("Milk of lime",            self.lime_baume, "°Baumé", fmt="#,##0.0")
-        sw.row("Polymer dose",            self.polymer_lb_per_ton_cane, "lb/ton cane", fmt="0.000")
-        sw.row("Polymer concentration",   self.polymer_conc_ppm, "ppm", fmt="#,##0")
-        sw.row("Clarifier underflow",     self.clarifier_underflow_pct_cane, "% on cane")
+        sw.section("PARAMETERS  |  KEY RESULTS")
+        sw.row_pair(
+            left=[
+                ("Cane throughput",        self.cane_tpd,                      "TPD",         "#,##0"),
+                ("Filter wash water",      self.filter_wash_water_pct_on_cane, "% on cane",   "#,##0.00"),
+                ("Filter cake",            self.filter_cake_pct_on_cane,       "% on cane",   "#,##0.00"),
+                ("Filter cake pol",        self.filter_cake_pol_pct,           "%",           "#,##0.00"),
+                ("Clarified juice purity", self.clarified_juice_purity,        "%",           "#,##0.00"),
+                ("Limed juice cold temp",  self.limed_juice_cold_temp_f,       "°F",          "#,##0.0"),
+                ("Limed juice hot temp",   self.limed_juice_hot_temp_f,        "°F",          "#,##0.0"),
+                ("Clarified juice temp",   self.clarified_juice_temp_f,        "°F",          "#,##0.0"),
+                ("Lime dose",              self.lime_lb_per_ton_cane,          "lb/ton cane", "#,##0.00"),
+                ("Milk of lime",           self.lime_baume,                    "°Baumé",      "#,##0.0"),
+                ("Polymer dose",           self.polymer_lb_per_ton_cane,       "lb/ton cane", "0.000"),
+                ("Polymer concentration",  self.polymer_conc_ppm,              "ppm",         "#,##0"),
+                ("Clarifier underflow",    self.clarifier_underflow_pct_cane,  "% on cane",   "#,##0.00"),
+            ],
+            right=[
+                ("Flash vapor",            self.flash_vapor_pct,               "% of limed juice", "0.000"),
+                ("Filter cake pol loss",   self.filter_cake_pol_lb_per_day,    "lb/day",      "#,##0"),
+                ("Clarified juice flow",   cj.flow_lb_per_hr,                  "lb/hr",       "#,##0"),
+                ("Clarified juice flow",   cj.cu_ft_hr * 7.4805 / 60,          "GPM",         "#,##0"),
+                ("Clarified juice brix",   cj.brix,                            "%",           "#,##0.00"),
+                ("Clarified juice purity", cj.purity,                          "%",           "#,##0.00"),
+                ("Clarified juice temp",   cj.temp_deg_F,                      "°F",          "#,##0.0"),
+            ],
+        )
 
-        sw.section("KEY RESULTS")
-        sw.row("Flash vapor",             self.flash_vapor_pct, "% of limed juice", fmt="0.000")
-        sw.row("Filter cake pol loss",    self.filter_cake_pol_lb_per_day, "lb/day", fmt="#,##0")
-        sw.row("Clarified juice flow",    cj.flow_lb_per_hr, "lb/hr", fmt="#,##0")
-        sw.row("Clarified juice flow",    cj.cu_ft_hr * 7.4805 / 60, "GPM", fmt="#,##0")
-        sw.row("Clarified juice brix",    cj.brix, "%")
-        sw.row("Clarified juice purity",  cj.purity, "%")
-        sw.row("Clarified juice temp",    cj.temp_deg_F, "°F", fmt="#,##0.0")
-
-        return sw.finish()
+        ws = sw.finish()
+        col_widths_px = {'A': 134, 'B': 116, 'C': 67, 'D': 62, 'E': 68, 'F': 62,
+                         'G': 90, 'H': 40, 'I': 40, 'J': 52, 'K': 63, 'L': 38}
+        for letter, px in col_widths_px.items():
+            ws.column_dimensions[letter].width = (px - 5) / 7
+        return ws
 
     # ── Display ───────────────────────────────────────────────────────────────
 

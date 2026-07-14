@@ -19,7 +19,7 @@ def _collect_streams(cts):
     g = cts._GPM
     return [
         (1, "Vapor from Evaporators & Pans", cts.total_vapor_lb_hr, "", ""),
-        (2, "Cool Water to Condensers (delivered blend)",
+        (2, "Injection Water",
             cts.total_injection_water_lb_hr,
             cts.total_injection_water_lb_hr / g, cts.delivered_water_temp_F),
         (3, "Hot Water Return to Tower", cts.hot_water_return_lb_hr,

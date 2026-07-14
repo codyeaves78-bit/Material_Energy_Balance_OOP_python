@@ -44,6 +44,8 @@ from CoolingTowerSystem import CoolingTowerSystem
 from JuiceHeatingStation import JuiceHeatingStation
 from Crystallizer_and_Reheater import Crystallizer, Reheater
 from steam_summary_excel import steam_summary_to_excel
+from condensate_balance import CondensateBalance, CondensateDemand
+from condensate_utils import flash_condensate
 
 
 start_time = time() * 1000 # in ms
@@ -562,6 +564,58 @@ ctwrs = CoolingTowerSystem(
 )
 ctwrs.neat_display()
 ctwrs.to_excel(wb)
+
+# Condensate balance: available condensate (clean exhaust vs. dirty V1-V4 /
+# inter-effect vapor) vs. water demand locations. Supply and demand are
+# reported independently for you to reconcile yourself.
+clean_condensate_dict = {
+    'Pre-Evaporator':                  pre_3.clean_condensate,
+    'Evaporator Sets (Effect 1s)':      sum(evap.clean_condensate for evap in evap_station),
+    'Pan Floor - Exhaust Pans':         pan_floor.clean_condensate,
+    'Juice Heaters - Exhaust Station':  par_heaters.clean_condensate,
+    'Clarified Juice Heater (Exhaust)': flash_condensate(clar_juice_heater.steam_required_lb_per_hr,
+                                                          clar_juice_heater.hot_stream.T),
+}
+dirty_condensate_dict = {
+    'Evaporator Sets (Effects 2+)': sum(evap.dirty_condensate for evap in evap_station),
+    'Pan Floor - V1-V4 Pans':       pan_floor.dirty_condensate,
+    'Juice Heaters - V1-V4 Station': par_heaters.dirty_condensate,
+}
+
+# Pan floor wash/dilution water split — total_water lumps centrifugal wash +
+# magma minglers + remelt/molasses dilution together, so back out wash water
+# (centrifugal names differ between the two boiling schemes).
+if boiling_scheme == 'TBDM':
+    pan_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
+                            + pan_floor.B_centrifugals.wash_water_lb_hr
+                            + pan_floor.C_centrifugals.wash_water_lb_hr)
+else:
+    pan_wash_water_lb_hr = (pan_floor.A1_centrifugals.wash_water_lb_hr
+                            + pan_floor.A2_centrifugals.wash_water_lb_hr
+                            + pan_floor.B_centrifugals.wash_water_lb_hr
+                            + pan_floor.C_centrifugals.wash_water_lb_hr)
+pan_dilution_water_lb_hr = pan_floor.total_water.flow_lb_per_hr - pan_wash_water_lb_hr
+
+condensate_demands = [
+    CondensateDemand('Boiler Feed Water', flow_lb_hr=da.water_in_lb_hr, temp_F=da.water_in_deg_F,
+                     method='blended',
+                     note="Recommend usage of clean condensate, make up with minimal dirty condensate or well water"),
+    CondensateDemand('Imbibition', flow_lb_hr=st_mary_mills.imbibition_lb_hr,
+                     temp_F=150, method='blended'),  # target temp - User Input
+    CondensateDemand('Wash Water - Pans', flow_lb_hr=pan_wash_water_lb_hr,
+                     temp_F=180, method='cooled'),  # target temp - User Input
+    CondensateDemand('Dilution Water - Pans/Molasses/Remelt', flow_lb_hr=pan_dilution_water_lb_hr,
+                     temp_F=150, method='blended'),  # target temp - User Input
+]
+
+condensate_balance = CondensateBalance(
+    clean_condensate_dict, dirty_condensate_dict, condensate_demands,
+    well_water_temp_F=ctwrs.makeup_water_temp_F,
+    combined_condensate_temp_F=210,  # User Input - override with a measured value if known
+    name='Condensate Balance'
+)
+condensate_balance.neat_display()
+condensate_balance.to_excel(wb)
 
 end_time = time() * 1000 # in ms
 solve_time = end_time - start_time

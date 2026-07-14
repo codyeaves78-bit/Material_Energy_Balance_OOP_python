@@ -46,7 +46,18 @@
       "Bash(python -c \"import PIL; print\\('Pillow', PIL.__version__\\)\")",
       "Bash(MPLBACKEND=Agg python JuiceHeatingStation.py)",
       "Bash(MPLBACKEND=Agg python JuiceHeater.py)",
-      "Bash(python -c \"import MillTurbines\")"
+      "Bash(python -c \"import MillTurbines\")",
+      "Bash(rm -f _test_evapset.xlsx)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
+      "Bash(grep -n \"PAN VAPOR CONDENSERS\\\\|return sw.finish\\\\|HEAVY\\)$\" ThreeBoilingDoubleMagma.py)",
+      "Bash(rm -f _test_jhs2.xlsx)",
+      "Bash(rm -f _test_fbdm.xlsx)",
+      "Bash(PYTHONIOENCODING=utf-8 python condensate_balance.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python main.py)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(rm -f _run_out.txt)",
+      "Bash(mkdir -p /tmp)",
+      "Bash(rm -f test_img_debug.xlsx)"
     ]
   }
 }

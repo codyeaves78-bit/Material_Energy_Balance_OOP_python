@@ -345,6 +345,13 @@ class MillFloor:
             f"{self.number_of_mills} mills  |  extraction = {self.mill_extraction_pct:.2f}%",
         )
 
+        sw.section("PROCESS FLOW DIAGRAM")
+        sw.blank()
+        import matplotlib.pyplot as plt
+        fig = self.generate_pfd(show=False)
+        sw.image(fig, width_in=7.85)
+        plt.close(fig)
+
         sw.section("CANE FEED")
         sw.row("Cane throughput",  self.cane_tpd,               "TPD", fmt="#,##0")
         sw.row("Cane pol",         self.cane_pol_pct,           "%")
@@ -371,6 +378,7 @@ class MillFloor:
         sw.section("PERFORMANCE")
         sw.row("Mill extraction", self.mill_extraction_pct, "% pol in cane")
 
+        sw.page_break()
         sw.section("STREAM TABLE  (TPH)")
         stream_rows, in_tot, out_tot = self._stream_table_rows()
         diff = [i - o for i, o in zip(in_tot, out_tot)]
@@ -397,13 +405,6 @@ class MillFloor:
             ],
             fmts=["0", "#,##0.0", "#,##0.0", "@", "#,##0.0", "#,##0.0", "@"],
         )
-
-        sw.section("PROCESS FLOW DIAGRAM")
-        sw.blank()
-        import matplotlib.pyplot as plt
-        fig = self.generate_pfd(show=False)
-        sw.image(fig, scale=0.5)
-        plt.close(fig)
 
         return sw.finish()
 

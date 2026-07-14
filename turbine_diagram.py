@@ -233,9 +233,13 @@ def group_to_excel(group, workbook):
     sw.table(info["headers"], info["rows"], fmts=info["fmts"],
              totals=[info["total"]])
 
-    sw.section("STREAM TAGS PER UNIT  (tags match the diagram)")
-    sw.table(["Unit", "(1) Live Steam (lb/hr)", "(2) Exhaust (lb/hr)", "HP Out"],
-             [(r[0], r[1], r[2], r[3]) for r in info["rows"]],
-             fmts=["@", "#,##0", "#,##0", "#,##0"])
-
-    return sw.finish()
+    ws = sw.finish()
+    if len(info["headers"]) == 11:          # group with an HP/TFH column
+        col_widths_px = {'A': 63, 'B': 119, 'C': 137, 'D': 38, 'E': 48, 'F': 130,
+                         'G': 56, 'H': 45, 'I': 67, 'J': 56, 'K': 85}
+    else:                                    # Fan and Pump / Auxillary — no HP/TFH column
+        col_widths_px = {'A': 43, 'B': 119, 'C': 137, 'D': 38, 'E': 130,
+                         'F': 56, 'G': 45, 'H': 67, 'I': 56, 'J': 85}
+    for letter, px in col_widths_px.items():
+        ws.column_dimensions[letter].width = (px - 5) / 7
+    return ws

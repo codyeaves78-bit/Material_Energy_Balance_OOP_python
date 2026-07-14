@@ -123,6 +123,10 @@ Diff                    -0                      0.0
   TOTAL                                                               220,552,865                                            233,337
 
   Hot juice out: 1,926,567 lb/hr @ 220.0 F  (14.24 Bx, 82.9 purity)
+-------------------------------------------------------------------------------------------------------------------
+  Clean condensate (Exhaust steam heaters) :       56,031 lb/hr
+  Dirty condensate (V1-V4 steam heaters)   :      168,092 lb/hr
+  Total condensate                         :      224,123 lb/hr
 ===================================================================================================================
 ==============================================================
            JUICE HEATER  —  CLARIFIED JUICE HEATER            
@@ -433,10 +437,17 @@ Diff                    -0                      0.0
 
   Note: if using CoolingTowerSystem, ignore these injection water demands - they are re-solved there at the delivered water temp.
 
+-------------------------------------------------------------------------------------------------------------------
+  CONDENSATE RETURN
+-------------------------------------------------------------------------------------------------------------------
+  Clean condensate (Exhaust steam pans) :       53,805 lb/hr
+  Dirty condensate (V1-V4 steam pans)   :      164,567 lb/hr
+  Total condensate                      :      218,372 lb/hr
+
 ===================================================================================================================
 
 ============================================================
-  EVAPORATION RESULTS   (43.4 ms total)
+  EVAPORATION RESULTS   (45.3 ms total)
 ============================================================
 
 Set 1 (4-eff 25k ft²)  —  57.97% of juice  (765,725 lb/hr)
@@ -524,6 +535,14 @@ U Dessin           |       498.7 |       403.0 |       296.0 |       128.1
   Injection water       :    3,351,103 lb/hr  (6,697 GPM)  90 -> 132.8 °F
   Total outlet flow     :    3,492,123 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :      159,097 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      372,987 lb/hr
+  Total condensate                           :      532,083 lb/hr
 -----------------------------------------------------------------------------
 
 
@@ -614,6 +633,14 @@ U Dessin           |       497.8 |       400.7 |       294.2 |       127.5
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 -----------------------------------------------------------------------------
 
+-----------------------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 2 (4-eff 12k ft²)
+-----------------------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :       78,192 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      177,119 lb/hr
+  Total condensate                           :      255,311 lb/hr
+-----------------------------------------------------------------------------
+
 
 Set 3 (3-eff 11-9k ft²)  —  14.21% of juice  (187,738 lb/hr)
 -------------------------
@@ -693,6 +720,14 @@ U Dessin           |       407.8 |       311.0 |       126.1
   Injection water       :    1,141,863 lb/hr  (2,282 GPM)  90 -> 132.8 °F
   Total outlet flow     :    1,189,915 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 3 (3-eff 11-9k ft²)
+---------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :       40,555 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :       89,611 lb/hr
+  Total condensate                           :      130,166 lb/hr
 ---------------------------------------------------------------
 
 ====================================================================================================
@@ -835,7 +870,50 @@ Rated Steam Capacity: 900,000
   Water out (evap + BD + surplus):  1,398,514 lb/hr
   Net (In - Out)             :           0.00 lb/hr
 ===================================================================================================================
+==========================================================================================
+                        CONDENSATE BALANCE  -  Condensate Balance                         
+==========================================================================================
+
+  CLEAN CONDENSATE (exhaust)
+------------------------------------------------------------------------------------------
+  Pre-Evaporator                                                       282,009 lb/hr
+  Evaporator Sets (Effect 1s)                                          277,844 lb/hr
+  Pan Floor - Exhaust Pans                                              53,805 lb/hr
+  Juice Heaters - Exhaust Station                                       56,031 lb/hr
+  Clarified Juice Heater (Exhaust)                                      29,682 lb/hr
+------------------------------------------------------------------------------------------
+  Total Clean Condensate                                               699,370 lb/hr
+
+  DIRTY CONDENSATE (V1-V4 / inter-effect vapor)
+------------------------------------------------------------------------------------------
+  Evaporator Sets (Effects 2+)                                         639,716 lb/hr
+  Pan Floor - V1-V4 Pans                                               164,567 lb/hr
+  Juice Heaters - V1-V4 Station                                        168,092 lb/hr
+------------------------------------------------------------------------------------------
+  Total Dirty Condensate                                               972,376 lb/hr
+------------------------------------------------------------------------------------------
+  TOTAL CONDENSATE AVAILABLE                                         1,671,746 lb/hr
+
+  CONDENSATE DEMAND
+  (combined condensate temp = 210.0 °F, well water temp = 70.0 °F)
+------------------------------------------------------------------------------------------
+  Location                       Method   Flow lb/hr   Temp F   Cond lb/hr   Well lb/hr   Cond %
+------------------------------------------------------------------------------------------
+  Boiler Feed Water             blended      800,000    200.0      742,857       57,143    92.9%
+      -> Recommend usage of clean condensate, make up with minimal dirty condensate or well water
+  Imbibition                    blended      475,000    150.0      271,429      203,571    57.1%
+  Wash Water - Pans              cooled       23,974    180.0       23,974            0   100.0%
+  Dilution Water - Pans/Molasses/Remelt  blended       67,250    150.0       38,429       28,822    57.1%
+------------------------------------------------------------------------------------------
+  TOTAL                                    1,366,225             1,076,689      289,536
+
+  CONDENSATE CHECK  (informational — reconcile against the demand list yourself)
+------------------------------------------------------------------------------------------
+  Total condensate available                     1,671,746 lb/hr
+  Total condensate required                      1,076,689 lb/hr
+  Surplus / (Deficit)                              595,057 lb/hr
+==========================================================================================
 
 
-Time to solve factory balance 3,414.40 ms
+Time to solve factory balance 3,660.44 ms
 Excel Export save successful. Filename = 'main_balance.xlsx'

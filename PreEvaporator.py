@@ -2,6 +2,7 @@ from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam
 from evaporator_functions import calculate_U_dessin, sat_pressure_from_temp, calculate_U_heat_xfer
 from sugar_stream_properties import bpe_total, get_latent_heat, sat_steam_temp, get_cp
+from condensate_utils import flash_condensate
 
 
 class PreEvaporator:
@@ -111,7 +112,12 @@ class PreEvaporator:
     @property
     def U_ratio(self):
         return self.U_calc / self.dessin_U
-    
+
+    @property
+    def clean_condensate(self):
+        """Post-flash condensate from the fresh exhaust supply steam (lb/hr)."""
+        return flash_condensate(self.exhaust_required_lb_per_hr, self.supply_steam.sat_temp_deg_F)
+
     def display_properties(self):
         vap_psig = self.vapor_pressure_psia - 14.696
         print(f"  Juice in:          {self.juice_in.flow_lb_per_hr/2000:,.3f} tph @ {self.juice_in.brix:.2f} brix, {self.juice_in.temp_deg_F:.2f} °F")
@@ -139,12 +145,19 @@ class PreEvaporator:
 
         standalone = sheet_writer is None
         sw = sheet_writer or SheetWriter(workbook, name, ncols=4)
+        sw.ws.page_setup.fitToHeight = 1  # fit the whole sheet onto one page
         if standalone:
             sw.title(name,
                      f"vapor bleed = {self.vapor_bleed_lb_per_hr:,.0f} lb/hr | "
                      f"area = {self.area_ft2:,.0f} ft² | U ratio = {self.U_ratio:.3f}")
 
         vap_psig = self.vapor_pressure_psia - 14.696
+        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False, name=name)
+        sw.image(fig, scale=0.4)
+        plt.close(fig)
+
         sw.section(f"{name} — STREAMS")
         sw.table(
             ["Stream", "Flow (lb/hr)", "Brix / P (psia)", "Temp (°F)"],
@@ -167,11 +180,5 @@ class PreEvaporator:
         sw.row("U Dessin",                 self.dessin_U,                  "BTU/hr·ft²·°F", fmt="0.0000")
         sw.row("U calc",                   self.U_calc,                    "BTU/hr·ft²·°F", fmt="0.0000")
         sw.row("U ratio (calc/Dessin)",    self.U_ratio,                   "",              fmt="0.000")
-
-        sw.section(f"{name} — PROCESS FLOW DIAGRAM")
-        sw.blank()
-        fig = self.generate_pfd(show=False, name=name)
-        sw.image(fig, scale=0.4)
-        plt.close(fig)
 
         return sw.finish() if standalone else sw

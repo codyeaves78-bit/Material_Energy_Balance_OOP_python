@@ -6,6 +6,7 @@
 
 from SugarStream import SugarStream
 from JuiceHeater import JuiceHeaterShellTube
+from condensate_utils import flash_condensate
 
 
 class JuiceHeatingStation:
@@ -139,6 +140,18 @@ class JuiceHeatingStation:
         return self._steam_demand_lb_hr(4)
 
     @property
+    def clean_condensate(self) -> float:
+        """Post-flash condensate from heaters on exhaust steam (steam_type 0) (lb/hr)."""
+        return sum(flash_condensate(h.steam_required_lb_per_hr, h.hot_stream.T)
+                   for h in self.heaters if h.steam_type == 0)
+
+    @property
+    def dirty_condensate(self) -> float:
+        """Post-flash condensate from heaters on vapor bleed steam (steam_type 1-4) (lb/hr)."""
+        return sum(flash_condensate(h.steam_required_lb_per_hr, h.hot_stream.T)
+                   for h in self.heaters if h.steam_type != 0)
+
+    @property
     def total_duty_btu_hr(self):
         return sum(h.Q_btu_per_hr for h in self.heaters)
 
@@ -184,6 +197,10 @@ class JuiceHeatingStation:
         for h in self.heaters:
             if h.is_steam_hot_enough != "YES":
                 print(f"  WARNING [{h.name}]: {h.is_steam_hot_enough}")
+        print(LIGHT)
+        print(f"  Clean condensate (Exhaust steam heaters) : {self.clean_condensate:>12,.0f} lb/hr")
+        print(f"  Dirty condensate (V1-V4 steam heaters)   : {self.dirty_condensate:>12,.0f} lb/hr")
+        print(f"  Total condensate                         : {self.clean_condensate + self.dirty_condensate:>12,.0f} lb/hr")
         print(HEAVY)
 
     def generate_pfd(self, show=True, save_path=None, include_table=True):
@@ -200,7 +217,7 @@ class JuiceHeatingStation:
         from juice_heater_diagram import _collect_streams
         from pan_floor_excel import STEAM_TYPE_LABELS
 
-        sw = SheetWriter(workbook, self.name, ncols=12)
+        sw = SheetWriter(workbook, self.name, ncols=max(5, 1 + len(self.heaters)))
         mode_txt = f" — {self.mode.title()}" if len(self.heaters) > 1 else ""
         sw.title(f"{self.name}{mode_txt}",
                  f"{len(self.heaters)} heaters | juice out "
@@ -219,31 +236,46 @@ class JuiceHeatingStation:
                  _collect_streams(self),
                  fmts=["0", "@", "#,##0", "0.0", "0.0"])
 
-        sw.section("HEATER PERFORMANCE")
-        sw.table(
-            ["Heater", "Steam Type", "Juice (lb/hr)", "T in (°F)", "T out (°F)", "LMTD (°F)",
-             "Duty (BTU/hr)", "U (BTU/hr·ft²·°F)", "Req Area (ft²)",
-             "Inst Area (ft²)", "Steam (psia)", "Steam (lb/hr)"],
-            [
-                (h.name, STEAM_TYPE_LABELS.get(h.steam_type, str(h.steam_type)),
-                 h.cold_stream.flow_lb_per_hr, h.cold_stream.temp_deg_F,
-                 h.juice_out_temp_degF, h.LMTD_degF, h.Q_btu_per_hr, h.U,
-                 h.required_area_ft2, h.installed_area_ft2, h.hot_stream.P,
-                 h.steam_required_lb_per_hr)
-                for h in self.heaters
-            ],
-            fmts=["@", "@", "#,##0", "0.0", "0.0", "0.0", "#,##0", "0.0",
-                  "#,##0", "#,##0", "0.0", "#,##0"],
-            totals=[("TOTAL", "", "", "", "", "", self.total_duty_btu_hr, "", "", "",
-                     "", self.total_steam_lb_hr)],
-        )
+        # Transposed (metric rows x heater columns) so the sheet stays narrow
+        # regardless of how many heaters are in the group.
+        htr_hdrs = [""] + [h.name for h in self.heaters]
+
+        sw.page_break()
+        sw.section("HEATER FLOWS")
+        sw.table(htr_hdrs, [
+            ("Juice (lb/hr)",   *[h.cold_stream.flow_lb_per_hr for h in self.heaters]),
+            ("Duty (BTU/hr)",   *[h.Q_btu_per_hr               for h in self.heaters]),
+            ("Req Area (ft²)",  *[h.required_area_ft2          for h in self.heaters]),
+            ("Inst Area (ft²)", *[h.installed_area_ft2         for h in self.heaters]),
+            ("Steam (lb/hr)",   *[h.steam_required_lb_per_hr   for h in self.heaters]),
+        ], fmts=["@"] + ["#,##0"] * len(self.heaters))
+
+        sw.section("HEATER CONDITIONS")
+        sw.table(htr_hdrs, [
+            ("Steam Type",       *[STEAM_TYPE_LABELS.get(h.steam_type, str(h.steam_type)) for h in self.heaters]),
+            ("T in (°F)",        *[h.cold_stream.temp_deg_F for h in self.heaters]),
+            ("T out (°F)",       *[h.juice_out_temp_degF    for h in self.heaters]),
+            ("LMTD (°F)",        *[h.LMTD_degF              for h in self.heaters]),
+            ("U (BTU/hr·ft²·°F)", *[h.U                     for h in self.heaters]),
+            ("Steam (psia)",     *[h.hot_stream.P           for h in self.heaters]),
+        ], fmts=["@"] + ["#,##0.00"] * len(self.heaters))
+
+        sw.row("Total duty", self.total_duty_btu_hr, "BTU/hr", fmt="#,##0")
+        sw.row("Total steam", self.total_steam_lb_hr, "lb/hr", fmt="#,##0")
         if self.mode == 'parallel':
             splits = " / ".join(f"{p:.0f}%" for p in self.split_pcts)
             sw.row("Juice split between heaters", splits, "")
         sw.row("Hot juice out", self.juice_out.flow_lb_per_hr, "lb/hr", fmt="#,##0")
         sw.row("Hot juice temperature", self.juice_out.temp_deg_F, "°F", fmt="0.0")
 
-        return sw.finish()
+        sw.section("CONDENSATE RETURN")
+        sw.row("Clean condensate (Exhaust steam heaters)", self.clean_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Dirty condensate (V1-V4 steam heaters)",   self.dirty_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Total condensate", self.clean_condensate + self.dirty_condensate, "lb/hr", fmt="#,##0")
+
+        ws = sw.finish()
+        ws.column_dimensions['A'].width = 34.14  # 244px
+        return ws
 
 
 if __name__ == "__main__":

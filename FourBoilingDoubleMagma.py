@@ -2,6 +2,7 @@ from Pan import Pan
 from Centrifugal import Centrifugal
 from Crystallizer_and_Reheater import Crystallizer, Reheater
 from SugarStream import SugarStream
+from condensate_utils import flash_condensate
 
 
 def make_magma(sugar_stream: SugarStream, mingler_brix: float) -> SugarStream:
@@ -339,14 +340,16 @@ class FourBoilingDoubleMagma:
         sw.section("PROCESS FLOW DIAGRAM")
         sw.blank()
         fig = self.generate_pfd(show=False, include_table=False)
-        sw.image(fig, scale=0.45)
+        sw.image(fig, width_in=10.00)
         plt.close(fig)
 
+        sw.page_break()
         sw.section("STREAM TABLE  (tags match the diagram)")
         sw.table(["#", "Stream", "Flow (lb/hr)", "Brix %", "Purity %"],
                  _collect_streams(self),
                  fmts=["0", "@", "#,##0", "0.0", "0.0"])
 
+        sw.page_break()
         sw.section("STREAMS NOT SHOWN — WATER")
         wleft, wright, (total_in, total_evap_chk) = _collect_water(self)
         sw.table(["Stream", "Flow (lb/hr)"], wleft + wright, fmts=["@", "#,##0"],
@@ -370,9 +373,10 @@ class FourBoilingDoubleMagma:
             wrow("Evaporated (all pans)", "Out", total_evap),
         ], fmts=FMTS, totals=totals_rows(in_f, in_s, in_p, in_f - in_s,
                                          out_f, out_s, out_p, out_f - out_s))
-        sw.row("Pol % recovered in raw sugar (A1+A2 / feed)", pol_extr, "%")
+        sw.row("Pol % recovered in raw sugar (A1+A2 / feed)", pol_extr, "%", col=4)
 
         # ── Stations ───────────────────────────────────────────────────────
+        sw.page_break()
         sw.section(f"A1 PANS  [{self.A1_pans.name}]")
         pan_table(sw, self.A1_pans, ["Syrup", "B Magma"])
         sw.section(f"A1 CENTRIFUGALS  [{self.A1_centrifugals.name}]")
@@ -387,6 +391,7 @@ class FourBoilingDoubleMagma:
         sw.section(f"A2 MOLASSES DILUTION  (target {self.a2_mol_dilution_brix:.1f} Bx)")
         dil_table(sw, self.A2_centrifugals.molasses_stream, self._a2_mol_diluted, "A2 Molasses")
 
+        sw.page_break()
         sw.section(f"B PANS  [{self.B_pans.name}]")
         pan_table(sw, self.B_pans, ["A2 Molasses", "C Magma", "A1 Molasses"])
         sw.section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]")
@@ -397,6 +402,7 @@ class FourBoilingDoubleMagma:
         sw.section(f"GRAIN PANS  [{self.grain_pans.name}]")
         pan_table(sw, self.grain_pans, ["Syrup", "A1 Molasses", "A2 Molasses", "B Molasses"])
 
+        sw.page_break()
         sw.section(f"C PANS  [{self.C_pans.name}]")
         pan_table(sw, self.C_pans, ["Grain Massecuite", "B Molasses"])
         sw.section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]")
@@ -411,7 +417,19 @@ class FourBoilingDoubleMagma:
         sw.row("Note: if using CoolingTowerSystem, ignore these injection water "
                "demands - they are re-solved there at the delivered water temp.", "")
 
-        return sw.finish()
+        sw.section("CONDENSATE RETURN")
+        sw.row("Clean condensate (Exhaust steam pans)",  self.clean_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Dirty condensate (V1-V4 steam pans)",    self.dirty_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Total condensate", self.clean_condensate + self.dirty_condensate, "lb/hr", fmt="#,##0")
+
+        ws = sw.finish()
+        col_widths_px = {'A': 164, 'B': 142, 'C': 93, 'D': 78, 'E': 109,
+                         'F': 98, 'G': 96, 'H': 87, 'I': 98}
+        for letter, px in col_widths_px.items():
+            ws.column_dimensions[letter].width = (px - 5) / 7
+        from openpyxl.styles import Alignment
+        ws['A95'].alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        return ws
 
     @property
     def pan_condensers(self):
@@ -454,6 +472,18 @@ class FourBoilingDoubleMagma:
     def total_V4_steam_lb_hr(self) -> float:
         """Total V4 vapor consumed by pans on steam_type 4 (lb/hr)."""
         return self._steam_demand_lb_hr(4)
+
+    @property
+    def clean_condensate(self) -> float:
+        """Post-flash condensate from pans on exhaust steam (steam_type 0) (lb/hr)."""
+        return sum(flash_condensate(pan.steam_flow_lb_hr, pan.calandria_T_sat_F)
+                   for pan in self._pans if pan.steam_type == 0)
+
+    @property
+    def dirty_condensate(self) -> float:
+        """Post-flash condensate from pans on vapor bleed steam (steam_type 1-4) (lb/hr)."""
+        return sum(flash_condensate(pan.steam_flow_lb_hr, pan.calandria_T_sat_F)
+                   for pan in self._pans if pan.steam_type != 0)
 
     @property
     def total_water(self) -> SugarStream:
@@ -793,6 +823,11 @@ class FourBoilingDoubleMagma:
         out.append("")
         out.append("  Note: if using CoolingTowerSystem, ignore these injection water"
                    " demands - they are re-solved there at the delivered water temp.")
+
+        out.append(_section("CONDENSATE RETURN"))
+        out.append(f"  Clean condensate (Exhaust steam pans) : {self.clean_condensate:>12,.0f} lb/hr")
+        out.append(f"  Dirty condensate (V1-V4 steam pans)   : {self.dirty_condensate:>12,.0f} lb/hr")
+        out.append(f"  Total condensate                      : {self.clean_condensate + self.dirty_condensate:>12,.0f} lb/hr")
 
         out.append("")
         out.append(HEAVY)

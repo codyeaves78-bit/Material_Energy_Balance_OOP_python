@@ -3,10 +3,11 @@ from Condenser import Condenser
 from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam, SteamStream
 from Evaporator import Evaporator
-from evaporator_functions import (initial_brix_profile, pressure_profile_initial, 
-                                  shortcut_evaporator_steam, convert_inHg_vacuum_to_psia, 
-                                  convert_psig_to_psia, convert_psia_to_psig, 
+from evaporator_functions import (initial_brix_profile, pressure_profile_initial,
+                                  shortcut_evaporator_steam, convert_inHg_vacuum_to_psia,
+                                  convert_psig_to_psia, convert_psia_to_psig,
                                   convert_psia_to_inHgVac)
+from condensate_utils import flash_condensate
 import time
 from statistics import stdev
 
@@ -275,6 +276,20 @@ class EvaporatorSet:
             flow_lb_per_hr=last.lbs_evaporated_per_hr - last.vapor_bleed.flow_lb_per_hr,
         )
         return Condenser(vapor=to_condenser, water_inlet_temp_F=self.injection_water_temp_F)
+    
+    @property
+    def clean_condensate(self):
+        """Post-flash condensate from the first effect (fresh exhaust) (lb/hr)."""
+        eff = self.evaporator_list[0]
+        return flash_condensate(eff.calandria_side.flow_lb_per_hr, eff.calandria_side.sat_temp_deg_F)
+
+    @property
+    def dirty_condensate(self):
+        """Sum of post-flash condensate from effect 2 to the last effect (inter-effect vapor) (lb/hr)."""
+        return sum(
+            flash_condensate(eff.calandria_side.flow_lb_per_hr, eff.calandria_side.sat_temp_deg_F)
+            for eff in self.evaporator_list[1:]
+        )
 
     def generate_pfd(self, show: bool = True, save_path: str = None, pre_evap=None):
         """Render the process flow diagram. Pass a solved PreEvaporator to include it on the same figure."""
@@ -434,6 +449,15 @@ class EvaporatorSet:
               f" demand - it is re-solved there at the delivered water temp.")
         print(f"{light}\n")
 
+        # ── Condensate return ────────────────────────────────────────────
+        print(light)
+        print(f"  CONDENSATE RETURN  —  {self.name}")
+        print(light)
+        print(f"  Clean condensate (Effect 1, fresh exhaust) : {self.clean_condensate:>12,.0f} lb/hr")
+        print(f"  Dirty condensate (Effect 2+, inter-effect) : {self.dirty_condensate:>12,.0f} lb/hr")
+        print(f"  Total condensate                           : {self.clean_condensate + self.dirty_condensate:>12,.0f} lb/hr")
+        print(f"{light}\n")
+
     def to_excel(self, workbook, sheet_writer=None):
         """Write this set (summary, effect detail, energy balance, condenser,
         PFD) to Excel. Pass an existing SheetWriter to append this set onto a
@@ -449,6 +473,12 @@ class EvaporatorSet:
             sw.title(self.name,
                      f"{n} effects | steam = {self.supply_steam.flow_lb_per_hr:,.0f} lb/hr "
                      f"| syrup out = {ef[-1].juice_side_out.brix:.2f} Bx")
+
+        sw.section(f"{self.name} — PROCESS FLOW DIAGRAM")
+        sw.blank()
+        fig = self.generate_pfd(show=False)
+        sw.image(fig, width_in=8.75)
+        plt.close(fig)
 
         syrup_out = ef[-1].juice_side_out
         sw.section(f"{self.name} — SUMMARY")
@@ -478,6 +508,7 @@ class EvaporatorSet:
             ("Heating surface (ft²)", *[e.area_ft2                    for e in ef]),
         ], fmts=["@"] + ["#,##0"] * n)
 
+        sw.page_break()
         sw.section(f"{self.name} — EFFECT CONDITIONS")
         sw.table(eff_hdrs, [
             ("Brix in",              *[e.juice_side_in.brix                  for e in ef]),
@@ -528,13 +559,18 @@ class EvaporatorSet:
         sw.row("Note: if using CoolingTowerSystem, ignore this injection water "
                "demand - it is re-solved there at the delivered water temp.", "")
 
-        sw.section(f"{self.name} — PROCESS FLOW DIAGRAM")
-        sw.blank()
-        fig = self.generate_pfd(show=False)
-        sw.image(fig, scale=0.4)
-        plt.close(fig)
+        sw.section(f"{self.name} — CONDENSATE RETURN")
+        sw.row("Clean condensate", self.clean_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Dirty condensate", self.dirty_condensate, "lb/hr", fmt="#,##0")
+        sw.row("Total condensate", self.clean_condensate + self.dirty_condensate, "lb/hr", fmt="#,##0")
 
-        return sw.finish() if standalone else sw
+        if not standalone:
+            return sw
+        ws = sw.finish()
+        col_widths_px = {'A': 145, 'B': 81, 'C': 81, 'D': 130, 'E': 130, 'F': 153, 'G': 109}
+        for letter, px in col_widths_px.items():
+            ws.column_dimensions[letter].width = (px - 5) / 7
+        return ws
 
     def check_material_balance(self):
         """Checks the material balance of the system"""
@@ -617,10 +653,16 @@ def sets_to_excel(evap_sets, workbook, sheet_name="Evaporator Station"):
              f"{len(evap_sets)} sets  |  total steam = {total_steam:,.0f} lb/hr  "
              f"|  total condenser injection water = {total_inj:,.0f} lb/hr "
              f"({total_inj / 500.4:,.0f} GPM)")
-    for es in evap_sets:
+    for i, es in enumerate(evap_sets):
+        if i > 0:
+            sw.page_break()
         es.to_excel(workbook, sheet_writer=sw)
         sw.blank()
-    return sw.finish()
+    ws = sw.finish()
+    col_widths_px = {'A': 145, 'B': 81, 'C': 81, 'D': 130, 'E': 130, 'F': 153, 'G': 109}
+    for letter, px in col_widths_px.items():
+        ws.column_dimensions[letter].width = (px - 5) / 7
+    return ws
 
 
 if __name__ == "__main__":
