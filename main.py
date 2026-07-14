@@ -254,14 +254,8 @@ if boiling_scheme == 'FBDM':
     pan_floor = FourBoilingDoubleMagma(
         syrup=syrup,
         A1_pans=Pan(
-            feed_streams=None,
-            heating_surface_ft2=16000,
-            inches_vacuum=23.5,
-            supersaturation=1.2,
-            head_ft=2,
-            masse_brix=92,
-            ml_purity=75,
-            calandria_pressure_psia=21.696, steam_type=1, # V1
+            feed_streams=None, heating_surface_ft2=16000, inches_vacuum=23.5, supersaturation=1.2,
+            head_ft=2, masse_brix=92, ml_purity=75, calandria_pressure_psia=21.696, steam_type=1, # V1
             heat_loss_factor=0.02, name='A1 Pans'),
         A2_pans=Pan(
             feed_streams=None,
