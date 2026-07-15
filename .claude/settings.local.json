@@ -57,7 +57,8 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(rm -f _run_out.txt)",
       "Bash(mkdir -p /tmp)",
-      "Bash(rm -f test_img_debug.xlsx)"
+      "Bash(rm -f test_img_debug.xlsx)",
+      "Bash(python -m py_compile main.py)"
     ]
   }
 }
