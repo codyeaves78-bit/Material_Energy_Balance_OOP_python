@@ -1,0 +1,886 @@
+
+Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
+
+2026-08-03 15:28:11.489 Uvicorn server started on :::8501
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.2.29:8501
+  External URL: http://174.77.83.130:8501
+
+2026-08-03 15:29:17.938 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.146 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.148 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.151 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.168 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.395 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.395 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.
+Traceback (most recent call last):
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\streamlit\dataframe_util.py", line 961, in convert_pandas_df_to_arrow_bytes
+    table = pa.Table.from_pandas(df)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/table.pxi", line 4768, in pyarrow.lib.Table.from_pandas
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 651, in dataframe_to_arrays
+    arrays = [convert_column(c, f)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 639, in convert_column
+    raise e
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 633, in convert_column
+    result = pa.array(col, type=type_, from_pandas=True, safe=safe)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/array.pxi", line 390, in pyarrow.lib.array
+  File "pyarrow/array.pxi", line 91, in pyarrow.lib._ndarray_to_array
+  File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
+pyarrow.lib.ArrowInvalid: ("Could not convert '' with type str: tried to convert to double", 'Conversion failed for column Purity % with type object')
+2026-08-03 15:29:18.419 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.421 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.430 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.433 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.445 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.449 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+
+============================================================
+  EVAPORATION RESULTS   (42.8 ms total)
+============================================================
+
+Set 1 (4-eff 25k ft²)  —  57.97% of juice  (765,725 lb/hr)
+-------------------------
+
+=============================================================================
+  Set 1 (4-eff 25k ft²)
+=============================================================================
+  Juice In     :      765,725 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :      203,633 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      165,639 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  0.885
+
+-----------------------------------------------------------------------------
+Set 1 (4-eff 25k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
+-----------------------------------------------------------------------------
+juice in lb/hr     |     765,725 |     602,529 |     477,049 |     344,654
+syrup out lb/hr    |     602,529 |     477,049 |     344,654 |     203,633
+steam in lb/hr     |     165,639 |     118,594 |     125,480 |     132,395
+evaporated lb/hr   |     163,195 |     125,480 |     132,395 |     141,021
+vap bleed lb/hr    |      44,601 |           0 |           0 |           0
+-----------------------------------------------------------------------------
+brix in            |       17.29 |       21.97 |       27.75 |       38.40
+brix out           |       21.97 |       27.75 |       38.40 |       65.00
+juice temp deg F   |       235.3 |       236.1 |       221.2 |       199.7
+syrup temp deg F   |       236.1 |       221.2 |       199.7 |       148.9
+juice cp           |       0.899 |       0.872 |       0.839 |       0.779
+syrup cp           |       0.872 |       0.839 |       0.779 |       0.629
+-----------------------------------------------------------------------------
+vapor psia         |       22.35 |       16.61 |       10.34 |        2.40
+vapor temp deg F   |       233.9 |       218.2 |       194.7 |       132.8
+vapor h_fg BTU/lb  |       956.1 |       966.1 |       980.7 |      1017.4
+calandria psia     |       30.00 |       22.35 |       16.61 |       10.34
+calandria deg F    |       250.3 |       233.9 |       218.2 |       194.7
+cal h_fg BTU/lb    |       945.3 |       956.1 |       966.1 |       980.7
+-----------------------------------------------------------------------------
+Duty MM BTU/hr     |     156.574 |     113.383 |     121.226 |     129.836
+HS ft2             |      25,000 |      25,000 |      25,000 |      25,000
+U calc             |       441.1 |       356.4 |       261.8 |       113.3
+U Dessin           |       498.7 |       403.0 |       296.0 |       128.1
+-----------------------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+-----------------------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+
+  Effect 1
+  Entering         165,639 lb/hr *   945.3 BTU/lb / 10^6  =   156.574 MM BTU/hr
+  Sensible         765,725 lb/hr * 0.899 cp * (235.3 - 236.1) degF / 10^6  =    -0.550 MM BTU/hr
+  Net for Evaporation  -->  156.574 + (-0.550)  =  156.024 MM BTU/hr
+  Evaporated  =  156.024 MM BTU/hr * 10^6 / 956.1 BTU/lb  =  163,195 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 2
+  Entering         118,594 lb/hr *   956.1 BTU/lb / 10^6  =   113.383 MM BTU/hr
+  Sensible         602,529 lb/hr * 0.872 cp * (236.1 - 221.2) degF / 10^6  =     7.843 MM BTU/hr
+  Net for Evaporation  -->  113.383 + (7.843)  =  121.226 MM BTU/hr
+  Evaporated  =  121.226 MM BTU/hr * 10^6 / 966.1 BTU/lb  =  125,480 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 3
+  Entering         125,480 lb/hr *   966.1 BTU/lb / 10^6  =   121.226 MM BTU/hr
+  Sensible         477,049 lb/hr * 0.839 cp * (221.2 - 199.7) degF / 10^6  =     8.610 MM BTU/hr
+  Net for Evaporation  -->  121.226 + (8.610)  =  129.836 MM BTU/hr
+  Evaporated  =  129.836 MM BTU/hr * 10^6 / 980.7 BTU/lb  =  132,395 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 4
+  Entering         132,395 lb/hr *   980.7 BTU/lb / 10^6  =   129.836 MM BTU/hr
+  Sensible         344,654 lb/hr * 0.779 cp * (199.7 - 148.9) degF / 10^6  =    13.637 MM BTU/hr
+  Net for Evaporation  -->  129.836 + (13.637)  =  143.472 MM BTU/hr
+  Evaporated  =  143.472 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  141,021 lb/hr
+  ---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  LAST EFFECT CONDENSER  —  Set 1 (4-eff 25k ft²)  (injection water @ 90 °F)
+-----------------------------------------------------------------------------
+  Vapor to condenser    :      141,021 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :  143,472,413 BTU/hr  (143.47 MM BTU/hr)
+  Injection water       :    3,351,103 lb/hr  (6,697 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    3,492,123 lb/hr
+  Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :      159,097 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      372,987 lb/hr
+  Total condensate                           :      532,083 lb/hr
+-----------------------------------------------------------------------------
+
+
+Set 2 (4-eff 12k ft²)  —  27.82% of juice  (367,417 lb/hr)
+-------------------------
+
+=============================================================================
+  Set 2 (4-eff 12k ft²)
+=============================================================================
+  Juice In     :      367,417 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :       97,706 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       81,408 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  0.885
+
+-----------------------------------------------------------------------------
+Set 2 (4-eff 12k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
+-----------------------------------------------------------------------------
+juice in lb/hr     |     367,417 |     287,098 |     227,529 |     164,671
+syrup out lb/hr    |     287,098 |     227,529 |     164,671 |      97,706
+steam in lb/hr     |      81,408 |      56,303 |      59,569 |      62,858
+evaporated lb/hr   |      80,319 |      59,569 |      62,858 |      66,964
+vap bleed lb/hr    |      24,016 |           0 |           0 |           0
+-----------------------------------------------------------------------------
+brix in            |       17.29 |       22.12 |       27.91 |       38.57
+brix out           |       22.12 |       27.91 |       38.57 |       65.00
+juice temp deg F   |       235.3 |       235.8 |       220.9 |       199.4
+syrup temp deg F   |       235.8 |       220.9 |       199.4 |       148.9
+juice cp           |       0.899 |       0.871 |       0.839 |       0.778
+syrup cp           |       0.871 |       0.839 |       0.778 |       0.629
+-----------------------------------------------------------------------------
+vapor psia         |       22.20 |       16.50 |       10.28 |        2.40
+vapor temp deg F   |       233.5 |       217.9 |       194.5 |       132.8
+vapor h_fg BTU/lb  |       956.3 |       966.3 |       980.8 |      1017.4
+calandria psia     |       30.00 |       22.20 |       16.50 |       10.28
+calandria deg F    |       250.3 |       233.5 |       217.9 |       194.5
+cal h_fg BTU/lb    |       945.3 |       956.3 |       966.3 |       980.8
+-----------------------------------------------------------------------------
+Duty MM BTU/hr     |      76.952 |      53.842 |      57.562 |      61.654
+HS ft2             |      12,000 |      12,000 |      12,000 |      12,000
+U calc             |       440.3 |       354.4 |       260.2 |       112.8
+U Dessin           |       497.8 |       400.7 |       294.2 |       127.5
+-----------------------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+-----------------------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 2 (4-eff 12k ft²)
+-----------------------------------------------------------------------------
+
+  Effect 1
+  Entering          81,408 lb/hr *   945.3 BTU/lb / 10^6  =    76.952 MM BTU/hr
+  Sensible         367,417 lb/hr * 0.899 cp * (235.3 - 235.8) degF / 10^6  =    -0.144 MM BTU/hr
+  Net for Evaporation  -->  76.952 + (-0.144)  =  76.809 MM BTU/hr
+  Evaporated  =  76.809 MM BTU/hr * 10^6 / 956.3 BTU/lb  =  80,319 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 2
+  Entering          56,303 lb/hr *   956.3 BTU/lb / 10^6  =    53.842 MM BTU/hr
+  Sensible         287,098 lb/hr * 0.871 cp * (235.8 - 220.9) degF / 10^6  =     3.720 MM BTU/hr
+  Net for Evaporation  -->  53.842 + (3.720)  =  57.562 MM BTU/hr
+  Evaporated  =  57.562 MM BTU/hr * 10^6 / 966.3 BTU/lb  =  59,569 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 3
+  Entering          59,569 lb/hr *   966.3 BTU/lb / 10^6  =    57.562 MM BTU/hr
+  Sensible         227,529 lb/hr * 0.839 cp * (220.9 - 199.4) degF / 10^6  =     4.091 MM BTU/hr
+  Net for Evaporation  -->  57.562 + (4.091)  =  61.654 MM BTU/hr
+  Evaporated  =  61.654 MM BTU/hr * 10^6 / 980.8 BTU/lb  =  62,858 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 4
+  Entering          62,858 lb/hr *   980.8 BTU/lb / 10^6  =    61.654 MM BTU/hr
+  Sensible         164,671 lb/hr * 0.778 cp * (199.4 - 148.9) degF / 10^6  =     6.475 MM BTU/hr
+  Net for Evaporation  -->  61.654 + (6.475)  =  68.129 MM BTU/hr
+  Evaporated  =  68.129 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  66,964 lb/hr
+  ---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  LAST EFFECT CONDENSER  —  Set 2 (4-eff 12k ft²)  (injection water @ 90 °F)
+-----------------------------------------------------------------------------
+  Vapor to condenser    :       66,964 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :   68,128,572 BTU/hr  (68.13 MM BTU/hr)
+  Injection water       :    1,591,287 lb/hr  (3,180 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    1,658,252 lb/hr
+  Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 2 (4-eff 12k ft²)
+-----------------------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :       78,192 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      177,119 lb/hr
+  Total condensate                           :      255,311 lb/hr
+-----------------------------------------------------------------------------
+
+
+Set 3 (3-eff 11-9k ft²)  —  14.21% of juice  (187,738 lb/hr)
+-------------------------
+
+===============================================================
+  Set 3 (3-eff 11-9k ft²)
+===============================================================
+  Juice In     :      187,738 lb/hr  |   17.29 brix  |   235.3 deg F
+  Syrup Out    :       49,926 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       41,232 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  0.884
+
+---------------------------------------------------------------
+Set 3 (3-eff 11-9k ft²) |    Effect 1 |    Effect 2 |    Effect 3
+---------------------------------------------------------------
+juice in lb/hr     |     187,738 |     143,822 |      97,978
+syrup out lb/hr    |     143,822 |      97,978 |      49,926
+steam in lb/hr     |      41,232 |      43,916 |      45,844
+evaporated lb/hr   |      43,916 |      45,844 |      48,052
+vap bleed lb/hr    |           0 |           0 |           0
+---------------------------------------------------------------
+brix in            |       17.29 |       22.56 |       33.12
+brix out           |       22.56 |       33.12 |       65.00
+juice temp deg F   |       235.3 |       218.0 |       198.1
+syrup temp deg F   |       218.0 |       198.1 |       148.9
+juice cp           |       0.899 |       0.869 |       0.809
+syrup cp           |       0.869 |       0.809 |       0.629
+---------------------------------------------------------------
+vapor psia         |       15.69 |       10.12 |        2.40
+vapor temp deg F   |       215.3 |       193.7 |       132.8
+vapor h_fg BTU/lb  |       967.9 |       981.3 |      1017.4
+calandria psia     |       20.00 |       15.69 |       10.12
+calandria deg F    |       227.9 |       215.3 |       193.7
+cal h_fg BTU/lb    |       959.9 |       967.9 |       981.3
+---------------------------------------------------------------
+Duty MM BTU/hr     |      39.579 |      42.508 |      44.986
+HS ft2             |      11,000 |       9,000 |       9,000
+U calc             |       360.7 |       275.1 |       111.5
+U Dessin           |       407.8 |       311.0 |       126.1
+---------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+---------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 3 (3-eff 11-9k ft²)
+---------------------------------------------------------------
+
+  Effect 1
+  Entering          41,232 lb/hr *   959.9 BTU/lb / 10^6  =    39.579 MM BTU/hr
+  Sensible         187,738 lb/hr * 0.899 cp * (235.3 - 218.0) degF / 10^6  =     2.928 MM BTU/hr
+  Net for Evaporation  -->  39.579 + (2.928)  =  42.508 MM BTU/hr
+  Evaporated  =  42.508 MM BTU/hr * 10^6 / 967.9 BTU/lb  =  43,916 lb/hr
+  -------------------------------------------------------------
+
+  Effect 2
+  Entering          43,916 lb/hr *   967.9 BTU/lb / 10^6  =    42.508 MM BTU/hr
+  Sensible         143,822 lb/hr * 0.869 cp * (218.0 - 198.1) degF / 10^6  =     2.479 MM BTU/hr
+  Net for Evaporation  -->  42.508 + (2.479)  =  44.986 MM BTU/hr
+  Evaporated  =  44.986 MM BTU/hr * 10^6 / 981.3 BTU/lb  =  45,844 lb/hr
+  -------------------------------------------------------------
+
+  Effect 3
+  Entering          45,844 lb/hr *   981.3 BTU/lb / 10^6  =    44.986 MM BTU/hr
+  Sensible          97,978 lb/hr * 0.809 cp * (198.1 - 148.9) degF / 10^6  =     3.901 MM BTU/hr
+  Net for Evaporation  -->  44.986 + (3.901)  =  48.887 MM BTU/hr
+  Evaporated  =  48.887 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  48,052 lb/hr
+  -------------------------------------------------------------
+
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+  LAST EFFECT CONDENSER  —  Set 3 (3-eff 11-9k ft²)  (injection water @ 90 °F)
+---------------------------------------------------------------
+  Vapor to condenser    :       48,052 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :   48,887,142 BTU/hr  (48.89 MM BTU/hr)
+  Injection water       :    1,141,863 lb/hr  (2,282 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    1,189,915 lb/hr
+  Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+---------------------------------------------------------------
+
+---------------------------------------------------------------2026-08-03 15:29:18.535 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:18.753 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:19.174 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:19.583 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:19.889 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:19.893 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.239 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.418 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.420 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.421 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.438 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.597 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.598 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.
+Traceback (most recent call last):
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\streamlit\dataframe_util.py", line 961, in convert_pandas_df_to_arrow_bytes
+    table = pa.Table.from_pandas(df)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/table.pxi", line 4768, in pyarrow.lib.Table.from_pandas
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 651, in dataframe_to_arrays
+    arrays = [convert_column(c, f)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 639, in convert_column
+    raise e
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 633, in convert_column
+    result = pa.array(col, type=type_, from_pandas=True, safe=safe)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/array.pxi", line 390, in pyarrow.lib.array
+  File "pyarrow/array.pxi", line 91, in pyarrow.lib._ndarray_to_array
+  File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
+pyarrow.lib.ArrowInvalid: ("Could not convert '' with type str: tried to convert to double", 'Conversion failed for column Purity % with type object')
+2026-08-03 15:29:50.601 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.602 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.611 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.614 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.624 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.629 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+
+  CONDENSATE RETURN  —  Set 3 (3-eff 11-9k ft²)
+---------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :       40,555 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :       89,611 lb/hr
+  Total condensate                           :      130,166 lb/hr
+---------------------------------------------------------------
+
+====================================================================================================
+
+
+
+============================================================
+  EVAPORATION RESULTS   (37.6 ms total)
+============================================================
+
+Set 1 (4-eff 25k ft²)  —  80.30% of juice  (1,044,137 lb/hr)
+-------------------------
+
+=============================================================================
+  Set 1 (4-eff 25k ft²)
+=============================================================================
+  Juice In     :    1,044,137 lb/hr  |   17.56 brix  |   234.3 deg F
+  Syrup Out    :      282,083 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      216,198 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  1.205
+
+-----------------------------------------------------------------------------
+Set 1 (4-eff 25k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
+-----------------------------------------------------------------------------
+juice in lb/hr     |   1,044,137 |     832,661 |     659,560 |     476,837
+syrup out lb/hr    |     832,661 |     659,560 |     476,837 |     282,083
+steam in lb/hr     |     216,198 |     163,518 |     173,101 |     182,723
+evaporated lb/hr   |     211,476 |     173,101 |     182,723 |     194,754
+vap bleed lb/hr    |      47,958 |           0 |           0 |           0
+-----------------------------------------------------------------------------
+brix in            |       17.56 |       22.02 |       27.80 |       38.45
+brix out           |       22.02 |       27.80 |       38.45 |       65.00
+juice temp deg F   |       234.3 |       236.7 |       221.7 |       200.0
+syrup temp deg F   |       236.7 |       221.7 |       200.0 |       148.9
+juice cp           |       0.897 |       0.872 |       0.839 |       0.779
+syrup cp           |       0.872 |       0.839 |       0.779 |       0.629
+-----------------------------------------------------------------------------
+vapor psia         |       22.59 |       16.77 |       10.42 |        2.40
+vapor temp deg F   |       234.5 |       218.7 |       195.1 |       132.8
+vapor h_fg BTU/lb  |       955.7 |       965.8 |       980.4 |      1017.4
+calandria psia     |       30.00 |       22.59 |       16.77 |       10.42
+calandria deg F    |       250.3 |       234.5 |       218.7 |       195.1
+cal h_fg BTU/lb    |       945.3 |       955.7 |       965.8 |       980.4
+-----------------------------------------------------------------------------
+Duty MM BTU/hr     |     204.366 |     156.271 |     167.178 |     179.151
+HS ft2             |      25,000 |      25,000 |      25,000 |      25,000
+U calc             |       600.1 |       487.6 |       358.2 |       155.2
+U Dessin           |       498.1 |       404.8 |       297.4 |       128.8
+-----------------------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+-----------------------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+
+  Effect 1
+  Entering         216,198 lb/hr *   945.3 BTU/lb / 10^6  =   204.366 MM BTU/hr
+  Sensible       1,044,137 lb/hr * 0.897 cp * (234.3 - 236.7) degF / 10^6  =    -2.261 MM BTU/hr
+  Net for Evaporation  -->  204.366 + (-2.261)  =  202.104 MM BTU/hr
+  Evaporated  =  202.104 MM BTU/hr * 10^6 / 955.7 BTU/lb  =  211,476 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 2
+  Entering         163,518 lb/hr *   955.7 BTU/lb / 10^6  =   156.271 MM BTU/hr
+  Sensible         832,661 lb/hr * 0.872 cp * (236.7 - 221.7) degF / 10^6  =    10.907 MM BTU/hr
+  Net for Evaporation  -->  156.271 + (10.907)  =  167.178 MM BTU/hr
+  Evaporated  =  167.178 MM BTU/hr * 10^6 / 965.8 BTU/lb  =  173,101 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 3
+  Entering         173,101 lb/hr *   965.8 BTU/lb / 10^6  =   167.178 MM BTU/hr
+  Sensible         659,560 lb/hr * 0.839 cp * (221.7 - 200.0) degF / 10^6  =    11.972 MM BTU/hr
+  Net for Evaporation  -->  167.178 + (11.972)  =  179.151 MM BTU/hr
+  Evaporated  =  179.151 MM BTU/hr * 10^6 / 980.4 BTU/lb  =  182,723 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 4
+  Entering         182,723 lb/hr *   980.4 BTU/lb / 10^6  =   179.151 MM BTU/hr
+  Sensible         476,837 lb/hr * 0.779 cp * (200.0 - 148.9) degF / 10^6  =    18.989 MM BTU/hr
+  Net for Evaporation  -->  179.151 + (18.989)  =  198.139 MM BTU/hr
+  Evaporated  =  198.139 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  194,754 lb/hr
+  ---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  LAST EFFECT CONDENSER  —  Set 1 (4-eff 25k ft²)  (injection water @ 90 °F)
+-----------------------------------------------------------------------------
+  Vapor to condenser    :      194,754 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :  198,139,493 BTU/hr  (198.14 MM BTU/hr)
+  Injection water       :    4,627,968 lb/hr  (9,249 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    4,822,722 lb/hr
+  Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+-----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :      207,659 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      514,354 lb/hr
+  Total condensate                           :      722,013 lb/hr
+-----------------------------------------------------------------------------
+
+
+Set 3 (3-eff 11-9k ft²)  —  19.70% of juice  (256,083 lb/hr)
+-------------------------
+
+===============================================================
+  Set 3 (3-eff 11-9k ft²)
+===============================================================
+  Juice In     :      256,083 lb/hr  |   17.56 brix  |   234.3 deg F
+  Syrup Out    :       69,185 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :       56,113 lb/hr  |   20.00 psia -   5.30 psig  |   227.9 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  1.205
+
+---------------------------------------------------------------
+Set 3 (3-eff 11-9k ft²) |    Effect 1 |    Effect 2 |    Effect 3
+---------------------------------------------------------------
+juice in lb/hr     |     256,083 |     196,557 |     134,389
+syrup out lb/hr    |     196,557 |     134,389 |      69,185
+steam in lb/hr     |      56,113 |      59,527 |      62,167
+evaporated lb/hr   |      59,527 |      62,167 |      65,204
+vap bleed lb/hr    |           0 |           0 |           0
+---------------------------------------------------------------
+brix in            |       17.56 |       22.88 |       33.46
+brix out           |       22.88 |       33.46 |       65.00
+juice temp deg F   |       234.3 |       217.9 |       198.0
+syrup temp deg F   |       217.9 |       198.0 |       148.9
+juice cp           |       0.897 |       0.867 |       0.807
+syrup cp           |       0.867 |       0.807 |       0.629
+---------------------------------------------------------------
+vapor psia         |       15.67 |       10.10 |        2.40
+vapor temp deg F   |       215.2 |       193.6 |       132.82026-08-03 15:29:50.695 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:50.908 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:51.328 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:51.633 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:51.639 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:51.844 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.032 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.033 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.036 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.060 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.220 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.220 Serialization of dataframe to Arrow table was unsuccessful. Applying automatic fixes for column types to make the dataframe Arrow-compatible.
+Traceback (most recent call last):
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\streamlit\dataframe_util.py", line 961, in convert_pandas_df_to_arrow_bytes
+    table = pa.Table.from_pandas(df)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/table.pxi", line 4768, in pyarrow.lib.Table.from_pandas
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 651, in dataframe_to_arrays
+    arrays = [convert_column(c, f)
+              ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 639, in convert_column
+    raise e
+  File "C:\Python Projects\Material_Energy_Balance_OOP_python\.venv\Lib\site-packages\pyarrow\pandas_compat.py", line 633, in convert_column
+    result = pa.array(col, type=type_, from_pandas=True, safe=safe)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pyarrow/array.pxi", line 390, in pyarrow.lib.array
+  File "pyarrow/array.pxi", line 91, in pyarrow.lib._ndarray_to_array
+  File "pyarrow/error.pxi", line 92, in pyarrow.lib.check_status
+pyarrow.lib.ArrowInvalid: ("Could not convert '' with type str: tried to convert to double", 'Conversion failed for column Purity % with type object')
+2026-08-03 15:29:52.223 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.225 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.234 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.238 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.251 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.258 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+
+vapor h_fg BTU/lb  |       968.0 |       981.4 |      1017.4
+calandria psia     |       20.00 |       15.67 |       10.10
+calandria deg F    |       227.9 |       215.2 |       193.6
+cal h_fg BTU/lb    |       959.9 |       968.0 |       981.4
+---------------------------------------------------------------
+Duty MM BTU/hr     |      53.864 |      57.620 |      61.008
+HS ft2             |      11,000 |       9,000 |       9,000
+U calc             |       489.3 |       372.5 |       151.6
+U Dessin           |       406.2 |       309.2 |       125.9
+---------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+---------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 3 (3-eff 11-9k ft²)
+---------------------------------------------------------------
+
+  Effect 1
+  Entering          56,113 lb/hr *   959.9 BTU/lb / 10^6  =    53.864 MM BTU/hr
+  Sensible         256,083 lb/hr * 0.897 cp * (234.3 - 217.9) degF / 10^6  =     3.756 MM BTU/hr
+  Net for Evaporation  -->  53.864 + (3.756)  =  57.620 MM BTU/hr
+  Evaporated  =  57.620 MM BTU/hr * 10^6 / 968.0 BTU/lb  =  59,527 lb/hr
+  -------------------------------------------------------------
+
+  Effect 2
+  Entering          59,527 lb/hr *   968.0 BTU/lb / 10^6  =    57.620 MM BTU/hr
+  Sensible         196,557 lb/hr * 0.867 cp * (217.9 - 198.0) degF / 10^6  =     3.388 MM BTU/hr
+  Net for Evaporation  -->  57.620 + (3.388)  =  61.008 MM BTU/hr
+  Evaporated  =  61.008 MM BTU/hr * 10^6 / 981.4 BTU/lb  =  62,167 lb/hr
+  -------------------------------------------------------------
+
+  Effect 3
+  Entering          62,167 lb/hr *   981.4 BTU/lb / 10^6  =    61.008 MM BTU/hr
+  Sensible         134,389 lb/hr * 0.807 cp * (198.0 - 148.9) degF / 10^6  =     5.330 MM BTU/hr
+  Net for Evaporation  -->  61.008 + (5.330)  =  66.338 MM BTU/hr
+  Evaporated  =  66.338 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  65,204 lb/hr
+  -------------------------------------------------------------
+
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+  LAST EFFECT CONDENSER  —  Set 3 (3-eff 11-9k ft²)  (injection water @ 90 °F)
+---------------------------------------------------------------
+  Vapor to condenser    :       65,204 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
+  Heat load             :   66,337,751 BTU/hr  (66.34 MM BTU/hr)
+  Injection water       :    1,549,459 lb/hr  (3,096 GPM)  90 -> 132.8 °F
+  Total outlet flow     :    1,614,663 lb/hr
+  Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+  CONDENSATE RETURN  —  Set 3 (3-eff 11-9k ft²)
+---------------------------------------------------------------
+  Clean condensate (Effect 1, fresh exhaust) :       55,192 lb/hr
+  Dirty condensate (Effect 2+, inter-effect) :      121,495 lb/hr
+  Total condensate                           :      176,687 lb/hr
+---------------------------------------------------------------
+
+====================================================================================================
+
+
+
+============================================================
+  EVAPORATION RESULTS   (36.3 ms total)
+============================================================
+
+Set 1 (4-eff 25k ft²)  —  80.30% of juice  (1,044,137 lb/hr)
+-------------------------
+
+=============================================================================
+  Set 1 (4-eff 25k ft²)
+=============================================================================
+  Juice In     :    1,044,137 lb/hr  |   17.56 brix  |   234.3 deg F
+  Syrup Out    :      282,083 lb/hr  |   65.00 brix  |   148.9 deg F
+  Steam Req'd  :      216,198 lb/hr  |   30.00 psia -  15.30 psig  |   250.3 deg F
+  Last Eff Vac :  25.03 inHg
+  Avg U Ratio  :  1.205
+
+-----------------------------------------------------------------------------
+Set 1 (4-eff 25k ft²) |    Effect 1 |    Effect 2 |    Effect 3 |    Effect 4
+-----------------------------------------------------------------------------
+juice in lb/hr     |   1,044,137 |     832,661 |     659,560 |     476,837
+syrup out lb/hr    |     832,661 |     659,560 |     476,837 |     282,083
+steam in lb/hr     |     216,198 |     163,518 |     173,101 |     182,723
+evaporated lb/hr   |     211,476 |     173,101 |     182,723 |     194,754
+vap bleed lb/hr    |      47,958 |           0 |           0 |           0
+-----------------------------------------------------------------------------
+brix in            |       17.56 |       22.02 |       27.80 |       38.45
+brix out           |       22.02 |       27.80 |       38.45 |       65.00
+juice temp deg F   |       234.3 |       236.7 |       221.7 |       200.0
+syrup temp deg F   |       236.7 |       221.7 |       200.0 |       148.9
+juice cp           |       0.897 |       0.872 |       0.839 |       0.779
+syrup cp           |       0.872 |       0.839 |       0.779 |       0.629
+-----------------------------------------------------------------------------
+vapor psia         |       22.59 |       16.77 |       10.42 |        2.40
+vapor temp deg F   |       234.5 |       218.7 |       195.1 |       132.8
+vapor h_fg BTU/lb  |       955.7 |       965.8 |       980.4 |      1017.4
+calandria psia     |       30.00 |       22.59 |       16.77 |       10.42
+calandria deg F    |       250.3 |       234.5 |       218.7 |       195.1
+cal h_fg BTU/lb    |       945.3 |       955.7 |       965.8 |       980.4
+-----------------------------------------------------------------------------
+Duty MM BTU/hr     |     204.366 |     156.271 |     167.178 |     179.151
+HS ft2             |      25,000 |      25,000 |      25,000 |      25,000
+U calc             |       600.1 |       487.6 |       358.2 |       155.2
+U Dessin           |       498.1 |       404.8 |       297.4 |       128.8
+-----------------------------------------------------------------------------
+  U is in BTU/(hr*ft2*degF)
+
+
+-----------------------------------------------------------------------------
+  ENERGY BALANCE AT EACH EFFECT FOR: Set 1 (4-eff 25k ft²)
+-----------------------------------------------------------------------------
+
+  Effect 1
+  Entering         216,198 lb/hr *   945.3 BTU/lb / 10^6  =   204.366 MM BTU/hr
+  Sensible       1,044,137 lb/hr * 0.897 cp * (234.3 - 236.7) degF / 10^6  =    -2.261 MM BTU/hr
+  Net for Evaporation  -->  204.366 + (-2.261)  =  202.104 MM BTU/hr
+  Evaporated  =  202.104 MM BTU/hr * 10^6 / 955.7 BTU/lb  =  211,476 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 2
+  Entering         163,518 lb/hr *   955.7 BTU/lb / 10^6  =   156.271 MM BTU/hr
+  Sensible         832,661 lb/hr * 0.872 cp * (236.7 - 221.7) degF / 10^6  =    10.907 MM BTU/hr
+  Net for Evaporation  -->  156.271 + (10.907)  =  167.178 MM BTU/hr
+  Evaporated  =  167.178 MM BTU/hr * 10^6 / 965.8 BTU/lb  =  173,101 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 3
+  Entering         173,101 lb/hr *   965.8 BTU/lb / 10^6  =   167.178 MM BTU/hr
+  Sensible         659,560 lb/hr * 0.839 cp * (221.7 - 200.0) degF / 10^6  =    11.972 MM BTU/hr
+  Net for Evaporation  -->  167.178 + (11.972)  =  179.151 MM BTU/hr
+  Evaporated  =  179.151 MM BTU/hr * 10^6 / 980.4 BTU/lb  =  182,723 lb/hr
+  ---------------------------------------------------------------------------
+
+  Effect 4
+  Entering         182,723 lb/hr *   980.4 BTU/lb / 10^6  =   179.151 MM BTU/hr
+  Sensible         476,837 lb/hr * 0.779 cp * (200.0 - 148.9) degF / 10^6  =    18.989 MM BTU/hr
+  Net for Evaporation  -->  179.151 + (18.989)  =  198.139 MM BTU/hr
+  Evaporated  =  198.139 MM BTU/hr * 10^6 / 1017.4 BTU/lb  =  194,754 lb/hr
+  ---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+2026-08-03 15:29:52.327 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.534 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:52.935 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:53.230 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-03 15:29:53.235 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.

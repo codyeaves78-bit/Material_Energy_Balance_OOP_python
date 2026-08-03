@@ -320,7 +320,7 @@ class EvaporatorSet:
             self.evaporator_list[i].display_properties()
         print(f"\n {'-'*5} Steam Required for Set: {self.supply_steam.flow_lb_per_hr:,.2f} lb/hr {'-'*5} \n")
 
-    def show_summary(self):
+    def neat_display(self):
         n  = self.number_of_effects
         ef = self.evaporator_list
         syrup_out  = ef[-1].juice_side_out

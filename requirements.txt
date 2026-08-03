@@ -3,3 +3,5 @@ iapws
 matplotlib
 openpyxl
 pillow
+streamlit
+pandas

@@ -58,7 +58,18 @@
       "Bash(rm -f _run_out.txt)",
       "Bash(mkdir -p /tmp)",
       "Bash(rm -f test_img_debug.xlsx)",
-      "Bash(python -m py_compile main.py)"
+      "Bash(python -m py_compile main.py)",
+      "Bash(git -C \"C:\\\\Python Projects\\\\Material_Energy_Balance_OOP_python\" log --oneline -20)",
+      "Bash(git -C \"C:\\\\Python Projects\\\\Material_Energy_Balance_OOP_python\" status)",
+      "Bash(.venv/Scripts/python -m pip install streamlit --quiet --disable-pip-version-check)",
+      "Bash(.venv/Scripts/python -m pip show streamlit)",
+      "Bash(.venv/Scripts/python -m pip show pandas)",
+      "Bash(.venv/Scripts/python -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8501)",
+      "Bash(.venv/Scripts/python -m py_compile streamlit_app.py)",
+      "Bash(.venv/Scripts/python \"C:\\\\Users\\\\ceaves\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Python-Projects-Material-Energy-Balance-OOP-python\\\\5c48da5e-e987-4c43-93fe-03756c433523\\\\scratchpad\\\\smoke_test_full.py\")",
+      "Bash(powershell -Command 'Get-Process python -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -eq '\\\\'''\\\\''} | Select-Object Id')",
+      "Bash(taskkill //IM python.exe //F)"
     ]
   }
 }
