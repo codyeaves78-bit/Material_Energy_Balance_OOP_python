@@ -66,10 +66,12 @@ class FourBoilingDoubleMagma:
         b_remelt_brix: float = 65,
         c_remelt_brix: float = 65,
         injection_water_temp_F: float = 90,
+        condenser_leg_temp_drop_F: float = 5,
         iterations: int = 15,
     ):
         self.syrup = syrup
         self.injection_water_temp_F = injection_water_temp_F
+        self.condensor_leg_temp_drop_F = condenser_leg_temp_drop_F # degrees below the vapor temp
 
         self._A1_pans_cfg = A1_pans
         self._A2_pans_cfg = A2_pans
@@ -444,7 +446,7 @@ class FourBoilingDoubleMagma:
         """Each pan's vapor goes to its own barometric condenser: [(name, Condenser)]."""
         from Condenser import Condenser
         return [
-            (pan.name, Condenser(pan.vapor_evaporated, self.injection_water_temp_F))
+            (pan.name, Condenser(pan.vapor_evaporated, self.injection_water_temp_F, self.condensor_leg_temp_drop_F))
             for pan in (self.A1_pans, self.A2_pans, self.B_pans,
                         self.grain_pans, self.C_pans)
         ]

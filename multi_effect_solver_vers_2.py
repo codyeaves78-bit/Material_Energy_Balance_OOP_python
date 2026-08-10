@@ -16,6 +16,8 @@ def solve_evaporator_sets(
     target_brix_out: float = 65,
     dessin_coefficient: float = 18000,
     liquid_level_ft: float = 2,
+    injection_water_temp_F: float = 90,
+    condenser_leg_temp_drop_F: float = 5,
     n_iterations: int = 10,
     dampening: float = 0.1,
     verbose: bool = True,
@@ -45,6 +47,8 @@ def solve_evaporator_sets(
             "target_brix_out"    : float        target syrup brix for this set
             "dessin_coefficient" : float        design U (BTU/hr·ft²·°F)
             "liquid_level_ft"    : float        calandria liquid level (ft)
+            "injection_water_temp_F"    : float condenser injection water inlet temp (°F)
+            "condenser_leg_temp_drop_F" : float condenser outlet water temp drop below vapor sat. temp (°F)
             "name"               : str          label used in printed output
     juice_pressure_psia : float
         Juice-side pressure (psia).  Default 40.
@@ -58,6 +62,11 @@ def solve_evaporator_sets(
         Default design U (BTU/hr·ft²·°F) applied to every set.  Default 18000.
     liquid_level_ft : float
         Default calandria liquid level (ft) applied to every set.  Default 2.
+    injection_water_temp_F : float
+        Default condenser injection water inlet temp (°F) applied to every set.  Default 90.
+    condenser_leg_temp_drop_F : float
+        Default condenser outlet water temp drop below vapor saturation temp (°F)
+        applied to every set.  Default 5.
     n_iterations : int
         Number of U-ratio balancing iterations.  Default 10.
     dampening : float
@@ -71,7 +80,7 @@ def solve_evaporator_sets(
     -------
     list[EvaporatorSet]
         The solved set objects in the same order as set_configs.
-        Call .show_summary() on any of them for detailed effect-by-effect output.
+        Call .neat_display() on any of them for detailed effect-by-effect output.
 
     Example
     -------
@@ -156,6 +165,8 @@ def solve_evaporator_sets(
             vapor_bleeds=cfg.get("vapor_bleeds", [0] * (n_eff - 1)),
             dessin_coefficient=cfg.get("dessin_coefficient", dessin_coefficient),
             liquid_level_ft=cfg.get("liquid_level_ft", liquid_level_ft),
+            injection_water_temp_F=cfg.get("injection_water_temp_F", injection_water_temp_F),
+            condenser_leg_temp_drop_F=cfg.get("condenser_leg_temp_drop_F", condenser_leg_temp_drop_F),
             name=cfg.get("name", f"Set {i + 1}"),
         )
         sets.append(evap_set)
@@ -180,7 +191,7 @@ def solve_evaporator_sets(
         evap.adjust_pressure_profile()
         if verbose:
             print(f"── Initial solve: {set_names[i]} ──")
-            evap.show_summary()
+            evap.neat_display()
             print()
 
     # ── 5. U-ratio balancing loop ──────────────────────────────────────────
@@ -222,7 +233,7 @@ def solve_evaporator_sets(
         flow = fracs[i] * juice_flow_lb_per_hr
         print(f"\n{set_names[i]}  —  {fracs[i]*100:.2f}% of juice  ({flow:,.0f} lb/hr)")
         print(25 * '-')
-        evap.show_summary()
+        evap.neat_display()
     print(f"{'='*100}")
     print(f"\n")
     return sets

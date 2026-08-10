@@ -427,13 +427,13 @@ Diff                    -0                      0.0
 -------------------------------------------------------------------------------------------------------------------
   Condenser         Vapor lb/hr  Sat T F     h_fg  MM BTU/hr     Inj lb/hr   Inj GPM  Out T F   Total lb/hr
 
-  A1 Pans                85,464    143.4   1011.2     86.425     1,619,785     3,237    143.4     1,705,249
-  A2 Pans                48,875    143.4   1011.2     49.425       926,331     1,851    143.4       975,207
-  B Pans                 39,397    133.1   1017.2     40.076       930,208     1,859    133.1       969,605
-  Grain Pans              7,810    129.1   1019.6      7.962       203,852       407    129.1       211,662
-  C Pans                 24,270    119.7   1025.0     24.876       838,058     1,675    119.7       862,327
+  A1 Pans                85,464    143.4   1011.2     86.852     1,796,108     3,589    138.4     1,881,572
+  A2 Pans                48,875    143.4   1011.2     49.670     1,027,168     2,053    138.4     1,076,043
+  B Pans                 39,397    133.1   1017.2     40.273     1,057,510     2,113    128.1     1,096,907
+  Grain Pans              7,810    129.1   1019.6      8.001       234,925       469    124.1       242,734
+  C Pans                 24,270    119.7   1025.0     24.998     1,012,737     2,024    114.7     1,037,006
 -------------------------------------------------------------------------------------------------------------------
-  Total                 205,816                      208.765     4,518,234     9,029              4,724,050
+  Total                 205,816                      209.794     5,128,447    10,249              5,334,262
 
   Note: if using CoolingTowerSystem, ignore these injection water demands - they are re-solved there at the delivered water temp.
 
@@ -447,7 +447,7 @@ Diff                    -0                      0.0
 ===================================================================================================================
 
 ============================================================
-  EVAPORATION RESULTS   (45.3 ms total)
+  EVAPORATION RESULTS   (44.8 ms total)
 ============================================================
 
 Set 1 (4-eff 25k ft²)  —  57.97% of juice  (765,725 lb/hr)
@@ -531,9 +531,9 @@ U Dessin           |       498.7 |       403.0 |       296.0 |       128.1
   LAST EFFECT CONDENSER  —  Set 1 (4-eff 25k ft²)  (injection water @ 90 °F)
 -----------------------------------------------------------------------------
   Vapor to condenser    :      141,021 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :  143,472,413 BTU/hr  (143.47 MM BTU/hr)
-  Injection water       :    3,351,103 lb/hr  (6,697 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    3,492,123 lb/hr
+  Heat load             :  144,177,516 BTU/hr  (144.18 MM BTU/hr)
+  Injection water       :    3,812,859 lb/hr  (7,620 GPM)  90 -> 127.8 °F
+  Total outlet flow     :    3,953,880 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 -----------------------------------------------------------------------------
 
@@ -627,9 +627,9 @@ U Dessin           |       497.8 |       400.7 |       294.2 |       127.5
   LAST EFFECT CONDENSER  —  Set 2 (4-eff 12k ft²)  (injection water @ 90 °F)
 -----------------------------------------------------------------------------
   Vapor to condenser    :       66,964 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :   68,128,572 BTU/hr  (68.13 MM BTU/hr)
-  Injection water       :    1,591,287 lb/hr  (3,180 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    1,658,252 lb/hr
+  Heat load             :   68,463,394 BTU/hr  (68.46 MM BTU/hr)
+  Injection water       :    1,810,555 lb/hr  (3,618 GPM)  90 -> 127.8 °F
+  Total outlet flow     :    1,877,519 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 -----------------------------------------------------------------------------
 
@@ -716,9 +716,9 @@ U Dessin           |       407.8 |       311.0 |       126.1
   LAST EFFECT CONDENSER  —  Set 3 (3-eff 11-9k ft²)  (injection water @ 90 °F)
 ---------------------------------------------------------------
   Vapor to condenser    :       48,052 lb/hr  @ 132.8 °F sat, h_fg = 1017.4 BTU/lb
-  Heat load             :   48,887,142 BTU/hr  (48.89 MM BTU/hr)
-  Injection water       :    1,141,863 lb/hr  (2,282 GPM)  90 -> 132.8 °F
-  Total outlet flow     :    1,189,915 lb/hr
+  Heat load             :   49,127,401 BTU/hr  (49.13 MM BTU/hr)
+  Injection water       :    1,299,203 lb/hr  (2,596 GPM)  90 -> 127.8 °F
+  Total outlet flow     :    1,347,255 lb/hr
   Note: if using CoolingTowerSystem, ignore this injection water demand - it is re-solved there at the delivered water temp.
 ---------------------------------------------------------------
 
@@ -831,44 +831,44 @@ Rated Steam Capacity: 900,000
 -------------------------------------------------------------------------------------------------------------------
   Condenser                     Vapor lb/hr  Sat T F     h_fg  MM BTU/hr     Inj lb/hr   Inj GPM  Out T F   Total lb/hr
 
-  A1 Pans                            85,464    143.4   1011.2     86.425     1,443,303     2,898    143.4     1,528,766
-  A2 Pans                            48,875    143.4   1011.2     49.425       825,404     1,657    143.4       874,279
-  B Pans                             39,397    133.1   1017.2     40.076       807,869     1,622    133.1       847,267
-  Grain Pans                          7,810    129.1   1019.6      7.962       174,676       351    129.1       182,486
-  C Pans                             24,270    119.7   1025.0     24.876       687,049     1,380    119.7       711,318
-  Condenser 6                       141,021    132.8   1017.4    143.472     2,907,969     5,839    132.8     3,048,989
-  Condenser 7                        66,964    132.8   1017.4     68.129     1,380,863     2,773    132.8     1,447,827
-  Condenser 8                        48,052    132.8   1017.4     48.887       990,868     1,990    132.8     1,038,920
+  A1 Pans                            85,464    143.4   1011.2     86.852     1,582,718     3,178    138.4     1,668,182
+  A2 Pans                            48,875    143.4   1011.2     49.670       905,133     1,818    138.4       954,009
+  B Pans                             39,397    133.1   1017.2     40.273       902,933     1,813    128.1       942,330
+  Grain Pans                          7,810    129.1   1019.6      8.001       197,181       396    124.1       204,991
+  C Pans                             24,270    119.7   1025.0     24.998       801,133     1,609    114.7       825,403
+  Condenser 6                       141,021    132.8   1017.4    144.178     3,252,144     6,530    127.8     3,393,165
+  Condenser 7                        66,964    132.8   1017.4     68.463     1,544,297     3,101    127.8     1,611,261
+  Condenser 8                        48,052    132.8   1017.4     49.127     1,108,144     2,225    127.8     1,156,195
 -------------------------------------------------------------------------------------------------------------------
-  Total                             461,852                      469.253     9,218,000    18,510              9,679,853
+  Total                             461,852                      471.562    10,293,684    20,670             10,755,536
 
 -------------------------------------------------------------------------------------------------------------------
   HOT WATER RETURN TO TOWER
 -------------------------------------------------------------------------------------------------------------------
-  Injection water (all condensers)        9,218,000 lb/hr    18,510 GPM  
+  Injection water (all condensers)       10,293,684 lb/hr    20,670 GPM  
   Vapor condensed (all condensers)          461,852 lb/hr       927 GPM  
 -------------------------------------------------------------------------------------------------------------------
-  Total return                            9,679,853 lb/hr    19,437 GPM  @ 134.4 F mixed
+  Total return                           10,755,536 lb/hr    21,597 GPM  @ 129.3 F mixed
 
 -------------------------------------------------------------------------------------------------------------------
-  COOLING TOWER  (134.4 F -> 85 F, blowdown 10.0%)
+  COOLING TOWER  (129.3 F -> 85 F, blowdown 10.0%)
 -------------------------------------------------------------------------------------------------------------------
-  Blowdown                                  967,985 lb/hr     1,944 GPM  
-  Evaporated to atmosphere                  430,528 lb/hr       865 GPM  
-  Cool water from tower                   8,281,339 lb/hr    16,629 GPM  @ 85 F
+  Blowdown                                1,075,554 lb/hr     2,160 GPM  
+  Evaporated to atmosphere                  429,095 lb/hr       862 GPM  
+  Cool water from tower                   9,250,887 lb/hr    18,576 GPM  @ 85 F
 
 -------------------------------------------------------------------------------------------------------------------
   SYSTEM BALANCE
 -------------------------------------------------------------------------------------------------------------------
-  Cold water demand (condensers)          9,218,000 lb/hr    18,510 GPM  
-  Cool water available (tower)            8,281,339 lb/hr    16,629 GPM  @ 85 F
-  MAKEUP WATER REQUIRED                     936,661 lb/hr     1,881 GPM  @ 70 F
+  Cold water demand (condensers)         10,293,684 lb/hr    20,670 GPM  
+  Cool water available (tower)            9,250,887 lb/hr    18,576 GPM  @ 85 F
+  MAKEUP WATER REQUIRED                   1,042,797 lb/hr     2,094 GPM  @ 70 F
 
   Delivered injection water temp (cool + makeup blend): 83.5 F
 
-  Water in (vapor + makeup)  :      1,398,514 lb/hr
-  Water out (evap + BD + surplus):  1,398,514 lb/hr
-  Net (In - Out)             :           0.00 lb/hr
+  Water in (vapor + makeup)  :      1,504,649 lb/hr
+  Water out (evap + BD + surplus):  1,504,649 lb/hr
+  Net (In - Out)             :          -0.00 lb/hr
 ===================================================================================================================
 ==========================================================================================
                         CONDENSATE BALANCE  -  Condensate Balance                         
@@ -915,5 +915,5 @@ Rated Steam Capacity: 900,000
 ==========================================================================================
 
 
-Time to solve factory balance 3,660.44 ms
+Time to solve factory balance 4,023.71 ms
 Excel Export save successful. Filename = 'main_balance.xlsx'

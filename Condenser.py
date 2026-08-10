@@ -33,9 +33,10 @@ class Condenser:
         'total_outlet_flow_lb_hr':    'Total Outlet Flow (lb/hr)',
     }
 
-    def __init__(self, vapor, water_inlet_temp_F):
+    def __init__(self, vapor, water_inlet_temp_F, water_outlet_temp_drop_F=5):
         self.vapor = vapor
         self.water_inlet_temp_F = water_inlet_temp_F
+        self.water_out_temp_drop_F = water_outlet_temp_drop_F # degrees below the vapor temp
 
     # ------------------------------------------------------------------
     # Vapor properties (supports both EvaporatorSteam and SteamStream)
@@ -63,17 +64,17 @@ class Condenser:
     @property
     def heat_load_btu_hr(self):
         """Total heat removed from the vapor (BTU/hr)."""
-        return self.vapor_flow_lb_hr * self.vapor_h_fg_btu_lb
+        return self.vapor_flow_lb_hr * self.vapor_h_fg_btu_lb + self._CP_WATER * self.vapor_flow_lb_hr * self.water_out_temp_drop_F # basically h_fg + h_sens
 
     @property
     def water_outlet_temp_F(self):
         """Outlet temperature of the water/condensate mixture (°F)."""
-        return self.vapor_sat_temp_F
+        return self.vapor_sat_temp_F - self.water_out_temp_drop_F
 
     @property
     def injection_water_flow_lb_hr(self):
         """Injection water required to condense the vapor (lb/hr)."""
-        delta_T = self.vapor_sat_temp_F - self.water_inlet_temp_F
+        delta_T = (self.vapor_sat_temp_F - self.water_out_temp_drop_F) - self.water_inlet_temp_F
         if delta_T < 0:
             raise ValueError(
                 f"Injection water inlet ({self.water_inlet_temp_F}°F) must be "
@@ -123,7 +124,7 @@ class Condenser:
 if __name__ == "__main__":
     # Example: 50,000 lb/hr of vapor at 26.5 in Hg vacuum, 75°F injection water
     vapor = EvaporatorSteam(P_psia=14.696 - 26.5 * 0.491154, flow_lb_per_hr=50_000)
-    cond  = Condenser(vapor, water_inlet_temp_F=75)
+    cond  = Condenser(vapor, water_inlet_temp_F=75, water_outlet_temp_drop_F=5)
     print(cond)
     print()
     cond.neat_display()

@@ -57,12 +57,13 @@ class ThreeBoilingDoubleMagma:
             b_remelt_brix: float = 65,
             c_remelt_brix: float = 65,
             injection_water_temp_F: float = 90,
+            condenser_leg_temp_drop_F: float = 5,
             iterations: int = 20,
             ):
 
         self.syrup = syrup
         self.injection_water_temp_F = injection_water_temp_F
-        
+        self.condensor_leg_temp_drop_F = condenser_leg_temp_drop_F # degrees below the vapor temp
         # Store Pan/Centrifugal configs as templates; solved instances assigned in _solve()
         self._A_pans_cfg = A_pans
         self._B_pans_cfg = B_pans
@@ -280,7 +281,7 @@ class ThreeBoilingDoubleMagma:
         """Each pan's vapor goes to its own barometric condenser: [(name, Condenser)]."""
         from Condenser import Condenser
         return [
-            (pan.name, Condenser(pan.vapor_evaporated, self.injection_water_temp_F))
+            (pan.name, Condenser(pan.vapor_evaporated, self.injection_water_temp_F, self.condensor_leg_temp_drop_F))
             for pan in (self.A_pans, self.B_pans, self.grain_pans, self.C_pans)
         ]
 

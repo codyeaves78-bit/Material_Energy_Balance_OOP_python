@@ -27,7 +27,7 @@ EvaporatorIAPWS     — bypasses Evaporator.__init__ to substitute SteamStreamAd
 EvaporatorSetIAPWS  — subclass of EvaporatorSet; only build_effects() is overridden
                       to create EvaporatorIAPWS bodies and SteamStreamAdapter
                       inter-effect steam objects.  Everything else (solve_for_steam,
-                      update_steam_flow, adjust_pressure_profile, show_summary)
+                      update_steam_flow, adjust_pressure_profile, neat_display)
                       works unchanged because SteamStreamAdapter is interface-compatible.
 """
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         total_poly += (perf_counter() - t0) * 1000
         poly_set    = s
 
-    poly_set.show_summary()
+    poly_set.neat_display()
     print(f"  >>> Total of {RUNS} runs: {total_poly:.1f} ms\n")
 
     # ── IAPWS-97 (SteamStream) ────────────────────────────────────────────
@@ -269,7 +269,7 @@ if __name__ == "__main__":
         total_iapws += (perf_counter() - t0) * 1000
         iapws_set    = s
 
-    iapws_set.show_summary()
+    iapws_set.neat_display()
     print(f"  >>> Total of {RUNS} runs: {total_iapws:.1f} ms\n")
 
     # ── Side-by-side comparison ───────────────────────────────────────────

@@ -220,6 +220,12 @@ if boiling_scheme == 'TBDM':
         b_mol_to_grain_pct=10,
         syrup_to_grain_pct=1,
         a_mol_top_off_pct=0,
+        b_magma_brix=92,
+        c_magma_brix=92,
+        b_remelt_brix=65,
+        c_remelt_brix=65,
+        injection_water_temp_F=90,
+        condenser_leg_temp_drop_F=5,
     )
 
 # for Four Boiling
@@ -266,6 +272,12 @@ if boiling_scheme == 'FBDM':
         b_magma_A1_footing_pct=40,
         b_magma_A2_footing_pct=40,  # remaining goes to remelt
         c_magma_B_footing_pct=80,  # remaining goes to remelt
+        b_magma_brix=92,
+        c_magma_brix=92,
+        b_remelt_brix=65,
+        c_remelt_brix=65,
+        injection_water_temp_F=90,
+        condenser_leg_temp_drop_F=5,
         iterations=15,
     )
 
@@ -312,6 +324,8 @@ evap_station = solve_evaporator_sets(  # This returns a list
     target_brix_out=syrup.brix,
     dessin_coefficient=18000,
     liquid_level_ft=2,
+    injection_water_temp_F=90,
+    condenser_leg_temp_drop_F=5,
 
     # ── Iteration control ──────────────────────────────────────────────
     n_iterations=10,  # default 10
@@ -320,7 +334,8 @@ evap_station = solve_evaporator_sets(  # This returns a list
     # ── Set configurations ─────────────────────────────────────────────
     # Each dict needs: effect_areas_ft2, supply_steam_psia, last_effect_psia
     # Optional per-set overrides: vapor_bleeds, target_brix_out,
-    #                             dessin_coefficient, liquid_level_ft, name
+    #                             dessin_coefficient, liquid_level_ft,
+    #                             injection_water_temp_F, condenser_leg_temp_drop_F, name
     set_configs=[
         {
             "name": "Set 1 (4-eff 25k ft²)",

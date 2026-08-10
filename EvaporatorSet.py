@@ -41,7 +41,7 @@ class EvaporatorSet:
             name="Triple Effect",
         )
         evap_set.adjust_pressure_profile()
-        evap_set.show_summary()
+        evap_set.neat_display()
         evap_set.generate_pfd()
 
     With vapor bleeds (first-effect bleed to heaters and pans)::
@@ -56,7 +56,7 @@ class EvaporatorSet:
             name="Triple — V1 Bleed",
         )
         evap_set.adjust_pressure_profile()
-        evap_set.show_summary()
+        evap_set.neat_display()
 
     With a pre-evaporator::
 
@@ -88,6 +88,7 @@ class EvaporatorSet:
                  dessin_coefficient=18000,
                  liquid_level_ft=2,
                  injection_water_temp_F=90,
+                 condenser_leg_temp_drop_F=5,
                  name: str = 'Evaporator Set'):
         """initialize class"""
         self.name = name
@@ -100,6 +101,7 @@ class EvaporatorSet:
         self.dessin_coefficient = dessin_coefficient
         self.liquid_level_ft = liquid_level_ft
         self.injection_water_temp_F = injection_water_temp_F
+        self.condenser_leg_temp_drop_F = condenser_leg_temp_drop_F # degrees below the vapor temp
         self.number_of_effects = len(self.effect_areas_ft2)
         # 1. Package the shared arguments into a temporary dictionary
         evap_args = {
@@ -275,7 +277,8 @@ class EvaporatorSet:
             P_psia=last.vapor_pressure_psia,
             flow_lb_per_hr=last.lbs_evaporated_per_hr - last.vapor_bleed.flow_lb_per_hr,
         )
-        return Condenser(vapor=to_condenser, water_inlet_temp_F=self.injection_water_temp_F)
+        return Condenser(vapor=to_condenser, water_inlet_temp_F=self.injection_water_temp_F,
+                         water_outlet_temp_drop_F=self.condenser_leg_temp_drop_F)
     
     @property
     def clean_condensate(self):
@@ -746,7 +749,7 @@ if __name__ == "__main__":
         )
 
         evap_set.adjust_pressure_profile()
-        evap_set.show_summary()
+        evap_set.neat_display()
         evap_set.condenser.neat_display()
         evap_set.generate_pfd(pre_evap=pre)
 
