@@ -61,6 +61,10 @@ class FourBoilingDoubleMagma:
         a1_mol_dilution_brix: float = 70,
         a2_mol_dilution_brix: float = 70,
         b_mol_dilution_brix: float = 70,
+        b_magma_brix: float = 92,
+        c_magma_brix: float = 92,
+        b_remelt_brix: float = 65,
+        c_remelt_brix: float = 65,
         injection_water_temp_F: float = 90,
         iterations: int = 15,
     ):
@@ -108,6 +112,10 @@ class FourBoilingDoubleMagma:
         self.a1_mol_dilution_brix = a1_mol_dilution_brix
         self.a2_mol_dilution_brix = a2_mol_dilution_brix
         self.b_mol_dilution_brix = b_mol_dilution_brix
+        self.b_magma_brix = b_magma_brix
+        self.c_magma_brix = c_magma_brix
+        self.b_remelt_brix = b_remelt_brix
+        self.c_remelt_brix = c_remelt_brix
 
         self._solve(iterations)
 
@@ -163,9 +171,9 @@ class FourBoilingDoubleMagma:
 
     def _solve(self, iterations: int = 15):
         # Dummy footings — zero flow so first iteration solves cleanly; overwritten each loop
-        b_magma_A1_footing = SugarStream(brix=92, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
-        b_magma_A2_footing = SugarStream(brix=92, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
-        c_magma_B_footing  = SugarStream(brix=92, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
+        b_magma_A1_footing = SugarStream(brix=self.b_magma_brix, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
+        b_magma_A2_footing = SugarStream(brix=self.b_magma_brix, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
+        c_magma_B_footing  = SugarStream(brix=self.c_magma_brix, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
 
         syrup_as_fed = SugarStream.copy(self.syrup)
 
@@ -224,7 +232,7 @@ class FourBoilingDoubleMagma:
             )
 
             # B magma — update footings and remelt split
-            b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=92)
+            b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=self.b_magma_brix)
             b_magma_A1_footing = SugarStream.copy(b_magma)
             b_magma_A1_footing.flow_lb_per_hr = self.b_magma_A1_footing_pct / 100 * b_magma.flow_lb_per_hr
             b_magma_A2_footing = SugarStream.copy(b_magma)
@@ -273,15 +281,15 @@ class FourBoilingDoubleMagma:
             )
 
             # C magma — update B footing and remelt split
-            c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=92)
+            c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=self.c_magma_brix)
             c_magma_B_footing = SugarStream.copy(c_magma)
             c_magma_B_footing.flow_lb_per_hr = self.c_magma_B_footing_pct / 100 * c_magma.flow_lb_per_hr
             c_magma_to_rmlt = SugarStream.copy(c_magma)
             c_magma_to_rmlt.flow_lb_per_hr = self.c_magma_remelt_pct / 100 * c_magma.flow_lb_per_hr
 
             # Remelts diluted to remelt_brix
-            b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=65)
-            c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=65)
+            b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=self.b_remelt_brix)
+            c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=self.c_remelt_brix)
 
             # Update syrup_as_fed = evaporator syrup + b remelt + c remelt
             total_flows  = self.syrup.flow_lb_per_hr + b_remelt.flow_lb_per_hr + c_remelt.flow_lb_per_hr

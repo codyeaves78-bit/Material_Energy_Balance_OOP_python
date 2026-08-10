@@ -244,11 +244,13 @@ class JuiceHeatingStation:
         sw.section("HEATER FLOWS")
         sw.table(htr_hdrs, [
             ("Juice (lb/hr)",   *[h.cold_stream.flow_lb_per_hr for h in self.heaters]),
+            ("Juice cp (BTU/lb·°F)", *[h.cold_stream.cp_btu_per_lb_deg_F for h in self.heaters]),
+            ("Juice ΔT (°F)",   *[h.cold_delta_T               for h in self.heaters]),
             ("Duty (BTU/hr)",   *[h.Q_btu_per_hr               for h in self.heaters]),
             ("Req Area (ft²)",  *[h.required_area_ft2          for h in self.heaters]),
             ("Inst Area (ft²)", *[h.installed_area_ft2         for h in self.heaters]),
             ("Steam (lb/hr)",   *[h.steam_required_lb_per_hr   for h in self.heaters]),
-        ], fmts=["@"] + ["#,##0"] * len(self.heaters))
+        ], fmts=["@"] + ["#,##0.00"] * len(self.heaters))
 
         sw.section("HEATER CONDITIONS")
         sw.table(htr_hdrs, [

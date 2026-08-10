@@ -52,6 +52,10 @@ class ThreeBoilingDoubleMagma:
             a_mol_top_off_pct: float = 30,
             a_mol_dilution_brix: float = 70,
             b_mol_dilution_brix: float = 70,
+            b_magma_brix: float = 92,
+            c_magma_brix: float = 92,
+            b_remelt_brix: float = 65,
+            c_remelt_brix: float = 65,
             injection_water_temp_F: float = 90,
             iterations: int = 20,
             ):
@@ -85,6 +89,10 @@ class ThreeBoilingDoubleMagma:
         self.b_mol_C_pans_pct = 100.0 - b_mol_to_grain_pct
         self.a_mol_dilution_brix = a_mol_dilution_brix
         self.b_mol_dilution_brix = b_mol_dilution_brix
+        self.b_magma_brix = b_magma_brix
+        self.c_magma_brix = c_magma_brix
+        self.b_remelt_brix = b_remelt_brix
+        self.c_remelt_brix = c_remelt_brix
         self.syrup_to_A_pans_pct = 100.0 - syrup_to_grain_pct
 
         self._solve(iterations)
@@ -144,8 +152,8 @@ class ThreeBoilingDoubleMagma:
         # Both are overwritten each iteration: c_magma_B_pans from C centrifugals sugar stream,
         # b_magma_A_pans from B centrifugals sugar stream (via make_magma). Brix/purity/temp
         # are placeholders only; the loop replaces them before they matter.
-        c_magma_B_pans = SugarStream(brix=92, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
-        b_magma_A_pans = SugarStream(brix=92, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
+        c_magma_B_pans = SugarStream(brix=self.c_magma_brix, purity=85, flow_lb_per_hr=0, temp_deg_F=130)
+        b_magma_A_pans = SugarStream(brix=self.b_magma_brix, purity=92, flow_lb_per_hr=0, temp_deg_F=130)
 
         syrup_as_fed = SugarStream.copy(self.syrup)
 
@@ -226,8 +234,8 @@ class ThreeBoilingDoubleMagma:
                 self._C_cen_cfg, self.C_reheaters.massecuite_out, self.C_pans.massecuite_flow_lb_hr
             )
 
-            b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=92)
-            c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=92)
+            b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=self.b_magma_brix)
+            c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=self.c_magma_brix)
 
             b_magma_A_pans = SugarStream.copy(b_magma)
             b_magma_A_pans.flow_lb_per_hr = (100 - self.b_magma_remelt_pct) / 100 * b_magma_A_pans.flow_lb_per_hr
@@ -237,11 +245,11 @@ class ThreeBoilingDoubleMagma:
 
             b_magma_to_rmlt = SugarStream.copy(b_magma)
             b_magma_to_rmlt.flow_lb_per_hr = self.b_magma_remelt_pct / 100 * b_magma_to_rmlt.flow_lb_per_hr
-            b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=65)
+            b_remelt = make_remelt(b_magma_to_rmlt, remelt_brix=self.b_remelt_brix)
 
             c_magma_to_rmlt = SugarStream.copy(c_magma)
             c_magma_to_rmlt.flow_lb_per_hr = self.c_magma_remelt_pct / 100 * c_magma_to_rmlt.flow_lb_per_hr
-            c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=65)
+            c_remelt = make_remelt(c_magma_to_rmlt, remelt_brix=self.c_remelt_brix)
 
             total_flows = self.syrup.flow_lb_per_hr + c_remelt.flow_lb_per_hr + b_remelt.flow_lb_per_hr
             total_solids = self.syrup.solids_flow + c_remelt.solids_flow + b_remelt.solids_flow

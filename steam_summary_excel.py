@@ -43,7 +43,12 @@ def steam_summary_to_excel(workbook, live_steam_dict, exh_dict,
     if steam_available_lb_hr is not None:
         sw.section("LIVE STEAM AVAILABILITY")
         sw.row("Live steam available from bagasse",steam_available_lb_hr, "lb/hr", fmt="#,##0")
-        sw.row("Live steam demand", total_live, "lb/hr", fmt="#,##0")
-        sw.row("Surplus / (Deficit)", steam_available_lb_hr - total_live, "lb/hr", fmt="#,##0")
+        if makeup_steam_lb_hr <= 0:
+            sw.row("Live steam demand", total_live, "lb/hr", fmt="#,##0")
+            sw.row("Surplus / (Deficit)", steam_available_lb_hr - total_live, "lb/hr", fmt="#,##0")
+        else:
+            live_and_makeup = total_live + makeup_steam_lb_hr
+            sw.row("Live steam demand", live_and_makeup, "lb/hr", fmt="#,##0")
+            sw.row("Surplus / (Deficit)", steam_available_lb_hr - live_and_makeup, "lb/hr", fmt="#,##0")            
 
     return sw.finish()
