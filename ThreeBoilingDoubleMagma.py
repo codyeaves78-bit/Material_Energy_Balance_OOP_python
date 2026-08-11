@@ -269,6 +269,8 @@ class ThreeBoilingDoubleMagma:
         # Save final-iteration magma/remelt/dilution streams for water accounting
         self._b_magma          = b_magma
         self._c_magma          = c_magma
+        self._b_magma_A_pans   = b_magma_A_pans
+        self._c_magma_B_pans   = c_magma_B_pans
         self._b_magma_to_rmlt  = b_magma_to_rmlt
         self._c_magma_to_rmlt  = c_magma_to_rmlt
         self._b_remelt         = b_remelt
@@ -360,7 +362,8 @@ class ThreeBoilingDoubleMagma:
         from three_boiling_diagram import _collect_streams, _collect_water
         from pan_floor_excel import (HDRS, FMTS, srow, wrow, totals_rows,
                                      pan_table, cen_table, dil_table, heatx_table,
-                                     condenser_table)
+                                     condenser_table, magma_table, magma_split_table,
+                                     remelt_table, syrup_recombination_table)
 
         a_sugar = self.A_centrifugals.sugar_stream
         c_mol   = self.C_centrifugals.molasses_stream
@@ -410,6 +413,11 @@ class ThreeBoilingDoubleMagma:
                                          out_f, out_s, out_p, out_f - out_s))
         sw.row("Pol % recovered in raw sugar (A sugar / feed)", pol_extr, "%", col=4)
 
+        sw.section("PAN FLOOR SYRUP  (Evaporator Syrup + Remelt)")
+        syrup_recombination_table(sw, self.syrup,
+                                  [("B", self._b_remelt), ("C", self._c_remelt)],
+                                  self.syrup_as_fed)
+
         # ── Stations ───────────────────────────────────────────────────────
         sw.page_break()
         sw.section(f"A PANS  [{self.A_pans.name}]")
@@ -423,6 +431,15 @@ class ThreeBoilingDoubleMagma:
         pan_table(sw, self.B_pans, ["C Magma", "A Molasses"])
         sw.section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]")
         cen_table(sw, self.B_centrifugals)
+        sw.section(f"B MAGMA  (mingler target {self.b_magma_brix:.1f} Bx)")
+        magma_table(sw, self.B_centrifugals.sugar_stream, self._b_magma, "B")
+        sw.section("B MAGMA DISTRIBUTION")
+        magma_split_table(sw, self._b_magma, [
+            ("B Magma to A Footing", self._b_magma_A_pans),
+            ("B Magma to Remelt",    self._b_magma_to_rmlt),
+        ])
+        sw.section(f"B REMELT  (target {self.b_remelt_brix:.1f} Bx)")
+        remelt_table(sw, self._b_magma_to_rmlt, self._b_remelt, "B", self.b_remelt_brix)
         sw.section(f"B MOLASSES DILUTION  (target {self.b_mol_dilution_brix:.1f} Bx)")
         dil_table(sw, self.B_centrifugals.molasses_stream, self._b_mol_diluted, "B Molasses")
 
@@ -439,8 +456,19 @@ class ThreeBoilingDoubleMagma:
         sw.section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]")
         cen_table(sw, self.C_centrifugals)
 
+        sw.section(f"C MAGMA  (mingler target {self.c_magma_brix:.1f} Bx)")
+        magma_table(sw, self.C_centrifugals.sugar_stream, self._c_magma, "C")
+        sw.section("C MAGMA DISTRIBUTION")
+        magma_split_table(sw, self._c_magma, [
+            ("C Magma to B Footing", self._c_magma_B_pans),
+            ("C Magma to Remelt",    self._c_magma_to_rmlt),
+        ])
+        sw.section(f"C REMELT  (target {self.c_remelt_brix:.1f} Bx)")
+        remelt_table(sw, self._c_magma_to_rmlt, self._c_remelt, "C", self.c_remelt_brix)
+
         sw.section("PAN VAPOR CONDENSERS  (one per pan)")
         condenser_table(sw, self.pan_condensers, self.injection_water_temp_F)
+        cooling_note_row = sw.r
         sw.row("Note: if using CoolingTowerSystem, ignore these injection water "
                "demands - they are re-solved there at the delivered water temp.", "")
 
@@ -455,7 +483,8 @@ class ThreeBoilingDoubleMagma:
         for letter, px in col_widths_px.items():
             ws.column_dimensions[letter].width = (px - 5) / 7
         from openpyxl.styles import Alignment
-        ws['A87'].alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        ws.cell(row=cooling_note_row, column=1).alignment = Alignment(
+            horizontal='left', vertical='center', wrap_text=True)
         return ws
 
     # ------------------------------------------------------------------

@@ -311,6 +311,9 @@ class FourBoilingDoubleMagma:
 
         self._b_magma         = b_magma
         self._c_magma         = c_magma
+        self._b_magma_A1_footing = b_magma_A1_footing
+        self._b_magma_A2_footing = b_magma_A2_footing
+        self._c_magma_B_footing  = c_magma_B_footing
         self._b_magma_to_rmlt = b_magma_to_rmlt
         self._c_magma_to_rmlt = c_magma_to_rmlt
         self._b_remelt        = b_remelt
@@ -331,7 +334,8 @@ class FourBoilingDoubleMagma:
         from four_boiling_diagram import _collect_streams, _collect_water
         from pan_floor_excel import (HDRS, FMTS, srow, wrow, totals_rows,
                                      pan_table, cen_table, dil_table, heatx_table,
-                                     condenser_table)
+                                     condenser_table, magma_table, magma_split_table,
+                                     remelt_table, syrup_recombination_table)
 
         # ── Sheet ──────────────────────────────────────────────────────────
         a1s = self.A1_centrifugals.sugar_stream
@@ -385,6 +389,11 @@ class FourBoilingDoubleMagma:
                                          out_f, out_s, out_p, out_f - out_s))
         sw.row("Pol % recovered in raw sugar (A1+A2 / feed)", pol_extr, "%", col=4)
 
+        sw.section("PAN FLOOR SYRUP  (Evaporator Syrup + Remelt)")
+        syrup_recombination_table(sw, self.syrup,
+                                  [("B", self._b_remelt), ("C", self._c_remelt)],
+                                  self.syrup_as_fed)
+
         # ── Stations ───────────────────────────────────────────────────────
         sw.page_break()
         sw.section(f"A1 PANS  [{self.A1_pans.name}]")
@@ -406,6 +415,16 @@ class FourBoilingDoubleMagma:
         pan_table(sw, self.B_pans, ["A2 Molasses", "C Magma", "A1 Molasses"])
         sw.section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]")
         cen_table(sw, self.B_centrifugals)
+        sw.section(f"B MAGMA  (mingler target {self.b_magma_brix:.1f} Bx)")
+        magma_table(sw, self.B_centrifugals.sugar_stream, self._b_magma, "B")
+        sw.section("B MAGMA DISTRIBUTION")
+        magma_split_table(sw, self._b_magma, [
+            ("B Magma to A1 Footing", self._b_magma_A1_footing),
+            ("B Magma to A2 Footing", self._b_magma_A2_footing),
+            ("B Magma to Remelt",     self._b_magma_to_rmlt),
+        ])
+        sw.section(f"B REMELT  (target {self.b_remelt_brix:.1f} Bx)")
+        remelt_table(sw, self._b_magma_to_rmlt, self._b_remelt, "B", self.b_remelt_brix)
         sw.section(f"B MOLASSES DILUTION  (target {self.b_mol_dilution_brix:.1f} Bx)")
         dil_table(sw, self.B_centrifugals.molasses_stream, self._b_mol_diluted, "B Molasses")
 
@@ -422,8 +441,19 @@ class FourBoilingDoubleMagma:
         sw.section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]")
         cen_table(sw, self.C_centrifugals)
 
+        sw.section(f"C MAGMA  (mingler target {self.c_magma_brix:.1f} Bx)")
+        magma_table(sw, self.C_centrifugals.sugar_stream, self._c_magma, "C")
+        sw.section("C MAGMA DISTRIBUTION")
+        magma_split_table(sw, self._c_magma, [
+            ("C Magma to B Footing", self._c_magma_B_footing),
+            ("C Magma to Remelt",    self._c_magma_to_rmlt),
+        ])
+        sw.section(f"C REMELT  (target {self.c_remelt_brix:.1f} Bx)")
+        remelt_table(sw, self._c_magma_to_rmlt, self._c_remelt, "C", self.c_remelt_brix)
+
         sw.section("PAN VAPOR CONDENSERS  (one per pan)")
         condenser_table(sw, self.pan_condensers, self.injection_water_temp_F)
+        cooling_note_row = sw.r
         sw.row("Note: if using CoolingTowerSystem, ignore these injection water "
                "demands - they are re-solved there at the delivered water temp.", "")
 
@@ -438,7 +468,8 @@ class FourBoilingDoubleMagma:
         for letter, px in col_widths_px.items():
             ws.column_dimensions[letter].width = (px - 5) / 7
         from openpyxl.styles import Alignment
-        ws['A95'].alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+        ws.cell(row=cooling_note_row, column=1).alignment = Alignment(
+            horizontal='left', vertical='center', wrap_text=True)
         return ws
 
     @property

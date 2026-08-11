@@ -87,6 +87,71 @@ def dil_table(sw, undiluted, diluted, label):
                  diluted.flow_lb_per_hr - diluted.solids_flow))
 
 
+def magma_table(sw, sugar, magma, label):
+    """Mingler station: crystal sugar + mingler water -> magma at its brix."""
+    water = magma.flow_lb_per_hr - sugar.flow_lb_per_hr
+    rows = [
+        srow(f"{label} Sugar", "In", sugar),
+        wrow("Mingler Water", "In", water),
+        srow(f"{label} Magma", "Out", magma),
+    ]
+    sw.table(HDRS, rows, fmts=FMTS,
+             totals=totals_rows(
+                 sugar.flow_lb_per_hr + water, sugar.solids_flow, sugar.pol_flow,
+                 sugar.flow_lb_per_hr - sugar.solids_flow + water,
+                 magma.flow_lb_per_hr, magma.solids_flow, magma.pol_flow,
+                 magma.flow_lb_per_hr - magma.solids_flow))
+
+
+def magma_split_table(sw, magma, destinations):
+    """How one magma stream is divided among footings/remelt.
+    destinations: [(label, stream), ...] whose flows sum to magma's flow."""
+    out_rows = [srow(label, "Out", s) for label, s in destinations]
+    out_f = sum(s.flow_lb_per_hr for _, s in destinations)
+    out_s = sum(s.solids_flow for _, s in destinations)
+    out_p = sum(s.pol_flow for _, s in destinations)
+    rows = [srow("Magma (total)", "In", magma)] + out_rows
+    sw.table(HDRS, rows, fmts=FMTS,
+             totals=totals_rows(
+                 magma.flow_lb_per_hr, magma.solids_flow, magma.pol_flow,
+                 magma.flow_lb_per_hr - magma.solids_flow,
+                 out_f, out_s, out_p, out_f - out_s))
+
+
+def remelt_table(sw, magma_to_rmlt, remelt, label, remelt_brix):
+    """Remelt station: the remelt-bound magma portion + remelt water -> remelt
+    at its target brix (which then rejoins the evaporator syrup)."""
+    water = remelt.flow_lb_per_hr - magma_to_rmlt.flow_lb_per_hr
+    rows = [
+        srow(f"{label} Magma (to Remelt)", "In", magma_to_rmlt),
+        wrow("Remelt Water", "In", water),
+        srow(f"{label} Remelt", "Out", remelt),
+    ]
+    sw.table(HDRS, rows, fmts=FMTS,
+             totals=totals_rows(
+                 magma_to_rmlt.flow_lb_per_hr + water, magma_to_rmlt.solids_flow, magma_to_rmlt.pol_flow,
+                 magma_to_rmlt.flow_lb_per_hr - magma_to_rmlt.solids_flow + water,
+                 remelt.flow_lb_per_hr, remelt.solids_flow, remelt.pol_flow,
+                 remelt.flow_lb_per_hr - remelt.solids_flow))
+    sw.row("Target remelt brix", remelt_brix, "Bx", fmt="0.0")
+
+
+def syrup_recombination_table(sw, evap_syrup, remelts, syrup_as_fed):
+    """Evaporator syrup + all remelt streams -> the Syrup fed to the pan floor.
+    remelts: [(label, stream), ...]."""
+    remelt_rows = [srow(f"{label} Remelt", "In", s) for label, s in remelts]
+    in_f = evap_syrup.flow_lb_per_hr + sum(s.flow_lb_per_hr for _, s in remelts)
+    in_s = evap_syrup.solids_flow    + sum(s.solids_flow    for _, s in remelts)
+    in_p = evap_syrup.pol_flow       + sum(s.pol_flow       for _, s in remelts)
+    rows = ([srow("Evaporator Syrup", "In", evap_syrup)] + remelt_rows
+            + [srow("Syrup (Pan Floor)", "Out", syrup_as_fed)])
+    sw.table(HDRS, rows, fmts=FMTS,
+             totals=totals_rows(
+                 in_f, in_s, in_p, in_f - in_s,
+                 syrup_as_fed.flow_lb_per_hr, syrup_as_fed.solids_flow, syrup_as_fed.pol_flow,
+                 syrup_as_fed.flow_lb_per_hr - syrup_as_fed.solids_flow))
+
+
 def condenser_table(sw, condensers, water_in_F):
     """One barometric condenser per pan: condensers = [(name, Condenser)]."""
     hdrs = ["Condenser", "Vapor (lb/hr)", "Sat T (°F)", "h_fg (BTU/lb)",
