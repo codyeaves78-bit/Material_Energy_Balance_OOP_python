@@ -151,7 +151,7 @@ def plot_two_boiling(tb, show: bool = True, save_path: str = None,
                (cx + 0.45, y0), (cx - 0.45, y0)]
         ax.add_patch(mpatches.Polygon(pts, closed=True, facecolor=EQ_FC,
                                       edgecolor=EQ_EC, lw=1.8, zorder=2))
-        lbl(cx + 1.05, y0 + 0.62, name, fs=7.5, color=GRAY, ha='left')
+        lbl(cx-.25, y0 + 0.62, name, fs=9, color=GRAY, ha='left')
 
     def mingler(cx, cy, name):
         ax.add_patch(mpatches.Rectangle((cx - 0.8, cy - 0.25), 1.6, 0.5,
@@ -205,7 +205,7 @@ def plot_two_boiling(tb, show: bool = True, save_path: str = None,
         color=SYRC, ha='left')
     tag(0.8, Y_SYR, 1, SYRC)
     dot(1.3, Y_SYR, SYRC)
-    seg([(11.9, 1.65), (1.3, 1.65), (1.3, Y_SYR - 0.5)], RMC)
+    seg([(10.1, 1.65), (1.3, 1.65), (1.3, Y_SYR - 0.5)], RMC) # now out the left of tank
     arr(1.3, Y_SYR - 0.5, 1.3, Y_SYR, RMC)
     tag(1.3, 7.8, 2, RMC)
 
@@ -231,10 +231,9 @@ def plot_two_boiling(tb, show: bool = True, save_path: str = None,
     arr(PX['C'], 6.05, PX['C'], 5.4, MASC)
 
     # 7 A sugar -> raw sugar
-    seg([(PX['A'], CEN0), (PX['A'], 1.1), (2.2, 1.1)], SUGC, lw=2.0)
-    arr(2.2, 1.1, 2.2, 0.35, SUGC, lw=2.2)
-    lbl(2.2, 0.12, 'Raw Sugar', fs=10, bold=True, color=SUGC)
-    tag(PX['A'], 3.0, 7, SUGC)
+    arr(PX['A'], CEN0, PX['A'], (CEN0 - 4), SUGC, lw=2.2)
+    lbl(PX['A'], (CEN0 - 4.5), 'Raw Sugar', fs=10, bold=True, color=SUGC)
+    tag(PX['A'], (CEN0 - 2), 7, SUGC)
 
     # 8..11 A molasses (diluted) splits: top-off to A, Grain, C
     y1 = 6.2
@@ -249,8 +248,8 @@ def plot_two_boiling(tb, show: bool = True, save_path: str = None,
     seg([(9.3, y1), (9.3, 10.8)], MOLC)
     arr(9.3, 10.8, PX['GR'] - 1.2, 10.8, MOLC)
     tag(9.3, 9.0, 10, MOLC)
-    seg([(16.4, y1), (16.4, 11.4)], MOLC)               # -> C
-    arr(16.4, 11.4, PX['C'] - 1.2, 11.4, MOLC)
+    seg([(16.4, y1), (16.4, 10.8)], MOLC)               # -> C
+    arr(16.4, 10.8, PX['C'] - 1.2, 10.8, MOLC)
     tag(16.4, 8.8, 11, MOLC)
 
     # 12 grain massecuite -> C pan
