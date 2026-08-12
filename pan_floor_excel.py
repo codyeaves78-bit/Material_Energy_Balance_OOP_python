@@ -48,6 +48,9 @@ def pan_table(sw, pan, feed_names):
     sw.row("Calandria steam type", STEAM_TYPE_LABELS.get(pan.steam_type, str(pan.steam_type)), "")
     sw.row("Calandria pressure", pan.calandria_pressure_psia, "psia", fmt="0.00")
     sw.row("Calandria steam flow", pan.steam_flow_lb_hr, "lb/hr", fmt="#,##0")
+    sw.row("Heating surface", pan.heating_surface_ft2, "ft²", fmt="#,##0")
+    sw.row("dT (calandria - masse)", pan.delta_T, "°F", fmt="0.0")
+    sw.row("Overall U (back-calc)", pan.U_btu_hr_ft2_F, "BTU/hr·ft²·°F", fmt="0.0")
 
 
 def cen_table(sw, cen):

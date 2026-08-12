@@ -1,9 +1,12 @@
 # St Mary Sugar Balance using Four Boiling Scheme
 
+import os
 import sys
 from datetime import datetime
 
 RUN_TIMESTAMP = datetime.now().strftime('%Y%m%d%H%M%S')
+OUTPUT_DIR = r'C:\Users\ceaves\OneDrive - St. Mary Sugar\SMSC Python Balance Output Folder'
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class _Tee:
     def __init__(self, filename):
@@ -20,7 +23,7 @@ class _Tee:
         self.terminal.flush()
         self.file.flush()
 
-sys.stdout = _Tee(f'SMSC_Balance_{RUN_TIMESTAMP}.txt')  # The output file name
+sys.stdout = _Tee(os.path.join(OUTPUT_DIR, f'SMSC_Balance_{RUN_TIMESTAMP}.txt'))  # The output file name
 
 # import all neccesary items
 
@@ -648,6 +651,6 @@ ctwrs.to_excel(wb)
 condensate_balance.neat_display()
 condensate_balance.to_excel(wb)
 
-excel_name = f'SMSC_Balance_{RUN_TIMESTAMP}.xlsx'
+excel_name = os.path.join(OUTPUT_DIR, f'SMSC_Balance_{RUN_TIMESTAMP}.xlsx')
 wb.save(filename=excel_name)
 print(f"Excel Export save successful. Filename = '{excel_name}'")
