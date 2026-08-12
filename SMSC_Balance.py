@@ -42,6 +42,7 @@ from Pan import Pan
 from Centrifugal import Centrifugal
 from ThreeBoilingDoubleMagma import ThreeBoilingDoubleMagma
 from FourBoilingDoubleMagma import FourBoilingDoubleMagma
+from TwoBoiling import TwoBoiling
 from Deaerator import Deaerator
 from Turbine import Turbine
 from MillTurbines import MillTurbines
@@ -92,7 +93,12 @@ LIVE_STEAM_LOSSES_PCT = 2
 EXHAUST_LOSSES_PCT = 5
 
 # Sugar Boiling / Pan Floor
-boiling_scheme = 'FBDM'  # use TBDM for three boiling double magma, FBDM for four boiling double magma
+""" List of Sugar Boiling Schemes
+'FourBoilingDoubleMagma' = Four Boiling Double Magma
+'ThreeBoilingDoubleMagma' = Three Boiling Double Magma
+'ThreeBoiling' = Three Boiling NOTE: this is not programmed yet...
+'TwoBoiling' = Two Boiling """
+boiling_scheme = 'FourBoilingDoubleMagma'  # reference the above list
 pan_v1_steam_psig = 7        # Exhaust-fired pans use FABRICATION_EXHAUST_PSIA instead — same header
 A_PANS_MASSE_BRIX = 92       # TBDM 'A Pans' and FBDM 'A1/A2 Pans'
 B_PANS_MASSE_BRIX = 94
@@ -176,7 +182,7 @@ st_mary_clar = Clarification(
     clarifier_underflow_pct_cane=20,
     name="Clarification",
 )
-
+FILTER_WATER_LB_HR = st_mary_clar.filter_wash_water_pct_on_cane / 100 * GRINDING_RATE_TPD / 24 * 2000
 # ============================================================
 # JUICE HEATERS
 # ============================================================
@@ -239,34 +245,65 @@ syrup.evaporate(new_brix=SYRUP_BRIX, new_temp=140)
 # User decides which scheme to use (boiling_scheme set in Global Variables section above)
 # Using the Three Boiling Double Magma class
 
-if boiling_scheme == 'TBDM':
+if boiling_scheme == 'ThreeBoilingDoubleMagma':
     pan_floor = ThreeBoilingDoubleMagma(
         syrup=syrup,
-        A_pans=Pan(feed_streams=None, heating_surface_ft2=22500, inches_vacuum=23.5, supersaturation=1.2,
-            head_ft=2, masse_brix=A_PANS_MASSE_BRIX, ml_purity=73, calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
-            heat_loss_factor=0.02, name='A Pans'),
-        B_pans=Pan(feed_streams=None, heating_surface_ft2=7500, inches_vacuum=25, supersaturation=1.2,
-            head_ft=2, masse_brix=B_PANS_MASSE_BRIX, ml_purity=53, calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
-            heat_loss_factor=0.05, name='B Pans'),
-        grain_pans=Pan(feed_streams=None, heating_surface_ft2=3000, inches_vacuum=25.5, supersaturation=1.2,
-            head_ft=2, masse_brix=GRAIN_PANS_MASSE_BRIX, ml_purity=45, calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
-            heat_loss_factor=0.05, name='Grain Pans'),
-        C_pans=Pan(feed_streams=None, heating_surface_ft2=12000, inches_vacuum=26.5, supersaturation=1.2,
-            head_ft=2, masse_brix=C_PANS_MASSE_BRIX, ml_purity=33, calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
-            heat_loss_factor=0.05, name='C Pans'),
-        A_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.7, sugar_temp=150, molasses_temp=145,
-            name="A Centrifugals"),
-        B_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=92, sugar_temp=150, molasses_temp=145,
-            name="B Centrifugals"),
-        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=82, sugar_temp=150, molasses_temp=145,
-            name="C Centrifugals"),
-        C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,  # type: ignore
-            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105, name="C Crystallizers"),
-        C_reheaters=Reheater(massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=140,  # type: ignore
-            water_temp_in_deg_F=150, water_temp_out_deg_F=135, name="C Reheaters"),
+        A_pans=Pan(
+            feed_streams=None, heating_surface_ft2=22500,
+            inches_vacuum=23.5, supersaturation=1.2, head_ft=2,
+            masse_brix=A_PANS_MASSE_BRIX, ml_purity=73,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.02, name='A Pans'
+            ),
+        B_pans=Pan(
+            feed_streams=None, heating_surface_ft2=7500,
+            inches_vacuum=25, supersaturation=1.2, head_ft=2,
+            masse_brix=B_PANS_MASSE_BRIX, ml_purity=53,
+            calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
+            heat_loss_factor=0.05, name='B Pans'
+            ),
+        grain_pans=Pan(
+            feed_streams=None, heating_surface_ft2=3000,
+            inches_vacuum=25.5, supersaturation=1.2, head_ft=2,
+            masse_brix=GRAIN_PANS_MASSE_BRIX, ml_purity=45,
+            calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
+            heat_loss_factor=0.05, name='Grain Pans'
+            ),
+        C_pans=Pan(
+            feed_streams=None, heating_surface_ft2=12000,
+            inches_vacuum=26.5, supersaturation=1.2, head_ft=2,
+            masse_brix=C_PANS_MASSE_BRIX, ml_purity=33,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.05, name='C Pans'
+            ),
+        A_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.7,
+            sugar_temp=150, molasses_temp=145,
+            name="A Centrifugals"
+            ),
+        B_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=92,
+            sugar_temp=150, molasses_temp=145,
+            name="B Centrifugals"
+            ),
+        C_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=82,
+            sugar_temp=150, molasses_temp=145,
+            name="C Centrifugals"
+            ),
+        C_crystallizers=Crystallizer(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,
+            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105,
+            name="C Crystallizers"
+            ),
+        C_reheaters=Reheater(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=140,
+            water_temp_in_deg_F=150, water_temp_out_deg_F=135,
+            name="C Reheaters"
+            ),
         b_magma_remelt_pct=20,
         c_magma_remelt_pct=20,
         a_mol_to_grain_pct=3,
@@ -282,40 +319,78 @@ if boiling_scheme == 'TBDM':
     )
 
 # for Four Boiling
-if boiling_scheme == 'FBDM':
+elif boiling_scheme == 'FourBoilingDoubleMagma':
     pan_floor = FourBoilingDoubleMagma(
         syrup=syrup,
-        A1_pans=Pan(feed_streams=None, heating_surface_ft2=16000, inches_vacuum=23.5, supersaturation=1.2,
-            head_ft=2, masse_brix=A_PANS_MASSE_BRIX, ml_purity=75, calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
-            heat_loss_factor=0.02, name='A1 Pans'),
-        A2_pans=Pan(feed_streams=None, heating_surface_ft2=6000, inches_vacuum=23.5, supersaturation=1.2,
-            head_ft=2, masse_brix=A_PANS_MASSE_BRIX, ml_purity=70, calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
-            heat_loss_factor=0.02, name='A2 Pans'),
-        B_pans=Pan(feed_streams=None, heating_surface_ft2=7500, inches_vacuum=25, supersaturation=1.2,
-            head_ft=2, masse_brix=B_PANS_MASSE_BRIX, ml_purity=52, calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
-            heat_loss_factor=0.05, name='B Pans'),
-        grain_pans=Pan(feed_streams=None, heating_surface_ft2=3000, inches_vacuum=25.5, supersaturation=1.2,
-            head_ft=2, masse_brix=GRAIN_PANS_MASSE_BRIX, ml_purity=45, calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
-            heat_loss_factor=0.05, name='Grain Pans'),
-        C_pans=Pan(feed_streams=None, heating_surface_ft2=12000, inches_vacuum=26.5, supersaturation=1.2,
-            head_ft=2, masse_brix=C_PANS_MASSE_BRIX, ml_purity=33, calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
-            heat_loss_factor=0.05, name='C Pans'),
-        A1_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.7, sugar_temp=150, molasses_temp=145,
-            name="A1 Centrifugals"),
-        A2_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.3, sugar_temp=150, molasses_temp=145,
-            name="A2 Centrifugals"),
-        B_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=92, sugar_temp=150, molasses_temp=145,
-            name="B Centrifugals"),
-        C_centrifugals=Centrifugal(massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=82, sugar_temp=150, molasses_temp=145,
-            name="C Centrifugals"),
-        C_crystallizers=Crystallizer(massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,
-            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105, name="C Crystallizers"),
-        C_reheaters=Reheater(massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=140,
-            water_temp_in_deg_F=150, water_temp_out_deg_F=135, name="C Reheaters"),
+        A1_pans=Pan(
+            feed_streams=None, heating_surface_ft2=16000,
+            inches_vacuum=23.5, supersaturation=1.2, head_ft=2,
+            masse_brix=A_PANS_MASSE_BRIX, ml_purity=75,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.02, name='A1 Pans'
+            ),
+        A2_pans=Pan(
+            feed_streams=None, heating_surface_ft2=6000,
+            inches_vacuum=23.5, supersaturation=1.2, head_ft=2,
+            masse_brix=A_PANS_MASSE_BRIX, ml_purity=70,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.02, name='A2 Pans'
+            ),
+        B_pans=Pan(
+            feed_streams=None, heating_surface_ft2=7500,
+            inches_vacuum=25, supersaturation=1.2, head_ft=2,
+            masse_brix=B_PANS_MASSE_BRIX, ml_purity=52,
+            calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
+            heat_loss_factor=0.05, name='B Pans'
+            ),
+        grain_pans=Pan(
+            feed_streams=None, heating_surface_ft2=3000,
+            inches_vacuum=25.5, supersaturation=1.2, head_ft=2,
+            masse_brix=GRAIN_PANS_MASSE_BRIX, ml_purity=45,
+            calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
+            heat_loss_factor=0.05, name='Grain Pans'
+            ),
+        C_pans=Pan(
+            feed_streams=None, heating_surface_ft2=12000,
+            inches_vacuum=26.5, supersaturation=1.2, head_ft=2,
+            masse_brix=C_PANS_MASSE_BRIX, ml_purity=33,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.05, name='C Pans'
+            ),
+        A1_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.7,
+            sugar_temp=150, molasses_temp=145,
+            name="A1 Centrifugals"
+            ),
+        A2_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=0.2, sugar_purity=99.3,
+            sugar_temp=150, molasses_temp=145,
+            name="A2 Centrifugals"
+            ),
+        B_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=92,
+            sugar_temp=150, molasses_temp=145,
+            name="B Centrifugals"
+            ),
+        C_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=82,
+            sugar_temp=150, molasses_temp=145,
+            name="C Centrifugals"
+            ),
+        C_crystallizers=Crystallizer(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,
+            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105,
+            name="C Crystallizers"
+            ),
+        C_reheaters=Reheater(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=140,
+            water_temp_in_deg_F=150, water_temp_out_deg_F=135,
+            name="C Reheaters"
+            ),
         syrup_to_A1_pans_pct=75,
         syrup_to_A2_pans_pct=20,  # remainder goes to grain pans
         a1_mol_to_A2_pct=80,
@@ -334,6 +409,61 @@ if boiling_scheme == 'FBDM':
         iterations=15,
     )
 
+# for Two Boiling
+elif boiling_scheme == 'TwoBoiling':
+    pan_floor = TwoBoiling(
+        syrup=syrup,
+        A_pans=Pan(
+            feed_streams=None, heating_surface_ft2=22500,
+            inches_vacuum=23.5, supersaturation=1.2, head_ft=2,
+            masse_brix=A_PANS_MASSE_BRIX, ml_purity=55,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.02, name='A Pans'
+            ),
+        grain_pans=Pan(
+            feed_streams=None, heating_surface_ft2=3000,
+            inches_vacuum=25.5, supersaturation=1.2, head_ft=2,
+            masse_brix=GRAIN_PANS_MASSE_BRIX, ml_purity=45,
+            calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
+            heat_loss_factor=0.05, name='Grain Pans'
+            ),
+        C_pans=Pan(
+            feed_streams=None, heating_surface_ft2=12000,
+            inches_vacuum=26.5, supersaturation=1.2, head_ft=2,
+            masse_brix=C_PANS_MASSE_BRIX, ml_purity=30,
+            calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
+            heat_loss_factor=0.05, name='C Pans'
+            ),
+        A_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=0.3, sugar_purity=99.4,
+            sugar_temp=150, molasses_temp=145,
+            name="A Centrifugals"
+            ),
+        C_centrifugals=Centrifugal(
+            massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=78,
+            sugar_temp=150, molasses_temp=145,
+            name="C Centrifugals"
+            ),
+        C_crystallizers=Crystallizer(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,
+            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105,
+            name="C Crystallizers"
+            ),
+        C_reheaters=Reheater(
+            massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=130,
+            water_temp_in_deg_F=150, water_temp_out_deg_F=135,
+            name="C Reheaters"
+            ),
+        c_magma_remelt_pct=20,
+        c_magma_brix=C_MAGMA_BRIX,
+        c_remelt_brix=C_REMELT_BRIX,
+        syrup_to_grain_pct=1,
+        syrup_to_C_pct=5,
+        a_mol_to_grain_pct=3,
+        a_mol_top_off_pct=30,
+    )
 # ============================================================
 # EVAPORATION
 # ============================================================
@@ -343,70 +473,95 @@ if boiling_scheme == 'FBDM':
 # Pre will take the lionshare of bleeding, followed by S1E1, S2E1
 # V2 is not done in this balance, but if you desire, distribute according to heating surfaces
 v1_distr = V1_BLEED_DISTRIBUTION  # Pre3, S1E1, S2E1 — must add up to 100
-v1_demand = (
-    par_heaters.total_V1_steam_lb_hr                # V1 Heaters
-    + pan_floor.total_V1_steam_lb_hr                # V1 in pans
-)
-v1_flows = [perc * v1_demand / 100 for perc in v1_distr]  # [pre v1, s1e1 v1, s2e1 v1]
 
-pre_3 = PreEvaporator(
-    juice_in=hot_clarified_juice,
-    supply_steam=EvaporatorSteam(P_psia=FABRICATION_EXHAUST_PSIA),
-    vapor_bleed_lb_per_hr=v1_flows[0],  # refers to Pre 3 v1 bleed
-    area_ft2=35000,
-)
+# The V1 pans were built above using a guessed calandria pressure (PAN_V1_STEAM_PSIA)
+# since the real V1 header pressure isn't known until the evaporator station is
+# solved — and the station's V1 bleed demand depends on the pans' steam flow,
+# which depends on that same pressure (steam flow = Q / h_fg, h_fg from pressure).
+# Iterate a few passes: solve, feed the real V1 pressure back into the V1 pans
+# (flow-weighted across Pre 3 + Set 1 Eff 1 + Set 2 Eff 1, since each solves
+# independently and can land at a slightly different pressure), and re-solve.
+# The correction is small so this converges quickly.
+V1_PRESSURE_FEEDBACK_ITERATIONS = 3
 
-juice_to_sets = SugarStream.copy(pre_3.juice_out)
+for _v1_iter in range(V1_PRESSURE_FEEDBACK_ITERATIONS):
+    v1_demand = (
+        par_heaters.total_V1_steam_lb_hr                # V1 Heaters
+        + pan_floor.total_V1_steam_lb_hr                # V1 in pans
+    )
+    v1_flows = [perc * v1_demand / 100 for perc in v1_distr]  # [pre v1, s1e1 v1, s2e1 v1]
 
-evap_station = solve_evaporator_sets(  # This returns a list
-    # ── Clarified juice feed ───────────────────────────────────────────
-    juice_brix=juice_to_sets.brix,
-    juice_purity=juice_to_sets.purity,
-    juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
-    juice_temp_deg_F=juice_to_sets.temp_deg_F,
-    juice_pressure_psia=40,
+    pre_3 = PreEvaporator(
+        juice_in=hot_clarified_juice,
+        supply_steam=EvaporatorSteam(P_psia=FABRICATION_EXHAUST_PSIA),
+        vapor_bleed_lb_per_hr=v1_flows[0],  # refers to Pre 3 v1 bleed
+        area_ft2=35000,
+    )
 
-    # ── Global defaults (override per set in set_configs if needed) ────
-    target_brix_out=SYRUP_BRIX,
-    dessin_coefficient=18000,
-    liquid_level_ft=2,
-    injection_water_temp_F=INJECTION_WATER_TEMP_F,
-    condenser_leg_temp_drop_F=CONDENSER_LEG_TEMP_DROP_F,
+    juice_to_sets = SugarStream.copy(pre_3.juice_out)
 
-    # ── Iteration control ──────────────────────────────────────────────
-    n_iterations=10,  # default 10
-    dampening=0.2,  # default 0.2
+    evap_station = solve_evaporator_sets(  # This returns a list
+        # ── Clarified juice feed ───────────────────────────────────────────
+        juice_brix=juice_to_sets.brix,
+        juice_purity=juice_to_sets.purity,
+        juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
+        juice_temp_deg_F=juice_to_sets.temp_deg_F,
+        juice_pressure_psia=40,
 
-    # ── Set configurations ─────────────────────────────────────────────
-    # Each dict needs: effect_areas_ft2, supply_steam_psia, last_effect_psia
-    # Optional per-set overrides: vapor_bleeds, target_brix_out,
-    #                             dessin_coefficient, liquid_level_ft,
-    #                             injection_water_temp_F, condenser_leg_temp_drop_F, name
-    set_configs=[
-        {
-            "name": "Set 1 (4-eff 25k ft²)",
-            "effect_areas_ft2": [25000, 25000, 25000, 25000],
-            "supply_steam_psia": FABRICATION_EXHAUST_PSIA,
-            "last_effect_psia": 2.4,  # ~25" vac
-            "vapor_bleeds": [v1_flows[1]],
-        },
-        {
-            "name": "Set 2 (4-eff 12k ft²)",
-            "effect_areas_ft2": [12000, 12000, 12000, 12000],
-            "supply_steam_psia": FABRICATION_EXHAUST_PSIA,
-            "last_effect_psia": 2.4,
-            "vapor_bleeds": [v1_flows[2]],
-        },
-        {
-            "name": "Set 3 (3-eff 11-9k ft²)",
-            "effect_areas_ft2": [11000, 9000, 9000],
-            "supply_steam_psia": 20,
-            "last_effect_psia": 2.4,
-            "vapor_bleeds": [0],
-        },
-    ],
-    verbose=False,  # Set True if you want iteration details, False if you just want final results
-)  # Note that this whole function shows all evaporator information
+        # ── Global defaults (override per set in set_configs if needed) ────
+        target_brix_out=SYRUP_BRIX,
+        dessin_coefficient=18000,
+        liquid_level_ft=2,
+        injection_water_temp_F=INJECTION_WATER_TEMP_F,
+        condenser_leg_temp_drop_F=CONDENSER_LEG_TEMP_DROP_F,
+
+        # ── Iteration control ──────────────────────────────────────────────
+        n_iterations=10,  # default 10
+        dampening=0.2,  # default 0.2
+
+        # ── Set configurations ─────────────────────────────────────────────
+        # Each dict needs: effect_areas_ft2, supply_steam_psia, last_effect_psia
+        # Optional per-set overrides: vapor_bleeds, target_brix_out,
+        #                             dessin_coefficient, liquid_level_ft,
+        #                             injection_water_temp_F, condenser_leg_temp_drop_F, name
+        set_configs=[
+            {
+                "name": "Set 1 (4-eff 25k ft²)",
+                "effect_areas_ft2": [25000, 25000, 25000, 25000],
+                "supply_steam_psia": FABRICATION_EXHAUST_PSIA,
+                "last_effect_psia": 2.4,  # ~25" vac
+                "vapor_bleeds": [v1_flows[1]],
+            },
+            {
+                "name": "Set 2 (4-eff 12k ft²)",
+                "effect_areas_ft2": [12000, 12000, 12000, 12000],
+                "supply_steam_psia": FABRICATION_EXHAUST_PSIA,
+                "last_effect_psia": 2.4,
+                "vapor_bleeds": [v1_flows[2]],
+            },
+            {
+                "name": "Set 3 (3-eff 11-9k ft²)",
+                "effect_areas_ft2": [11000, 9000, 9000],
+                "supply_steam_psia": 20,
+                "last_effect_psia": 2.4,
+                "vapor_bleeds": [0],
+            },
+        ],
+        verbose=False,  # Set True if you want iteration details, False if you just want final results
+    )  # Note that this whole function shows all evaporator information
+
+    # Feed the real V1 header pressure back into the V1-fired pans.
+    v1_pressure_actual = (
+        v1_flows[0] * pre_3.vapor_pressure_psia
+        + v1_flows[1] * evap_station[0].evaporator_list[0].vapor_pressure_psia
+        + v1_flows[2] * evap_station[1].evaporator_list[0].vapor_pressure_psia
+    ) / v1_demand
+    for pan in pan_floor._pans:
+        if pan.steam_type == 1:
+            pan.calandria_pressure_psia = v1_pressure_actual
+
+print(f"V1 pressure feedback: guess {PAN_V1_STEAM_PSIA:.2f} psia -> converged {v1_pressure_actual:.2f} psia "
+      f"after {V1_PRESSURE_FEEDBACK_ITERATIONS} passes")
 
 # ============================================================
 # ENERGY BALANCE - EXHAUST STEAM SUMMARY
@@ -563,17 +718,24 @@ dirty_condensate_dict = {
 
 # Pan floor wash/dilution water split — total_water lumps centrifugal wash +
 # magma minglers + remelt/molasses dilution together, so back out wash water
-# (centrifugal names differ between the two boiling schemes).
-if boiling_scheme == 'TBDM':
-    pan_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
+# (centrifugal names differ between the boiling schemes; St Mary Sugar keeps
+# these two streams physically separate, so don't collapse them).
+if boiling_scheme == 'ThreeBoilingDoubleMagma':
+    centrifugal_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
                             + pan_floor.B_centrifugals.wash_water_lb_hr
                             + pan_floor.C_centrifugals.wash_water_lb_hr)
-else:
-    pan_wash_water_lb_hr = (pan_floor.A1_centrifugals.wash_water_lb_hr
+elif boiling_scheme == 'TwoBoiling':
+    centrifugal_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
+                            + pan_floor.C_centrifugals.wash_water_lb_hr)
+elif boiling_scheme == 'FourBoilingDoubleMagma':
+    centrifugal_wash_water_lb_hr = (pan_floor.A1_centrifugals.wash_water_lb_hr
                             + pan_floor.A2_centrifugals.wash_water_lb_hr
                             + pan_floor.B_centrifugals.wash_water_lb_hr
                             + pan_floor.C_centrifugals.wash_water_lb_hr)
-pan_dilution_water_lb_hr = pan_floor.total_water.flow_lb_per_hr - pan_wash_water_lb_hr
+elif boiling_scheme == 'ThreeBoiling':
+    print("This is not programmed yet, will do so in the future")
+
+pan_dilution_water_lb_hr = pan_floor.total_water.flow_lb_per_hr - centrifugal_wash_water_lb_hr
 
 condensate_demands = [
     CondensateDemand('Boiler Feed Water', flow_lb_hr=da.water_in_lb_hr, temp_F=da.water_in_deg_F,
@@ -581,10 +743,12 @@ condensate_demands = [
         note="Recommend usage of clean condensate, make up with minimal dirty condensate or well water"),
     CondensateDemand('Imbibition', flow_lb_hr=st_mary_mills.imbibition_lb_hr, temp_F=150,
         method='blended'),  # target temp - User Input
-    CondensateDemand('Wash Water - Pans', flow_lb_hr=pan_wash_water_lb_hr, temp_F=180,
+    CondensateDemand('Wash Water - Centrifugals', flow_lb_hr=centrifugal_wash_water_lb_hr, temp_F=180,
         method='cooled'),  # target temp - User Input
     CondensateDemand('Dilution Water - Pans/Molasses/Remelt', flow_lb_hr=pan_dilution_water_lb_hr,
         temp_F=150, method='blended'),  # target temp - User Input
+    CondensateDemand('Mud Filter Water', flow_lb_hr=FILTER_WATER_LB_HR, temp_F=200,
+                     method='blended')
 ]
 
 condensate_balance = CondensateBalance(
@@ -605,50 +769,39 @@ print(f"\n\nTime to solve factory balance {solve_time:,.2f} ms")
 # DISPLAY & EXCEL EXPORT
 # ============================================================
 st_mary_mills.neat_display()
-st_mary_mills.display_mill_balances()  # for maceration flows
-st_mary_mills.to_excel(wb)
-
+st_mary_mills.display_mill_balances() # for maceration flows
 st_mary_clar.neat_display()
-st_mary_clar.to_excel(wb)
-
 par_heaters.neat_display()
-par_heaters.to_excel(wb)
-
 clar_juice_heater.neat_display()
-clar_juice_heater.to_excel(wb)
-
-pan_floor.neat_display()  # type: ignore
-pan_floor.to_excel(wb)  # pyright: ignore[reportPossiblyUnboundVariable]
-
-pre_3.to_excel(wb)
-
-sets_to_excel(evap_station, workbook=wb)
-
-da.to_excel(wb)
-
-knf_trbs.to_excel(wb)
+pan_floor.neat_display() 
 knf_trbs.neat_display()
-
-mill_trbs.to_excel(wb)
 mill_trbs.neat_display()
-
-misc_trbs.to_excel(wb)
 misc_trbs.neat_display()
-
 blrs.neat_display()
-blrs.to_excel(wb)
+ctwrs.neat_display()
+condensate_balance.neat_display()
+print(f"\n\nTime to solve factory balance {solve_time:,.2f} ms")
+print(f"\nSaving outputs too excel...")
 
+st_mary_mills.to_excel(wb)
+st_mary_clar.to_excel(wb)
+par_heaters.to_excel(wb)
+clar_juice_heater.to_excel(wb)
+pan_floor.to_excel(wb)  # pyright: ignore[reportPossiblyUnboundVariable]
+pre_3.to_excel(wb)
+sets_to_excel(evap_station, workbook=wb)
+da.to_excel(wb)
+knf_trbs.to_excel(wb)
+mill_trbs.to_excel(wb)
+misc_trbs.to_excel(wb)
+blrs.to_excel(wb)
 steam_summary_to_excel(
     wb, live_steam_dict, exh_dict,
     exhaust_available_lb_hr=exhaust_available,
     makeup_steam_lb_hr=makeup_steam,
     steam_available_lb_hr=blrs.steam_availabe_lb_hr,
 )
-
-ctwrs.neat_display()
 ctwrs.to_excel(wb)
-
-condensate_balance.neat_display()
 condensate_balance.to_excel(wb)
 
 excel_name = os.path.join(OUTPUT_DIR, f'SMSC_Balance_{RUN_TIMESTAMP}.xlsx')

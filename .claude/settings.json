@@ -12,7 +12,12 @@
       "Bash(python ThreeBoilingDoubleMagma.py)",
       "Bash(echo \"TBDM EXIT: $?\")",
       "Bash(python TwoBoiling.py)",
-      "Bash(echo \"TwoBoiling EXIT: $?\")"
+      "Bash(echo \"TwoBoiling EXIT: $?\")",
+      "Bash(sed -i \"s/^boiling_scheme = 'FourBoilingDoubleMagma'/boiling_scheme = 'ThreeBoilingDoubleMagma'/\" SMSC_Balance.py)",
+      "Bash(sed -i \"s/^boiling_scheme = 'ThreeBoilingDoubleMagma'/boiling_scheme = 'TwoBoiling'/\" SMSC_Balance.py)",
+      "Bash(ls \"/c/Users/ceaves/OneDrive - St. Mary Sugar/SMSC Python Balance Output Folder/\" | wc -l)",
+      "Bash(rm -f \"/c/Users/ceaves/OneDrive - St. Mary Sugar/SMSC Python Balance Output Folder/\"SMSC_Balance_*.txt \"/c/Users/ceaves/OneDrive - St. Mary Sugar/SMSC Python Balance Output Folder/\"SMSC_Balance_*.xlsx)",
+      "Bash(ls \"/c/Users/ceaves/OneDrive - St. Mary Sugar/SMSC Python Balance Output Folder/\")"
     ]
   }
 }
