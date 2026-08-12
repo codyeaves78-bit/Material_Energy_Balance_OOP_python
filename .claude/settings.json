@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python SMSC_Balance.py)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('SMSC_Balance.py', encoding='utf-8'\\).read\\(\\)\\); ast.parse\\(open\\('main.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(python -m cProfile -o __TRACKED_VAR__/smsc_profile.stats SMSC_Balance.py)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

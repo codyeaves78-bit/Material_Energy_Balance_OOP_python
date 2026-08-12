@@ -57,6 +57,15 @@ class SugarStream:
         """Sets the current temp to the vapor boiling temp + boiling point elevation, useful in evaporator calculations"""
         self.temp_deg_F = self.vapor_saturation_temp_deg_F + self.boiling_point_elevation_deg_F
 
+    def evaporate(self, new_brix=65, new_temp=140):
+        """A quick function to transform into syrup, convenient for clarified juice --> syrup for Pan Floor calcs"""
+        current_solids = self.solids_flow
+        new_flow = 100 / new_brix * current_solids
+        # update self
+        self.flow_lb_per_hr = new_flow
+        self.brix = new_brix
+        self.temp_deg_F = new_temp
+
     def properties(self) -> dict:
         cls = type(self)
         prop_names = [k for k, v in vars(cls).items() if isinstance(v, property)]

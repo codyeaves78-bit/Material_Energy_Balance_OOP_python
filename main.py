@@ -5,6 +5,10 @@ import sys
 class _Tee:
     def __init__(self, filename):
         self.terminal = sys.stdout
+        try:
+            self.terminal.reconfigure(encoding='utf-8', errors='replace')  # avoid cp1252 crashes on Unicode chars (e.g. box-drawing)
+        except (AttributeError, ValueError):
+            pass
         self.file = open(filename, 'w', encoding='utf-8')
     def write(self, message):
         self.terminal.write(message)
