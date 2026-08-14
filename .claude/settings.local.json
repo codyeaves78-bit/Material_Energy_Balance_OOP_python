@@ -69,7 +69,22 @@
       "Bash(.venv/Scripts/python -m py_compile streamlit_app.py)",
       "Bash(.venv/Scripts/python \"C:\\\\Users\\\\ceaves\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Python-Projects-Material-Energy-Balance-OOP-python\\\\5c48da5e-e987-4c43-93fe-03756c433523\\\\scratchpad\\\\smoke_test_full.py\")",
       "Bash(powershell -Command 'Get-Process python -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -eq '\\\\'''\\\\''} | Select-Object Id')",
-      "Bash(taskkill //IM python.exe //F)"
+      "Bash(taskkill //IM python.exe //F)",
+      "Bash(python3 -m py_compile main.py)",
+      "Bash(python3 -m py_compile main.py Clarification.py)",
+      "Bash(python3 main.py)",
+      "Bash(echo \"exit code: $?\")",
+      "Read(//tmp/**)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(cd \"/home/cody/Desktop/Python Stuff/Material_Energy_Balance_OOP_python\" && grep -n \"BOILING\\\\|A PANS\\\\|A1 PANS\\\\|B PANS\\\\|C PANS\" /tmp/run_out2.log | head -20)",
+      "Bash(tail -30 /tmp/run_tbdm.log)",
+      "Bash(sed \"s/BOILING_SCHEME = 'FourBoilingDoubleMagma'/BOILING_SCHEME = 'ThreeBoilingDoubleMagma'/\" main.py)",
+      "Bash(python3 _tbdm_test.py)",
+      "Bash(rm -f _tbdm_test.py)",
+      "Bash(awk 'NR>=299 && NR<=393 {print NR\": \"length\\($0\\)}' main.py)",
+      "Bash(awk -F': ' '$2>90')",
+      "Bash(awk '{ if \\(length\\($0\\) > 90\\) print NR\": \"length\\($0\\) }' main.py)",
+      "Bash(awk 'NR>=299 && NR<=545 { if \\(length\\($0\\) > 90\\) print NR\": \"length\\($0\\) }' main.py)"
     ]
   }
 }

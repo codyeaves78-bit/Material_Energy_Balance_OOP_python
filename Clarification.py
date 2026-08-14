@@ -164,6 +164,7 @@ class Clarification:
         # ── Scalar outputs ────────────────────────────────────────────────────
         self.flash_vapor_pct            = flash_vapor_lb_hr / lj_lb_hr * 100
         self.filter_cake_pol_lb_per_day = fc_pol_lb_hr * 24
+        self.filter_wash_water_lb_hr    = wash_water_lb_hr
 
         # ── Clarified juice output stream ─────────────────────────────────────
         self.clarified_juice_stream = SugarStream(
