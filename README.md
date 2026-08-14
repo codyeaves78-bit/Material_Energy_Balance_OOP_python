@@ -22,7 +22,7 @@ factory.
 Two kind of "stuff that flows" in this factory:
 
 - **SugarStream** (`SugarStream.py`) — juice, syrup, molasses, sugar. Has
-  brix (how sweet), purity (how clean sweet is), flow (lb/hr), temperature,
+  brix (how much dissolved solids), purity (how sweet brix is), flow (lb/hr), temperature,
   pressure.
 - **SteamStream** (`SteamStream.py`) — steam or water. Uses real steam-table
   physics (IAPWS-97) so numbers are accurate, not guessed. There is also a
