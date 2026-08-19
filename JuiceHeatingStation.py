@@ -69,6 +69,27 @@ class JuiceHeatingStation:
             return SteamStream(P=s.P, x=s.x)
         return SteamStream(P=s.P, T=s.T)
 
+    @staticmethod
+    def _repressure_steam(old, P):
+        """Fresh SteamStream at a new pressure, keeping the same quality (if
+        saturated) or temperature (if superheated) as the original."""
+        from SteamStream import SteamStream
+        if old.x is not None and 0 <= old.x <= 1:
+            return SteamStream(P=P, x=old.x)
+        return SteamStream(P=P, T=old.T)
+
+    def set_steam_pressure(self, steam_type: int, P: float):
+        """Update the steam pressure for every heater on a given steam_type
+        (0=Exhaust, 1=V1, 2=V2, 3=V3, 4=V4) and resolve the station."""
+        matched = False
+        for cfg in self._heater_cfgs:
+            if cfg.steam_type == steam_type:
+                cfg.hot_stream = self._repressure_steam(cfg.hot_stream, P)
+                matched = True
+        if not matched:
+            raise ValueError(f"no heaters found with steam_type={steam_type}")
+        self._solve()
+
     def _rebuild(self, cfg: JuiceHeaterShellTube, cold: SugarStream) -> JuiceHeaterShellTube:
         return JuiceHeaterShellTube(
             cold_stream=cold,
@@ -299,7 +320,10 @@ if __name__ == "__main__":
                               mode='parallel', split_pcts=[50, 50],
                               name='Juice Heaters - Parallel')
     par.neat_display()
-
+    # update V1 pressure
+    par.set_steam_pressure(steam_type=1, P=25)
+    par.neat_display()
+    
     ser = JuiceHeatingStation(cold_stream=juice, heaters=[primary, secondary],
                               mode='series', name='Juice Heaters - Series')
     ser.neat_display()

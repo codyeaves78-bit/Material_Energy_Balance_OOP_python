@@ -6,35 +6,15 @@ from datetime import datetime
 
 RUN_TIMESTAMP = datetime.now().strftime('%Y%m%d%H%M%S')
 OUTPUT_DIR = r'C:\Users\ceaves\OneDrive - St. Mary Sugar\SMSC Python Balance Output Folder'
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-class _Tee:
-    def __init__(self, filename):
-        self.terminal = sys.stdout
-        try:
-            self.terminal.reconfigure(encoding='utf-8', errors='replace')  # avoid cp1252 crashes on Unicode chars (e.g. box-drawing)
-        except (AttributeError, ValueError):
-            pass
-        self.file = open(filename, 'w', encoding='utf-8')
-    def write(self, message):
-        self.terminal.write(message)
-        self.file.write(message)
-    def flush(self):
-        self.terminal.flush()
-        self.file.flush()
-
-sys.stdout = _Tee(os.path.join(OUTPUT_DIR, f'SMSC_Balance_{RUN_TIMESTAMP}.txt'))  # The output file name
 
 # import all neccesary items
 
-from excel_export import new_workbook, SheetWriter
+from excel_export import new_workbook
 from MillFloor import MillFloor
 from Clarification import Clarification
 from SugarStream import SugarStream
 from SteamStream import SteamStream, EvaporatorSteam
-from Massecuite import Massecuite
 from JuiceHeater import JuiceHeaterShellTube
-from Evaporator import Evaporator
 from EvaporatorSet import EvaporatorSet, sets_to_excel
 from multi_effect_solver_vers_2 import solve_evaporator_sets
 from Condenser import Condenser
@@ -81,7 +61,7 @@ fabrication_exhaust_psig = 14
 live_steam_generated_psig = 185
 live_steam_gen_deg_superheat = 0
 live_steam_generated_quality = 1 # this is ignored if superheat > 0
-GRINDING_RATE_TPD = 18000
+GRINDING_RATE_TPD = 16000
 SYRUP_BRIX = 65
 LIMED_JUICE_COLD_DEG_F = 95
 LIMED_JUICE_HOT_DEG_F = 220
@@ -91,6 +71,11 @@ V1_BLEED_DISTRIBUTION = [80, 13, 7] # must add to 100, [PRE3, SET1 EFF1, SET2 EF
 LIVE_STEAM_FOR_JETS_LB_HR = 25000
 LIVE_STEAM_LOSSES_PCT = 2
 EXHAUST_LOSSES_PCT = 5
+COMBINED_CONDENSATE_TEMP = 210 # deg F
+
+# Evaporator Online Status
+PRE_3_ONLINE = True
+SET_1_ONLINE = True
 
 # Sugar Boiling / Pan Floor
 """ List of Sugar Boiling Schemes
@@ -98,7 +83,8 @@ EXHAUST_LOSSES_PCT = 5
 'ThreeBoilingDoubleMagma' = Three Boiling Double Magma
 'ThreeBoiling' = Three Boiling NOTE: this is not programmed yet...
 'TwoBoiling' = Two Boiling """
-boiling_scheme = 'FourBoilingDoubleMagma'  # reference the above list
+
+boiling_scheme = 'ThreeBoilingDoubleMagma'  # reference the above list
 pan_v1_steam_psig = 7        # Exhaust-fired pans use FABRICATION_EXHAUST_PSIA instead — same header
 A_PANS_MASSE_BRIX = 92       # TBDM 'A Pans' and FBDM 'A1/A2 Pans'
 B_PANS_MASSE_BRIX = 94
@@ -111,12 +97,9 @@ C_REMELT_BRIX = 65
 INJECTION_WATER_TEMP_F = 90       # used by pan floor and evaporator sets
 CONDENSER_LEG_TEMP_DROP_F = 5     # used by pan floor and evaporator sets
 
-
-
-
 # Global Variables converted for use in code
 LIVE_STEAM_GENERATED_PSIA = live_steam_generated_psig + 14.696
-LIVE_STEAM_GENERATED_SH = live_steam_gen_deg_superheat
+LIVE_STEAM_GENERATED_DEG_SH = live_steam_gen_deg_superheat
 KNIFE_LIVE_STEAM_PSIA = knife_live_steam_psig + 14.696
 KNIFE_TURBINE_EXHAUST_PSIA = knife_exhaust_psig + 14.696
 MILL_LIVE_STEAM_PSIA = mill_live_steam_psig + 14.696
@@ -128,10 +111,10 @@ PAN_V1_STEAM_PSIA = pan_v1_steam_psig + 14.696
 
 # Create global live steam object to use h for other steams, pressure drops in piping, enthalpy doesn't
 live_steam_sat = SteamStream(P=LIVE_STEAM_GENERATED_PSIA, x=1)
-if LIVE_STEAM_GENERATED_SH == 0 and 0 <= live_steam_generated_quality <= 1:
+if LIVE_STEAM_GENERATED_DEG_SH == 0 and 0 <= live_steam_generated_quality <= 1:
     LIVE_STEAM_GEN = SteamStream(P=LIVE_STEAM_GENERATED_PSIA, x=live_steam_generated_quality)
-elif LIVE_STEAM_GENERATED_SH > 0:
-    LS_DEG_F = live_steam_sat.T + LIVE_STEAM_GENERATED_SH
+elif LIVE_STEAM_GENERATED_DEG_SH > 0:
+    LS_DEG_F = live_steam_sat.T + LIVE_STEAM_GENERATED_DEG_SH
     LIVE_STEAM_GEN = SteamStream(P=LIVE_STEAM_GENERATED_PSIA, T=LS_DEG_F)
 else:
     LIVE_STEAM_GEN = SteamStream(P=LIVE_STEAM_GENERATED_PSIA, x=1)
@@ -146,16 +129,16 @@ else:
 # First solve the mill floor material balance
 st_mary_mills = MillFloor(
     cane_tpd=GRINDING_RATE_TPD,
-    cane_pol_pct=13.5,
-    cane_fiber_pct=14,
-    imbibition_pct_on_cane=30,
-    bagasse_pol_pct=2.1,
-    last_roll_purity=72,
-    bagasse_moisture_pct=49.5,
+    cane_pol_pct=13.8,
+    cane_fiber_pct=13.06,
+    imbibition_pct_on_cane=23.2,
+    bagasse_pol_pct=2.62,
+    last_roll_purity=77.36,
+    bagasse_moisture_pct=49.73,
     bagasse_ash_pct=5,
-    mix_juice_purity=88,
-    number_of_mills=6,
-    juice_temp_F=90,
+    mix_juice_purity=86.41,
+    number_of_mills=5,
+    juice_temp_F=95,
     mill_1_fiber_rise_load_fraction=0.35,
     name="Mill Floor",
 )
@@ -170,8 +153,8 @@ st_mary_clar = Clarification(
     cane_tpd=GRINDING_RATE_TPD,
     filter_wash_water_pct_on_cane=5,
     filter_cake_pct_on_cane=5.0,
-    filter_cake_pol_pct=2.4,
-    clarified_juice_purity=88.5,
+    filter_cake_pol_pct=4.38,
+    clarified_juice_purity=86.5,
     limed_juice_cold_temp_f=LIMED_JUICE_COLD_DEG_F,
     limed_juice_hot_temp_f=LIMED_JUICE_HOT_DEG_F,
     clarified_juice_temp_f=CLEAR_JUICE_COLD_DEG_F,
@@ -192,7 +175,7 @@ cold_juice = st_mary_clar.limed_juice_cold_stream
 # build template heaters
 v1_heaters = JuiceHeaterShellTube(
     cold_stream=cold_juice,
-    hot_stream=SteamStream(x=1, P=FABRICATION_EXHAUST_PSIA),
+    hot_stream=SteamStream(x=1, P=PAN_V1_STEAM_PSIA),
     name='V1 Heaters',
     juice_out_temp_degF=LIMED_JUICE_HOT_DEG_F,
     U_btu_per_ft2_degF=200,
@@ -214,7 +197,7 @@ par_heaters = JuiceHeatingStation(
     cold_stream=cold_juice,
     heaters=[v1_heaters, exh_heaters],
     mode='parallel',
-    split_pcts=[75, 25],  # 75% of the juice goes to the v1_heaters
+    split_pcts=[100, 0],  # 100% of the juice goes to the v1_heaters
     name='Parallel Juice Heating Station',
 )
 
@@ -239,7 +222,7 @@ hot_clarified_juice.temp_deg_F = CLEAR_JUICE_HOT_DEG_F
 # Now make syrup for the pan floor
 
 syrup = SugarStream.copy(st_mary_clar.clarified_juice_stream)
-syrup.evaporate(new_brix=SYRUP_BRIX, new_temp=140)
+syrup.evaporate(new_brix=SYRUP_BRIX, new_temp=144) # typically 144
 
 # Now solve pan floor
 # User decides which scheme to use (boiling_scheme set in Global Variables section above)
@@ -251,14 +234,14 @@ if boiling_scheme == 'ThreeBoilingDoubleMagma':
         A_pans=Pan(
             feed_streams=None, heating_surface_ft2=22500,
             inches_vacuum=23.5, supersaturation=1.2, head_ft=2,
-            masse_brix=A_PANS_MASSE_BRIX, ml_purity=73,
+            masse_brix=A_PANS_MASSE_BRIX, ml_purity=72.3,
             calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
             heat_loss_factor=0.02, name='A Pans'
             ),
         B_pans=Pan(
             feed_streams=None, heating_surface_ft2=7500,
             inches_vacuum=25, supersaturation=1.2, head_ft=2,
-            masse_brix=B_PANS_MASSE_BRIX, ml_purity=53,
+            masse_brix=B_PANS_MASSE_BRIX, ml_purity=53.57,
             calandria_pressure_psia=FABRICATION_EXHAUST_PSIA, steam_type=0,  # Exhaust
             heat_loss_factor=0.05, name='B Pans'
             ),
@@ -272,7 +255,7 @@ if boiling_scheme == 'ThreeBoilingDoubleMagma':
         C_pans=Pan(
             feed_streams=None, heating_surface_ft2=12000,
             inches_vacuum=26.5, supersaturation=1.2, head_ft=2,
-            masse_brix=C_PANS_MASSE_BRIX, ml_purity=33,
+            masse_brix=C_PANS_MASSE_BRIX, ml_purity=40,
             calandria_pressure_psia=PAN_V1_STEAM_PSIA, steam_type=1,  # V1
             heat_loss_factor=0.05, name='C Pans'
             ),
@@ -284,19 +267,19 @@ if boiling_scheme == 'ThreeBoilingDoubleMagma':
             ),
         B_centrifugals=Centrifugal(
             massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=92,
+            purity_rise=0, sugar_moisture=5, sugar_purity=88.67,
             sugar_temp=150, molasses_temp=145,
             name="B Centrifugals"
             ),
         C_centrifugals=Centrifugal(
             massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82,
-            purity_rise=0, sugar_moisture=5, sugar_purity=82,
+            purity_rise=0, sugar_moisture=5, sugar_purity=78.48,
             sugar_temp=150, molasses_temp=145,
             name="C Centrifugals"
             ),
         C_crystallizers=Crystallizer(
             massecuite_in=None, massecuite_flow_lb_hr=0, masse_temp_out_deg_F=120,
-            ml_purity_out=30, water_temp_in_deg_F=85, water_temp_out_deg_F=105,
+            ml_purity_out=34.91, water_temp_in_deg_F=85, water_temp_out_deg_F=105,
             name="C Crystallizers"
             ),
         C_reheaters=Reheater(
@@ -304,8 +287,8 @@ if boiling_scheme == 'ThreeBoilingDoubleMagma':
             water_temp_in_deg_F=150, water_temp_out_deg_F=135,
             name="C Reheaters"
             ),
-        b_magma_remelt_pct=20,
-        c_magma_remelt_pct=20,
+        b_magma_remelt_pct=50,
+        c_magma_remelt_pct=50,
         a_mol_to_grain_pct=3,
         b_mol_to_grain_pct=10,
         syrup_to_grain_pct=1,
@@ -545,7 +528,7 @@ for _v1_iter in range(V1_PRESSURE_FEEDBACK_ITERATIONS):
                 "supply_steam_psia": 20,
                 "last_effect_psia": 2.4,
                 "vapor_bleeds": [0],
-            },
+            }, # need logic to turn sets on and off...
         ],
         verbose=False,  # Set True if you want iteration details, False if you just want final results
     )  # Note that this whole function shows all evaporator information
@@ -560,14 +543,21 @@ for _v1_iter in range(V1_PRESSURE_FEEDBACK_ITERATIONS):
         if pan.steam_type == 1:
             pan.calandria_pressure_psia = v1_pressure_actual
 
+    # Update Juice Heater V1 pressure
+    par_heaters.set_steam_pressure(steam_type=1, P=v1_pressure_actual)
+
 print(f"V1 pressure feedback: guess {PAN_V1_STEAM_PSIA:.2f} psia -> converged {v1_pressure_actual:.2f} psia "
       f"after {V1_PRESSURE_FEEDBACK_ITERATIONS} passes")
 
 # ============================================================
 # ENERGY BALANCE - EXHAUST STEAM SUMMARY
 # ============================================================
+
+# ============================================================
 # Deaerator, assume a standard steam production value
-da = Deaerator(deaerator_psig=10, water_in_deg_F=200, water_in_lb_hr=800_000, vent_pct=4)
+# ============================================================
+
+da = Deaerator(deaerator_psig=10, water_in_deg_F=COMBINED_CONDENSATE_TEMP, water_in_lb_hr=800_000, vent_pct=4)
 
 exhaust_for_Pre = pre_3.supply_steam.flow_lb_per_hr
 exhaust_for_evaporators = sum([evap.supply_steam.flow_lb_per_hr for evap in evap_station])
@@ -590,7 +580,6 @@ exh_dict = {
     'Exhaust Losses': subtotal_exh * exh_losses_pct / 100,
     'Total Exhaust Required': total_exhaust_required,
 }
-
 
 print(f"\n")
 for key, item in exh_dict.items():
@@ -633,7 +622,7 @@ misc_trbs = AuxillaryTurbines(
     name_list            =['ID 123', 'ID 4', 'ID 5', 'ID 6', 'ID 7', 'FD 7', 'ID 8', 'FD 8', 'BFW 1', 'BFW 2', 'BFW 3', 'JCE 1'],
     hp_list              =[750,      235,    400,    795,    1200,   233,    1300,   350,    400,     400,     400,     400],
     isentropic_efficiency=[50,       50,     50,     50,     50,     50,     50,     50,     50,      50,      50,      50],
-    live_steam_object=SteamStream(P=AUX_TURB_LIVE_PSIA, h=LIVE_STEAM_GEN.h),  # 165 psig
+    live_steam_object=SteamStream(P=AUX_TURB_LIVE_PSIA, h=LIVE_STEAM_GEN.h),
     exhaust_psia=AUX_TURB_EXHAUST_PSIA,
 )
 live_steam_subtotal += misc_trbs.total_inlet_flow_lb_hr
@@ -673,8 +662,8 @@ print(f"Makeup Required:                   {makeup_steam:,.0f} lb/hr")
 blrs = Boiler(
     bagasse=st_mary_mills.bagasse_stream,
     efficiency=60,
-    pressure_psig=live_steam_generated_psig,
-    deg_superheat=LIVE_STEAM_GENERATED_SH,
+    pressure_psig=live_steam_generated_psig, # NOTE PSIG!!!
+    deg_superheat=LIVE_STEAM_GENERATED_DEG_SH,
     feed_water_temp=da.water_out.T,
     capacity=900_000,
     name="All Boilers",
@@ -689,8 +678,8 @@ for evap in evap_station:
 
 ctwrs = CoolingTowerSystem(
     condensers=condenser_list,
-    cool_water_temp_F=85,
-    percent_blowdown=10,
+    cool_water_temp_F=90,
+    percent_blowdown=20,
     makeup_water_temp_F=70,
     iterations=20,
     name='Cooling Tower System',
@@ -741,20 +730,20 @@ condensate_demands = [
     CondensateDemand('Boiler Feed Water', flow_lb_hr=da.water_in_lb_hr, temp_F=da.water_in_deg_F,
         method='blended',
         note="Recommend usage of clean condensate, make up with minimal dirty condensate or well water"),
-    CondensateDemand('Imbibition', flow_lb_hr=st_mary_mills.imbibition_lb_hr, temp_F=150,
+    CondensateDemand('Imbibition', flow_lb_hr=st_mary_mills.imbibition_lb_hr, temp_F=135,
         method='blended'),  # target temp - User Input
     CondensateDemand('Wash Water - Centrifugals', flow_lb_hr=centrifugal_wash_water_lb_hr, temp_F=180,
         method='cooled'),  # target temp - User Input
     CondensateDemand('Dilution Water - Pans/Molasses/Remelt', flow_lb_hr=pan_dilution_water_lb_hr,
-        temp_F=150, method='blended'),  # target temp - User Input
-    CondensateDemand('Mud Filter Water', flow_lb_hr=FILTER_WATER_LB_HR, temp_F=200,
+        temp_F=180, method='blended'),  # target temp - User Input
+    CondensateDemand('Mud Filter Water', flow_lb_hr=FILTER_WATER_LB_HR, temp_F=COMBINED_CONDENSATE_TEMP,
                      method='blended')
 ]
 
 condensate_balance = CondensateBalance(
     clean_condensate_dict, dirty_condensate_dict, condensate_demands,
     well_water_temp_F=ctwrs.makeup_water_temp_F,
-    combined_condensate_temp_F=210,  # User Input - override with a measured value if known
+    combined_condensate_temp_F=COMBINED_CONDENSATE_TEMP,  # User Input - override with a measured value if known
     name='Condensate Balance',
 )
 
