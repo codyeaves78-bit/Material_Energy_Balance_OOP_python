@@ -250,8 +250,10 @@ def plot_set_diagram(
         lbl(x_lft, Y_BOT - 0.17,
             f'{orig_juice.brix:.2f}° Brix | {orig_juice.temp_deg_F:.1f} °F',
             ha='left', fs=7.5, color=JC)
-        # Pre-evap juice out → effect 1
-        pre_out  = pre_evap.juice_out
+        # Pre-evap juice out → effect 1 — this set's own allocated share of the
+        # pre-evaporator's total output, not pre_evap.juice_out (that's the
+        # combined total across every set fed from this shared Pre-Evaporator).
+        pre_out  = evap_set.juice_in
         mid_pre  = (pre_cx + centers[0]) / 2
         arr(pre_cx + BOX_W / 2, Y_BOT, centers[0] - BOX_W / 2, Y_BOT, color=JC, lw=1.8)
         lbl(mid_pre, Y_BOT - 0.25, f'{pre_out.flow_lb_per_hr:,.0f} lb/hr', fs=8,   color=JC)

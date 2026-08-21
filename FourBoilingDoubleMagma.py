@@ -490,6 +490,20 @@ class FourBoilingDoubleMagma:
         return sum(pan.steam_flow_lb_hr for pan in self._pans if pan.steam_type == steam_type)
 
     @property
+    def total_raw_sugar(self) -> SugarStream:
+        """Object of combined Sugars leaving process — A1 sugar + A2 sugar."""
+        a1 = self.A1_centrifugals.sugar_stream
+        a2 = self.A2_centrifugals.sugar_stream
+        total_flow = a1.flow_lb_per_hr + a2.flow_lb_per_hr
+        total_solids = a1.solids_flow + a2.solids_flow
+        total_pol = a1.pol_flow + a2.pol_flow
+        combined = SugarStream.copy(a1)
+        combined.flow_lb_per_hr = total_flow
+        combined.brix = total_solids / total_flow * 100
+        combined.purity = total_pol / total_solids * 100
+        return combined
+
+    @property
     def total_exhaust_steam_lb_hr(self) -> float:
         """Total live/exhaust steam consumed by pans on steam_type 0 (lb/hr)."""
         return self._steam_demand_lb_hr(0)
