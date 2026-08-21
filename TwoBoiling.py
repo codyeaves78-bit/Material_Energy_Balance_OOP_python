@@ -262,6 +262,11 @@ class TwoBoiling:
         return sum(pan.steam_flow_lb_hr for pan in self._pans if pan.steam_type == steam_type)
 
     @property
+    def total_raw_sugar(self) -> SugarStream:
+        """Object of combined Sugars leaving process, in this case, just A sugar"""
+        return SugarStream.copy(self.A_centrifugals.sugar_stream)
+
+    @property
     def total_exhaust_steam_lb_hr(self) -> float:
         """Total live/exhaust steam consumed by pans on steam_type 0 (lb/hr)."""
         return self._steam_demand_lb_hr(0)
