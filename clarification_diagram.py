@@ -33,9 +33,9 @@ def _collect_streams(cl):
         rows.append((i, name, s["direction"], s["lb_per_hr"], s["gpm"],
                      s["brix_lb_per_hr"], s["pol_lb_per_hr"],
                      s["brix_pct"], s["pol_pct"],
-                     s["purity_pct"] if s["brix_pct"] > 0 else "",
+                     s["purity_pct"] if s["brix_pct"] > 0 else None,
                      s["pct_on_cane"],
-                     s["temp_f"] if s["temp_f"] is not None else ""))
+                     s["temp_f"] if s["temp_f"] is not None else None))
     return rows
 
 
