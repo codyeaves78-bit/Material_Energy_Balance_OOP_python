@@ -63,6 +63,53 @@ st.title("Cane Sugar Factory Material & Energy Balance")
 st.caption("Trial Streamlit walkthrough: Mill Floor → Clarification → Juice Heating → "
            "Pan Floor → Evaporation → Steam & Exhaust Summary.")
 
+# ============================================================================
+# SOLVE CACHE
+#
+# Every input widget on every tab always renders and always reflects its
+# current value (Streamlit reruns the whole script top-to-bottom on any
+# interaction — that part is unavoidable). What used to be unconditional here
+# is the EXPENSIVE part: constructing MillFloor/Clarification/JuiceHeating
+# Station/the boiling-scheme solver/the evaporator-set solver/turbines/
+# Boiler/CoolingTowerSystem/CondensateBalance, all of which re-ran on every
+# single keystroke anywhere in the app. That's what made editing one cell
+# take 10+ seconds once the plant was solved once.
+#
+# SOLVED is the one place all of that lives. Nothing in the block below is
+# recomputed unless solve_clicked is True (the global "Solve Entire Plant"
+# button below); every tab's display section reads its stage's result back
+# out of SOLVED, so edits in between clicks just re-render cached results —
+# fast — and the pipeline only actually re-solves when you ask it to.
+# ============================================================================
+if "solved" not in st.session_state:
+    st.session_state.solved = {}
+SOLVED = st.session_state.solved
+
+if "solve_gen" not in st.session_state:
+    st.session_state.solve_gen = 0
+
+
+def should_resolve(stage_key):
+    """True exactly once per click of "Solve Entire Plant", per pipeline stage.
+
+    Every tab below is its own st.fragment so that editing one tab's widgets only
+    reruns that tab, not the whole app — but a fragment rerun does NOT re-execute
+    the rest of the script, so a plain `solve_clicked = st.button(...)` variable
+    read from inside a fragment would go stale: it would keep reading True on every
+    later fragment-only rerun after the button was clicked once, silently re-solving
+    that one tab on every subsequent edit. st.session_state isn't subject to that —
+    it's read fresh on every call, fragment or not — so instead each stage compares
+    a shared click-generation counter (bumped once per real button click) against
+    the generation it last solved for. Call mark_resolved(stage_key) once the
+    attempt (success or failure) is done, so the same generation isn't re-attempted
+    on the next unrelated edit.
+    """
+    return SOLVED.get(f"_gen_{stage_key}") != st.session_state.solve_gen
+
+
+def mark_resolved(stage_key):
+    SOLVED[f"_gen_{stage_key}"] = st.session_state.solve_gen
+
 STEAM_TYPES = ["Exhaust", "V1", "V2", "V3", "V4"]
 WATER_LB_PER_GAL = 8.33045
 
@@ -70,6 +117,16 @@ WATER_LB_PER_GAL = 8.33045
 # code change, not a run-to-run input.
 EVAP_N_ITERATIONS = 10
 EVAP_DAMPENING = 0.2
+
+def resolve_cj():
+    """Clarified juice as it exists right now: post juice-heating if that stage has
+    ever solved successfully, otherwise straight from Clarification. Tabs after Juice
+    Heating call this themselves rather than reading a plain `cj` variable that only
+    Juice Heating's own fragment reassigns — each tab fragment is its own function
+    now, so that reassignment wouldn't otherwise be visible outside it."""
+    cj_after_heat = SOLVED.get("cj_after_heat")
+    return cj_after_heat if cj_after_heat is not None else clar.clarified_juice_stream
+
 
 def parse_floats(s):
     if s is None:
@@ -94,7 +151,7 @@ def vapor_dist_editor(grade, demand, consumers, key, default_pcts=None):
         return (lambda cname: 0.0), pd.DataFrame(columns=["Consumer", col])
     if not consumers:
         st.warning(f"V{grade} demand of {demand:,.0f} lb/hr exists but nothing can supply it — "
-                    + (f"activate the Pre-Evaporator or " if grade == 1 else "")
+                    + ("activate the Pre-Evaporator or " if grade == 1 else "")
                     + f"add/edit an evaporator set with at least {grade} effect(s).")
         return (lambda cname: 0.0), pd.DataFrame(columns=["Consumer", col])
 
@@ -183,49 +240,71 @@ def turbine_group_table(group):
 # ============================================================================
 with st.sidebar:
     st.header("Mill Floor Inputs")
-    with st.form("balance_form"):
-        st.subheader("Cane & Mills")
-        cane_tpd = st.number_input("Cane throughput (TPD)", value=19000.0, step=100.0)
-        cane_pol_pct = st.number_input("Cane pol (%)", value=13.5, step=0.1)
-        cane_fiber_pct = st.number_input("Cane fiber (%)", value=14.0, step=0.1)
-        number_of_mills = st.number_input("Number of mills", value=6, min_value=2, max_value=8, step=1)
-        mill_1_fiber_rise_load_fraction = st.number_input(
-            "Mill 1 fiber rise load fraction", value=0.35, step=0.01, format="%.2f"
-        )
+    st.subheader("Cane & Mills")
+    cane_tpd = st.number_input("Cane throughput (TPD)", value=19000.0, step=100.0)
+    cane_pol_pct = st.number_input("Cane pol (%)", value=13.5, step=0.1)
+    cane_fiber_pct = st.number_input("Cane fiber (%)", value=14.0, step=0.1)
+    number_of_mills = st.number_input("Number of mills", value=6, min_value=2, max_value=8, step=1)
+    mill_1_fiber_rise_load_fraction = st.number_input(
+        "Mill 1 fiber rise load fraction", value=0.35, step=0.01, format="%.2f"
+    )
 
-        st.subheader("Imbibition & Juice")
-        imbibition_pct_on_cane = st.number_input("Imbibition (% on cane)", value=30.0, step=0.5)
-        juice_temp_F = st.number_input("Juice temperature (°F)", value=90.0, step=1.0)
-        mix_juice_purity = st.number_input("Mixed juice purity (%)", value=88.0, step=0.1)
+    st.subheader("Imbibition & Juice")
+    imbibition_pct_on_cane = st.number_input("Imbibition (% on cane)", value=30.0, step=0.5)
+    juice_temp_F = st.number_input("Juice temperature (°F)", value=90.0, step=1.0)
+    mix_juice_purity = st.number_input("Mixed juice purity (%)", value=88.0, step=0.1)
 
-        st.subheader("Bagasse")
-        bagasse_pol_pct = st.number_input("Bagasse pol (%)", value=2.1, step=0.1)
-        last_roll_purity = st.number_input("Last roll juice purity (%)", value=72.0, step=0.5)
-        bagasse_moisture_pct = st.number_input("Bagasse moisture (%)", value=49.5, step=0.5)
-        bagasse_ash_pct = st.number_input("Bagasse ash (%)", value=5.0, step=0.5)
+    st.subheader("Bagasse")
+    bagasse_pol_pct = st.number_input("Bagasse pol (%)", value=2.1, step=0.1)
+    last_roll_purity = st.number_input("Last roll juice purity (%)", value=72.0, step=0.5)
+    bagasse_moisture_pct = st.number_input("Bagasse moisture (%)", value=49.5, step=0.5)
+    bagasse_ash_pct = st.number_input("Bagasse ash (%)", value=5.0, step=0.5)
 
-        st.header("Clarification Inputs")
-        filter_wash_water_pct_on_cane = st.number_input("Filter wash water (% on cane)", value=5.0, step=0.5)
-        filter_cake_pct_on_cane = st.number_input("Filter cake (% on cane)", value=5.0, step=0.5)
-        filter_cake_pol_pct = st.number_input("Filter cake pol (%)", value=2.4, step=0.1)
-        clarified_juice_purity = st.number_input("Clarified juice purity (%)", value=88.5, step=0.1)
-        limed_juice_cold_temp_f = st.number_input("Limed juice cold temp (°F)", value=95.0, step=1.0)
-        limed_juice_hot_temp_f = st.number_input("Limed juice hot temp (°F)", value=220.0, step=1.0)
-        clarified_juice_temp_f = st.number_input("Clarified juice temp (°F)", value=205.0, step=1.0)
-        lime_lb_per_ton_cane = st.number_input("Lime dose (lb/ton cane)", value=1.3, step=0.1)
-        lime_baume = st.number_input("Milk of lime (°Baumé)", value=10.0, step=0.5)
-        polymer_conc_ppm = st.number_input("Polymer concentration (ppm)", value=5000.0, step=100.0)
-        polymer_lb_per_ton_cane = st.number_input(
-            "Polymer dose (lb/ton cane)", value=0.045, step=0.005, format="%.3f"
-        )
-        clarifier_underflow_pct_cane = st.number_input("Clarifier underflow (% on cane)", value=20.0, step=0.5)
+    st.header("Clarification Inputs")
+    filter_wash_water_pct_on_cane = st.number_input("Filter wash water (% on cane)", value=5.0, step=0.5)
+    filter_cake_pct_on_cane = st.number_input("Filter cake (% on cane)", value=5.0, step=0.5)
+    filter_cake_pol_pct = st.number_input("Filter cake pol (%)", value=2.4, step=0.1)
+    clarified_juice_purity = st.number_input("Clarified juice purity (%)", value=88.5, step=0.1)
+    limed_juice_cold_temp_f = st.number_input("Limed juice cold temp (°F)", value=95.0, step=1.0)
+    limed_juice_hot_temp_f = st.number_input("Limed juice hot temp (°F)", value=220.0, step=1.0)
+    clarified_juice_temp_f = st.number_input("Clarified juice temp (°F)", value=205.0, step=1.0)
+    lime_lb_per_ton_cane = st.number_input("Lime dose (lb/ton cane)", value=1.3, step=0.1)
+    lime_baume = st.number_input("Milk of lime (°Baumé)", value=10.0, step=0.5)
+    polymer_conc_ppm = st.number_input("Polymer concentration (ppm)", value=5000.0, step=100.0)
+    polymer_lb_per_ton_cane = st.number_input(
+        "Polymer dose (lb/ton cane)", value=0.045, step=0.005, format="%.3f"
+    )
+    clarifier_underflow_pct_cane = st.number_input("Clarifier underflow (% on cane)", value=20.0, step=0.5)
 
-        submitted = st.form_submit_button("Run Balance", use_container_width=True)
+st.divider()
+psia_col, psig_col = st.columns([1, 3])
+with psia_col:
+    fabrication_exhaust_psia = st.number_input(
+        "Fabrication exhaust pressure (psia)", value=30.0, step=1.0,
+        help="Default steam supply pressure for the juice heaters and the pre-evaporator.",
+    )
+with psig_col:
+    st.caption("psig equivalent")
+    st.markdown(
+        f"<div style='font-size:1.1rem; padding-top:0.25rem;'>{fabrication_exhaust_psia - 14.696:.2f}</div>",
+        unsafe_allow_html=True,
+    )
 
-if "result" not in st.session_state:
-    st.session_state.result = None
+solve_clicked = st.button("🔄 Solve Entire Plant", type="primary", use_container_width=True)
+if solve_clicked:
+    st.session_state.solve_gen += 1
+st.caption(
+    "Every input on every tab is always live and editable, but nothing recomputes until you "
+    "click **Solve Entire Plant** — edit whatever you need across as many tabs as you like, "
+    "then solve once."
+)
 
-if submitted:
+# ============================================================================
+# MILL FLOOR + CLARIFICATION — first stage of the pipeline. Only (re)solved
+# when the global button above is clicked; otherwise we just read back
+# whatever was cached from the last successful solve.
+# ============================================================================
+if solve_clicked:
     try:
         mills = MillFloor(
             cane_tpd=cane_tpd,
@@ -261,36 +340,34 @@ if submitted:
             name="Clarification",
         )
 
-        st.session_state.result = (mills, clar)
+        mills_fig = mills.generate_pfd(show=False)
+        clar_fig = clar.generate_pfd(show=False, include_table=False)
+        plt.close(mills_fig)
+        plt.close(clar_fig)
+
+        SOLVED["mills"] = mills
+        SOLVED["clar"] = clar
+        SOLVED["mills_pfd"] = mills_fig
+        SOLVED["clar_pfd"] = clar_fig
+        SOLVED["mill_clar_error"] = None
     except Exception as exc:
-        st.session_state.result = None
-        st.error(f"Balance failed to solve: {exc}")
+        SOLVED["mills"] = None
+        SOLVED["clar"] = None
+        SOLVED["mill_clar_error"] = str(exc)
 
-result = st.session_state.result
+mills = SOLVED.get("mills")
+clar = SOLVED.get("clar")
 
-if result is None:
-    st.info("Set your inputs in the sidebar and click **Run Balance** to solve the mill floor and "
-            "clarification balance, which unlocks the rest of the plant.")
+if mills is None or clar is None:
+    if SOLVED.get("mill_clar_error"):
+        st.error(f"Balance failed to solve: {SOLVED['mill_clar_error']}")
+    st.info("Set your inputs in the sidebar and click **Solve Entire Plant** above to solve the "
+            "mill floor and clarification balance, which unlocks the rest of the plant.")
     st.stop()
 
-mills, clar = result
 mj = mills.mixed_juice_stream
 bag = mills.bagasse_stream
 cj = clar.clarified_juice_stream
-
-st.divider()
-psia_col, psig_col = st.columns([1, 3])
-with psia_col:
-    fabrication_exhaust_psia = st.number_input(
-        "Fabrication exhaust pressure (psia)", value=30.0, step=1.0,
-        help="Default steam supply pressure for the juice heaters and the pre-evaporator.",
-    )
-with psig_col:
-    st.caption("psig equivalent")
-    st.markdown(
-        f"<div style='font-size:1.1rem; padding-top:0.25rem;'>{fabrication_exhaust_psia - 14.696:.2f}</div>",
-        unsafe_allow_html=True,
-    )
 
 
 (tab_mill, tab_clar, tab_heat, tab_pan, tab_evap, tab_steam, tab_turb, tab_cool,
@@ -303,7 +380,8 @@ with psig_col:
 # ============================================================================
 # MILL FLOOR TAB
 # ============================================================================
-with tab_mill:
+@st.fragment
+def render_tab_mill():
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Mill extraction", f"{mills.mill_extraction_pct:.2f}%")
     c2.metric("Mixed juice flow", f"{mj.flow_lb_per_hr:,.0f} lb/hr")
@@ -311,9 +389,7 @@ with tab_mill:
     c4.metric("Bagasse flow", f"{bag.flowrate_lb_hr / 2000 * 24:,.0f} TPD")
 
     st.subheader("Process Flow Diagram")
-    fig = mills.generate_pfd(show=False)
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
+    st.pyplot(SOLVED["mills_pfd"], use_container_width=True)
 
     st.subheader("Stream Table (TPH)")
     rows, in_tot, out_tot = mills._stream_table_rows()
@@ -335,10 +411,14 @@ with tab_mill:
     bal_df = pd.DataFrame(bal).T.reset_index().rename(columns={"index": "Quantity"})
     st.dataframe(bal_df, use_container_width=True, hide_index=True)
 
+
+with tab_mill:
+    render_tab_mill()
 # ============================================================================
 # CLARIFICATION TAB
 # ============================================================================
-with tab_clar:
+@st.fragment
+def render_tab_clar():
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Clarified juice flow", f"{cj.flow_lb_per_hr:,.0f} lb/hr")
     c2.metric("Clarified juice brix / purity", f"{cj.brix:.2f}% / {cj.purity:.1f}%")
@@ -346,9 +426,7 @@ with tab_clar:
     c4.metric("Filter cake pol loss", f"{clar.filter_cake_pol_lb_per_day:,.0f} lb/day")
 
     st.subheader("Process Flow Diagram")
-    fig = clar.generate_pfd(show=False, include_table=False)
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
+    st.pyplot(SOLVED["clar_pfd"], use_container_width=True)
 
     st.subheader("Stream Table (tags match the diagram)")
     stream_cols = ["#", "Stream", "Dir", "lb/hr", "GPM", "Brix lb/hr", "Pol lb/hr",
@@ -361,15 +439,37 @@ with tab_clar:
     bal_df = pd.DataFrame(bal).T.reset_index().rename(columns={"index": "Quantity"})
     st.dataframe(bal_df, use_container_width=True, hide_index=True)
 
+
+with tab_clar:
+    render_tab_clar()
 # ============================================================================
 # JUICE HEATING TAB
 # ============================================================================
-heat_ok = False
-juice_heaters = None
-clar_juice_heater = None
 DEFAULT_V1_PSIA = 21 # PSIA
 
-with tab_heat:
+
+def heater_perf_row(h):
+    return {
+        "Heater": h.name,
+        "Steam Type": STEAM_TYPES[h.steam_type],
+        "Steam Pressure (psia)": f"{h.hot_stream.P:,.2f}",
+        "Steam Temp (°F)": f"{h.hot_stream.T:,.2f}",
+        "Steam hfg (BTU/lb)": f"{h.hot_stream.h_fg:,.2f}",
+        "Steam Flow (lb/hr)": f"{h.steam_required_lb_per_hr:,.2f}",
+        "U (Btu/hr·ft²·°F)": f"{h.U:,.2f}",
+        "Area Installed (ft²)": f"{h.installed_area_ft2:,.2f}",
+        "Area Required (ft²)": f"{h.required_area_ft2:,.2f}",
+        "Juice Flow In (lb/hr)": f"{h.cold_stream.flow_lb_per_hr:,.2f}",
+        "Juice Temp In (°F)": f"{h.cold_stream.temp_deg_F:,.2f}",
+        "Juice Temp Out (°F)": f"{h.juice_out_temp_degF:,.2f}",
+        "Juice cp (Btu/lb·°F)": f"{h.cold_stream.cp_btu_per_lb_deg_F:,.2f}",
+        "Duty (MM BTU/hr)": f"{h.Q_btu_per_hr / 10**6:,.2f}",
+        "LMTD (deg F)": f"{h.LMTD_degF:,.2f}", # forgot the name here
+    }
+
+
+@st.fragment
+def render_tab_heat():
     st.subheader("Juice Heating Station")
     juice_T_out = clar.limed_juice_hot_temp_f
     cold_juice = clar.limed_juice_cold_stream
@@ -409,52 +509,93 @@ with tab_heat:
     else:
         temp_outs = [juice_T_out] * len(heater_df)
 
-    try:
-        heater_objs = [
-            JuiceHeaterShellTube(
-                cold_stream=cold_juice,
-                hot_stream=SteamStream(x=1, P=row["Steam Pressure (psia)"]),
-                name=row["Group"],
-                juice_out_temp_degF=temp_outs[i],
-                U_btu_per_ft2_degF=row["U (Btu/hr·ft²·°F)"],
-                installed_area_ft2=row["Area (ft²)"],
-                steam_type=STEAM_TYPES.index(row["Steam Type"]),
-            )
-            for i, (_, row) in enumerate(heater_df.iterrows())
-        ]
-        split_pcts = list(heater_df["Split %"]) if mode == "parallel" else None
-        juice_heaters = JuiceHeatingStation(
-            cold_stream=cold_juice, heaters=heater_objs, mode=mode,
-            split_pcts=split_pcts,
-            name="Parallel Juice Heating Station" if mode == "parallel" else "Series Juice Heating Station",
-        )
+    st.divider()
+    st.subheader("Clarified Juice Heater")
+    st.markdown("###### Input Section")
+    cj_cols = st.columns(5)
+    cjh_steam_type = cj_cols[0].selectbox("Steam type", ["Exhaust", "V1"], key="cjh_steam_type")
+    cjh_temp = cj_cols[1].number_input("Juice out temp (°F)", value=225.0, step=1.0)
+    cjh_U = cj_cols[2].number_input("U (Btu/hr·ft²·°F)", value=185.0, step=5.0)
+    cjh_area = cj_cols[3].number_input("Area (ft²)", value=6000.0, step=500.0)
+    cjh_default_psia = float(DEFAULT_V1_PSIA) if cjh_steam_type == "V1" else float(fabrication_exhaust_psia)
+    cjh_psia = cj_cols[4].number_input("Steam pressure (psia)", value=cjh_default_psia,
+                                        step=1.0, key=f"cjh_psia_{cjh_steam_type}")
 
-        def heater_perf_row(h):
-            return {
-                "Heater": h.name,
-                "Steam Type": STEAM_TYPES[h.steam_type],
-                "Steam Pressure (psia)": f"{h.hot_stream.P:,.2f}",
-                "Steam Temp (°F)": f"{h.hot_stream.T:,.2f}",
-                "Steam hfg (BTU/lb)": f"{h.hot_stream.h_fg:,.2f}",
-                "Steam Flow (lb/hr)": f"{h.steam_required_lb_per_hr:,.2f}",
-                "U (Btu/hr·ft²·°F)": f"{h.U:,.2f}",
-                "Area Installed (ft²)": f"{h.installed_area_ft2:,.2f}",
-                "Area Required (ft²)": f"{h.required_area_ft2:,.2f}",
-                "Juice Flow In (lb/hr)": f"{h.cold_stream.flow_lb_per_hr:,.2f}",
-                "Juice Temp In (°F)": f"{h.cold_stream.temp_deg_F:,.2f}",
-                "Juice Temp Out (°F)": f"{h.juice_out_temp_degF:,.2f}",
-                "Juice cp (Btu/lb·°F)": f"{h.cold_stream.cp_btu_per_lb_deg_F:,.2f}",
-                "Duty (MM BTU/hr)": f"{h.Q_btu_per_hr / 10**6:,.2f}",
-                "LMTD (deg F)": f"{h.LMTD_degF:,.2f}", # forgot the name here
-            }
+    if should_resolve("heat"):
+        mark_resolved("heat")
+        try:
+            heater_objs = [
+                JuiceHeaterShellTube(
+                    cold_stream=cold_juice,
+                    hot_stream=SteamStream(x=1, P=row["Steam Pressure (psia)"]),
+                    name=row["Group"],
+                    juice_out_temp_degF=temp_outs[i],
+                    U_btu_per_ft2_degF=row["U (Btu/hr·ft²·°F)"],
+                    installed_area_ft2=row["Area (ft²)"],
+                    steam_type=STEAM_TYPES.index(row["Steam Type"]),
+                )
+                for i, (_, row) in enumerate(heater_df.iterrows())
+            ]
+            split_pcts = list(heater_df["Split %"]) if mode == "parallel" else None
+            juice_heaters = JuiceHeatingStation(
+                cold_stream=cold_juice, heaters=heater_objs, mode=mode,
+                split_pcts=split_pcts,
+                name="Parallel Juice Heating Station" if mode == "parallel" else "Series Juice Heating Station",
+            )
+
+            clar_juice_colder = SugarStream.copy(cj)
+            clar_juice_heater = JuiceHeaterShellTube(
+                cold_stream=clar_juice_colder,
+                hot_stream=SteamStream(x=1, P=cjh_psia),
+                name="Clarified Juice Heater",
+                juice_out_temp_degF=cjh_temp,
+                U_btu_per_ft2_degF=cjh_U,
+                installed_area_ft2=cjh_area,
+                steam_type=STEAM_TYPES.index(cjh_steam_type),
+            )
+            # Rebind to a fresh copy rather than mutating clar.clarified_juice_stream in place —
+            # that object is cached in st.session_state.solved, so an in-place write here would
+            # compound on every re-solve (each solve's "juice in" would already sit at last
+            # solve's "juice out"), collapsing this heater's duty to zero after the first click.
+            cj_after_heat = SugarStream.copy(cj)
+            cj_after_heat.temp_deg_F = clar_juice_heater.juice_out_temp_degF
+
+            heaters_fig = juice_heaters.generate_pfd(show=False)
+            cjh_fig = clar_juice_heater.generate_pfd(show=False)
+            plt.close(heaters_fig)
+            plt.close(cjh_fig)
+
+            SOLVED["juice_heaters"] = juice_heaters
+            SOLVED["clar_juice_heater"] = clar_juice_heater
+            SOLVED["cj_after_heat"] = cj_after_heat
+            SOLVED["cjh_steam_type"] = cjh_steam_type
+            SOLVED["heaters_pfd"] = heaters_fig
+            SOLVED["cjh_pfd"] = cjh_fig
+            SOLVED["heat_ok"] = True
+            SOLVED["heat_error"] = None
+        except Exception as exc:
+            SOLVED["juice_heaters"] = None
+            SOLVED["clar_juice_heater"] = None
+            SOLVED["cj_after_heat"] = None
+            SOLVED["heat_ok"] = False
+            SOLVED["heat_error"] = str(exc)
+
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
+    heat_ok = SOLVED.get("heat_ok", False)
+
+    if heat_ok:
+        # Named cj_display, not cj: this function never reads the module-level `cj`
+        # (Juice Heating starts from `cold_juice`/`clar.clarified_juice_stream`), but a
+        # local variable named `cj` here would still shadow the global for pyflakes'
+        # (and Python's) purposes and risk an UnboundLocalError-style footgun later.
+        cj_display = SOLVED["cj_after_heat"]
 
         st.markdown("**Juice Heater performance**")
         heater_perf_df = pd.DataFrame(
             [heater_perf_row(h) for h in juice_heaters.heaters]
         ).set_index("Heater").T
         st.dataframe(heater_perf_df, use_container_width=True, height="content")
-
-
 
         st.markdown(
             """<style>
@@ -472,35 +613,6 @@ with tab_heat:
             c5.metric("V3", f"{juice_heaters.total_V3_steam_lb_hr:,.0f} lb/hr")
             c6.metric("V4", f"{juice_heaters.total_V4_steam_lb_hr:,.0f} lb/hr")
 
-        st.divider()
-        st.subheader("Clarified Juice Heater")
-        st.markdown("###### Input Section")
-        cj_cols = st.columns(5)
-        cjh_steam_type = cj_cols[0].selectbox("Steam type", ["Exhaust", "V1"], key="cjh_steam_type")
-        cjh_temp = cj_cols[1].number_input("Juice out temp (°F)", value=225.0, step=1.0)
-        cjh_U = cj_cols[2].number_input("U (Btu/hr·ft²·°F)", value=185.0, step=5.0)
-        cjh_area = cj_cols[3].number_input("Area (ft²)", value=6000.0, step=500.0)
-        cjh_default_psia = float(DEFAULT_V1_PSIA) if cjh_steam_type == "V1" else float(fabrication_exhaust_psia)
-        cjh_psia = cj_cols[4].number_input("Steam pressure (psia)", value=cjh_default_psia,
-                                            step=1.0, key=f"cjh_psia_{cjh_steam_type}")
-
-        clar_juice_colder = SugarStream.copy(cj)
-        clar_juice_heater = JuiceHeaterShellTube(
-            cold_stream=clar_juice_colder,
-            hot_stream=SteamStream(x=1, P=cjh_psia),
-            name="Clarified Juice Heater",
-            juice_out_temp_degF=cjh_temp,
-            U_btu_per_ft2_degF=cjh_U,
-            installed_area_ft2=cjh_area,
-            steam_type=STEAM_TYPES.index(cjh_steam_type),
-        )
-        # Rebind to a fresh copy rather than mutating clar.clarified_juice_stream in place —
-        # that object is cached in st.session_state.result, so an in-place write here would
-        # compound on every rerun (each rerun's "juice in" would already sit at last run's
-        # "juice out"), collapsing this heater's duty to zero after the first interaction.
-        cj = SugarStream.copy(cj)
-        cj.temp_deg_F = clar_juice_heater.juice_out_temp_degF
-
         st.markdown("**Clarified Juice Heater performance**")
         clar_juice_perf_df = pd.DataFrame(
             [heater_perf_row(clar_juice_heater)]
@@ -510,23 +622,20 @@ with tab_heat:
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Flow out", f"{clar_juice_heater.juice_out.flow_lb_per_hr:,.0f} lb/hr")
         c2.metric("Temp in", f"{clar_juice_heater.cold_stream.temp_deg_F:.1f} °F")
-        c3.metric("Temp out", f"{cj.temp_deg_F:.1f} °F")
-        c4.metric(f"Steam required ({cjh_steam_type})",
+        c3.metric("Temp out", f"{cj_display.temp_deg_F:.1f} °F")
+        c4.metric(f"Steam required ({SOLVED.get('cjh_steam_type', cjh_steam_type)})",
                   f"{clar_juice_heater.steam_required_lb_per_hr:,.0f} lb/hr")
 
-        heat_ok = True
+        st.pyplot(SOLVED["heaters_pfd"], use_container_width=True)
+        st.pyplot(SOLVED["cjh_pfd"], use_container_width=True)
+    elif SOLVED.get("heat_error"):
+        st.error(f"Juice heating failed to solve: {SOLVED['heat_error']}")
+    else:
+        st.info("Click **Solve Entire Plant** above to compute the juice heating station.")
 
-        fig = juice_heaters.generate_pfd(show=False)
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
 
-        fig2 = clar_juice_heater.generate_pfd(show=False)
-        st.pyplot(fig2, use_container_width=True)
-        plt.close(fig2)
-
-    except Exception as exc:
-        st.error(f"Juice heating failed to solve: {exc}")
-
+with tab_heat:
+    render_tab_heat()
 # ============================================================================
 # PAN FLOOR TAB
 # ============================================================================
@@ -534,7 +643,8 @@ pan_ok = False
 pan_floor = None
 syrup_brix = 65.0
 
-with tab_pan:
+@st.fragment
+def render_tab_pan():
     st.subheader("Pan Floor")
     scheme = st.radio(
         "Boiling scheme",
@@ -546,7 +656,8 @@ with tab_pan:
     is_2b = scheme.startswith("2B")
     scheme_key = "FBDM" if is_fbdm else ("TBDM" if is_tbdm else "2B")
 
-    syrup_brix = st.number_input("Syrup brix", value=65.0, step=0.5)
+    cj = resolve_cj()
+    syrup_brix = st.number_input("Syrup brix", value=65.0, step=0.5, key="syrup_brix")
     syrup_lb_hr = cj.flow_lb_per_hr * cj.brix / syrup_brix
     syrup = SugarStream.copy(cj)
     syrup.flow_lb_per_hr = syrup_lb_hr
@@ -663,86 +774,107 @@ with tab_pan:
     PAN_SOLVER_ITERATIONS = 20
 
     st.markdown("**Split fractions**")
-    try:
-        if is_fbdm:
-            s1, s2, s3, s4 = st.columns(4)
-            syrup_to_A1 = s1.number_input("Syrup to A1 pans (%)", value=75.0)
-            syrup_to_A2 = s2.number_input("Syrup to A2 pans (%)", value=20.0)
-            a1_to_A2 = s3.number_input("A1 mol to A2 (%)", value=80.0)
-            a1_to_grain = s4.number_input("A1 mol to grain (%)", value=3.0)
-            s5, s6, s7, s8 = st.columns(4)
-            a2_to_grain = s5.number_input("A2 mol to grain (%)", value=0.0)
-            b_to_grain = s6.number_input("B mol to grain (%)", value=10.0)
-            b_A1_footing = s7.number_input("B magma A1 footing (%)", value=40.0)
-            b_A2_footing = s8.number_input("B magma A2 footing (%)", value=40.0)
-            s9, s10 = st.columns(2)
-            c_B_footing = s9.number_input("C magma B footing (%)", value=80.0)
-         
-            pan_floor = FourBoilingDoubleMagma(
-                syrup=syrup,
-                A1_pans=pans["A1"], A2_pans=pans["A2"], B_pans=pans["B"], C_pans=pans["C"],
-                grain_pans=pans["Grain"],
-                A1_centrifugals=cens["A1"], A2_centrifugals=cens["A2"], B_centrifugals=cens["B"],
-                C_centrifugals=cens["C"],
-                C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
-                syrup_to_A1_pans_pct=syrup_to_A1, syrup_to_A2_pans_pct=syrup_to_A2,
-                a1_mol_to_A2_pct=a1_to_A2, a1_mol_to_grain_pct=a1_to_grain, a2_mol_to_grain_pct=a2_to_grain,
-                b_mol_to_grain_pct=b_to_grain, b_magma_A1_footing_pct=b_A1_footing,
-                b_magma_A2_footing_pct=b_A2_footing, c_magma_B_footing_pct=c_B_footing,
-                b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
-                b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
-                injection_water_temp_F=pf_injection_water_temp_F,
-                condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
-                iterations=PAN_SOLVER_ITERATIONS,
-            )
-        elif is_tbdm:
-            s1, s2, s3, s4 = st.columns(4)
-            c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
-            b_remelt = s2.number_input("B magma remelt (%)", value=20.0)
-            syrup_grain = s3.number_input("Syrup to grain (%)", value=1.0)
-            a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
-            s5, s6 = st.columns(2)
-            b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
-            a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
-            iterations = PAN_SOLVER_ITERATIONS
+    if is_fbdm:
+        s1, s2, s3, s4 = st.columns(4)
+        syrup_to_A1 = s1.number_input("Syrup to A1 pans (%)", value=75.0)
+        syrup_to_A2 = s2.number_input("Syrup to A2 pans (%)", value=20.0)
+        a1_to_A2 = s3.number_input("A1 mol to A2 (%)", value=80.0)
+        a1_to_grain = s4.number_input("A1 mol to grain (%)", value=3.0)
+        s5, s6, s7, s8 = st.columns(4)
+        a2_to_grain = s5.number_input("A2 mol to grain (%)", value=0.0)
+        b_to_grain = s6.number_input("B mol to grain (%)", value=10.0)
+        b_A1_footing = s7.number_input("B magma A1 footing (%)", value=40.0)
+        b_A2_footing = s8.number_input("B magma A2 footing (%)", value=40.0)
+        s9, s10 = st.columns(2)
+        c_B_footing = s9.number_input("C magma B footing (%)", value=80.0)
+    elif is_tbdm:
+        s1, s2, s3, s4 = st.columns(4)
+        c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
+        b_remelt = s2.number_input("B magma remelt (%)", value=20.0)
+        syrup_grain = s3.number_input("Syrup to grain (%)", value=1.0)
+        a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
+        s5, s6 = st.columns(2)
+        b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
+        a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
+    else:  # Two Boiling
+        s1, s2, s3, s4 = st.columns(4)
+        c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
+        syrup_grain = s2.number_input("Syrup to grain (%)", value=1.0)
+        syrup_to_C = s3.number_input("Syrup to C pans (%)", value=5.0)
+        a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
+        s5, s6 = st.columns(2)
+        a_top_off = s5.number_input("A mol top-off (%)", value=30.0)
 
-            pan_floor = ThreeBoilingDoubleMagma(
-                syrup=syrup,
-                A_pans=pans["A"], B_pans=pans["B"], C_pans=pans["C"], grain_pans=pans["Grain"],
-                A_centrifugals=cens["A"], B_centrifugals=cens["B"], C_centrifugals=cens["C"],
-                C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
-                c_magma_remelt_pct=c_remelt, b_magma_remelt_pct=b_remelt, syrup_to_grain_pct=syrup_grain,
-                a_mol_to_grain_pct=a_to_grain, b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
-                b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
-                b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
-                injection_water_temp_F=pf_injection_water_temp_F,
-                condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
-                iterations=PAN_SOLVER_ITERATIONS,
-            )
-        else:  # Two Boiling
-            s1, s2, s3, s4 = st.columns(4)
-            c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
-            syrup_grain = s2.number_input("Syrup to grain (%)", value=1.0)
-            syrup_to_C = s3.number_input("Syrup to C pans (%)", value=5.0)
-            a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
-            s5, s6 = st.columns(2)
-            a_top_off = s5.number_input("A mol top-off (%)", value=30.0)
-           
-            pan_floor = TwoBoiling(
-                syrup=syrup,
-                A_pans=pans["A"], C_pans=pans["C"], grain_pans=pans["Grain"],
-                A_centrifugals=cens["A"], C_centrifugals=cens["C"],
-                C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
-                c_magma_remelt_pct=c_remelt, syrup_to_grain_pct=syrup_grain, syrup_to_C_pct=syrup_to_C,
-                a_mol_to_grain_pct=a_to_grain, a_mol_top_off_pct=a_top_off,
-                c_magma_brix=pf_c_magma_brix, c_remelt_brix=pf_c_remelt_brix,
-                injection_water_temp_F=pf_injection_water_temp_F,
-                condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
-                iterations=PAN_SOLVER_ITERATIONS,
-            )
+    if should_resolve("pan"):
+        mark_resolved("pan")
+        try:
+            if is_fbdm:
+                pan_floor = FourBoilingDoubleMagma(
+                    syrup=syrup,
+                    A1_pans=pans["A1"], A2_pans=pans["A2"], B_pans=pans["B"], C_pans=pans["C"],
+                    grain_pans=pans["Grain"],
+                    A1_centrifugals=cens["A1"], A2_centrifugals=cens["A2"], B_centrifugals=cens["B"],
+                    C_centrifugals=cens["C"],
+                    C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
+                    syrup_to_A1_pans_pct=syrup_to_A1, syrup_to_A2_pans_pct=syrup_to_A2,
+                    a1_mol_to_A2_pct=a1_to_A2, a1_mol_to_grain_pct=a1_to_grain, a2_mol_to_grain_pct=a2_to_grain,
+                    b_mol_to_grain_pct=b_to_grain, b_magma_A1_footing_pct=b_A1_footing,
+                    b_magma_A2_footing_pct=b_A2_footing, c_magma_B_footing_pct=c_B_footing,
+                    b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
+                    b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
+                    injection_water_temp_F=pf_injection_water_temp_F,
+                    condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
+                    iterations=PAN_SOLVER_ITERATIONS,
+                )
+            elif is_tbdm:
+                pan_floor = ThreeBoilingDoubleMagma(
+                    syrup=syrup,
+                    A_pans=pans["A"], B_pans=pans["B"], C_pans=pans["C"], grain_pans=pans["Grain"],
+                    A_centrifugals=cens["A"], B_centrifugals=cens["B"], C_centrifugals=cens["C"],
+                    C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
+                    c_magma_remelt_pct=c_remelt, b_magma_remelt_pct=b_remelt, syrup_to_grain_pct=syrup_grain,
+                    a_mol_to_grain_pct=a_to_grain, b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
+                    b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
+                    b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
+                    injection_water_temp_F=pf_injection_water_temp_F,
+                    condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
+                    iterations=PAN_SOLVER_ITERATIONS,
+                )
+            else:  # Two Boiling
+                pan_floor = TwoBoiling(
+                    syrup=syrup,
+                    A_pans=pans["A"], C_pans=pans["C"], grain_pans=pans["Grain"],
+                    A_centrifugals=cens["A"], C_centrifugals=cens["C"],
+                    C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
+                    c_magma_remelt_pct=c_remelt, syrup_to_grain_pct=syrup_grain, syrup_to_C_pct=syrup_to_C,
+                    a_mol_to_grain_pct=a_to_grain, a_mol_top_off_pct=a_top_off,
+                    c_magma_brix=pf_c_magma_brix, c_remelt_brix=pf_c_remelt_brix,
+                    injection_water_temp_F=pf_injection_water_temp_F,
+                    condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
+                    iterations=PAN_SOLVER_ITERATIONS,
+                )
+            pan_fig = pan_floor.generate_pfd(show=False)
+            plt.close(pan_fig)
 
+            SOLVED["pan_floor"] = pan_floor
+            SOLVED["pan_pfd"] = pan_fig
+            SOLVED["pan_scheme"] = scheme_key
+            SOLVED["pan_ok"] = True
+            SOLVED["pan_error"] = None
+        except Exception as exc:
+            SOLVED["pan_floor"] = None
+            SOLVED["pan_ok"] = False
+            SOLVED["pan_error"] = str(exc)
+
+    pan_floor = SOLVED.get("pan_floor")
+    pan_ok = SOLVED.get("pan_ok", False)
+
+    if pan_ok and SOLVED.get("pan_scheme") != scheme_key:
+        st.info(f"Last solved as **{SOLVED.get('pan_scheme')}** — the boiling scheme above has "
+                f"since changed to **{scheme_key}**. Click **Solve Entire Plant** to re-solve.")
+    elif pan_ok:
         st.divider()
-        
+
         raw_sugar = pan_floor.total_raw_sugar
         final_molasses = pan_floor.C_centrifugals.molasses_stream
         final_molasses_gal_per_day = final_molasses.flow_lb_per_hr * 24 / (WATER_LB_PER_GAL * final_molasses.specific_gravity)
@@ -808,27 +940,30 @@ with tab_pan:
             use_container_width=True, hide_index=True, height="content",
         )
 
+        st.pyplot(SOLVED["pan_pfd"], use_container_width=True)
+    elif SOLVED.get("pan_error"):
+        st.error(f"Pan floor failed to solve: {SOLVED['pan_error']}")
+    else:
+        st.info("Click **Solve Entire Plant** above to compute the pan floor balance.")
 
 
-        fig_pan = pan_floor.generate_pfd(show=False)
-        st.pyplot(fig_pan, use_container_width=True)
-        plt.close(fig_pan)
-
-        pan_ok = True
-    except Exception as exc:
-        st.error(f"Pan floor failed to solve: {exc}")
-
+with tab_pan:
+    render_tab_pan()
 # ============================================================================
 # EVAPORATION TAB — Pre + N sets, each independently on/off
 # ============================================================================
-evap_ok = False
-pre_3 = None
-evap_station = []
-v1_demand = v2_demand = v3_demand = v4_demand = 0.0
-v1_delivered = v2_delivered = v3_delivered = v4_delivered = 0.0
-
-with tab_evap:
+@st.fragment
+def render_tab_evap():
     st.subheader("Evaporation Station")
+    # Re-derive every upstream value from the cache rather than trusting a plain
+    # variable left over from the Juice Heating / Pan Floor tabs' own code — each
+    # tab is its own fragment now, so that carry-over no longer happens reliably.
+    heat_ok = SOLVED.get("heat_ok", False)
+    pan_ok = SOLVED.get("pan_ok", False)
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
+    pan_floor = SOLVED.get("pan_floor")
+    cj = resolve_cj()
     if not (heat_ok and pan_ok):
         st.warning("Solve Juice Heating and Pan Floor first (see their tabs for errors) — "
                    "the V1 vapor demand comes from both.")
@@ -864,13 +999,20 @@ with tab_evap:
 
         st.markdown("**Station-wide defaults**")
         d1, d2, d3 = st.columns(3)
-        target_brix_out = d1.number_input("Target syrup brix", value=float(syrup_brix), step=0.5)
+        # Defaults mirror the Pan Floor tab's own widgets by reading them out of
+        # st.session_state (via their explicit keys) rather than a plain variable —
+        # Pan Floor is its own fragment now, so its local variables aren't visible here.
+        target_brix_out = d1.number_input(
+            "Target syrup brix", value=float(st.session_state.get("syrup_brix", 65.0)), step=0.5,
+        )
         evap_injection_water_temp_F = d2.number_input(
-            "Injection water temp (°F)", value=float(pf_injection_water_temp_F), step=1.0,
+            "Injection water temp (°F)",
+            value=float(st.session_state.get("pf_inj_water", 90.0)), step=1.0,
             help="Matches the Pan Floor tab's value by default — condenser makeup water temp.",
         )
         evap_condenser_leg_temp_drop_F = d3.number_input(
-            "Condenser leg ΔT (°F)", value=float(pf_condenser_leg_temp_drop_F), step=0.5,
+            "Condenser leg ΔT (°F)",
+            value=float(st.session_state.get("pf_cond_leg", 5.0)), step=0.5,
         )
 
         active_sets = sets_df[sets_df["Active"]].reset_index(drop=True)
@@ -916,70 +1058,112 @@ with tab_evap:
         v4_share, v4_dist_df = vapor_dist_editor(4, v4_demand, v4_consumers, "v4_dist_editor")
         share_by_grade = {1: v1_share, 2: v2_share, 3: v3_share, 4: v4_share}
 
-        try:
-            if pre_active:
-                pre_bleed = v1_share("Pre-Evaporator")
-                pre_3 = PreEvaporator(
-                    juice_in=SugarStream.copy(cj),
-                    supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
-                    vapor_bleed_lb_per_hr=pre_bleed,
-                    area_ft2=pre_area,
-                    liquid_level_ft=pre_level,
-                    dessin_coefficient=pre_dessin,
-                )
-                juice_to_sets = SugarStream.copy(pre_3.juice_out)
-            else:
-                pre_3 = None
-                juice_to_sets = SugarStream.copy(cj)
+        if active_sets.empty:
+            st.warning("No evaporator sets active — station will not be solved.")
 
-            set_configs = []
-            for _, row in active_sets.iterrows():
-                areas = parse_floats(row["Effect Areas (ft², comma-sep)"])
-                n_eff = len(areas)
-                if n_eff < 1:
-                    raise ValueError(f"{row['Name']}: at least one effect area required")
-                # bleeds[k] (0-indexed) is drawn off effect k+1, feeding header V(k+1).
-                # The last effect never bleeds (its vapor goes to the condenser).
-                bleeds = [share_by_grade[k + 1](row["Name"]) if (k + 1) in share_by_grade else 0.0
-                          for k in range(n_eff - 1)]
-                set_configs.append({
-                    "name": row["Name"],
-                    "effect_areas_ft2": areas,
-                    "supply_steam_psia": row["Supply Steam (psia)"],
-                    "last_effect_psia": row["Last Effect (psia)"],
-                    "vapor_bleeds": bleeds,
-                    "dessin_coefficient": row["Dessin Coeff"],
-                    "liquid_level_ft": row["Liquid Level (ft)"],
-                })
+        if should_resolve("evap"):
+            mark_resolved("evap")
+            try:
+                if pre_active:
+                    pre_bleed = v1_share("Pre-Evaporator")
+                    pre_3 = PreEvaporator(
+                        juice_in=SugarStream.copy(cj),
+                        supply_steam=EvaporatorSteam(P_psia=fabrication_exhaust_psia),
+                        vapor_bleed_lb_per_hr=pre_bleed,
+                        area_ft2=pre_area,
+                        liquid_level_ft=pre_level,
+                        dessin_coefficient=pre_dessin,
+                    )
+                    juice_to_sets = SugarStream.copy(pre_3.juice_out)
+                else:
+                    pre_3 = None
+                    juice_to_sets = SugarStream.copy(cj)
 
-            if set_configs:
-                evap_station = solve_evaporator_sets(
-                    juice_brix=juice_to_sets.brix,
-                    juice_purity=juice_to_sets.purity,
-                    juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
-                    juice_temp_deg_F=juice_to_sets.temp_deg_F,
-                    juice_pressure_psia=40,
-                    target_brix_out=target_brix_out,
-                    injection_water_temp_F=evap_injection_water_temp_F,
-                    condenser_leg_temp_drop_F=evap_condenser_leg_temp_drop_F,
-                    n_iterations=EVAP_N_ITERATIONS,
-                    dampening=EVAP_DAMPENING,
-                    set_configs=set_configs,
-                    verbose=False,
-                )
-            else:
-                evap_station = []
-                st.warning("No evaporator sets active — station not solved.")
+                set_configs = []
+                for _, row in active_sets.iterrows():
+                    areas = parse_floats(row["Effect Areas (ft², comma-sep)"])
+                    n_eff = len(areas)
+                    if n_eff < 1:
+                        raise ValueError(f"{row['Name']}: at least one effect area required")
+                    # bleeds[k] (0-indexed) is drawn off effect k+1, feeding header V(k+1).
+                    # The last effect never bleeds (its vapor goes to the condenser).
+                    bleeds = [share_by_grade[k + 1](row["Name"]) if (k + 1) in share_by_grade else 0.0
+                              for k in range(n_eff - 1)]
+                    set_configs.append({
+                        "name": row["Name"],
+                        "effect_areas_ft2": areas,
+                        "supply_steam_psia": row["Supply Steam (psia)"],
+                        "last_effect_psia": row["Last Effect (psia)"],
+                        "vapor_bleeds": bleeds,
+                        "dessin_coefficient": row["Dessin Coeff"],
+                        "liquid_level_ft": row["Liquid Level (ft)"],
+                    })
 
-            v1_delivered = sum(v1_share(c) for c in v1_consumers)
-            v2_delivered = sum(v2_share(c) for c in v2_consumers)
-            v3_delivered = sum(v3_share(c) for c in v3_consumers)
-            v4_delivered = sum(v4_share(c) for c in v4_consumers)
-            evap_ok = True
-        except Exception as exc:
-            st.error(f"Evaporation failed to solve: {exc}")
-            pre_3 = None
-            evap_station = []
+                if set_configs:
+                    evap_station = solve_evaporator_sets(
+                        juice_brix=juice_to_sets.brix,
+                        juice_purity=juice_to_sets.purity,
+                        juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
+                        juice_temp_deg_F=juice_to_sets.temp_deg_F,
+                        juice_pressure_psia=40,
+                        target_brix_out=target_brix_out,
+                        injection_water_temp_F=evap_injection_water_temp_F,
+                        condenser_leg_temp_drop_F=evap_condenser_leg_temp_drop_F,
+                        n_iterations=EVAP_N_ITERATIONS,
+                        dampening=EVAP_DAMPENING,
+                        set_configs=set_configs,
+                        verbose=False,
+                    )
+                else:
+                    evap_station = []
+
+                v1_delivered = sum(v1_share(c) for c in v1_consumers)
+                v2_delivered = sum(v2_share(c) for c in v2_consumers)
+                v3_delivered = sum(v3_share(c) for c in v3_consumers)
+                v4_delivered = sum(v4_share(c) for c in v4_consumers)
+
+                pre_fig = None
+                if pre_3 is not None:
+                    pre_fig = pre_3.generate_pfd(show=False)
+                    plt.close(pre_fig)
+                evap_figs = {}
+                for evap in evap_station:
+                    ef = evap.generate_pfd(show=False, pre_evap=pre_3)
+                    plt.close(ef)
+                    evap_figs[evap.name] = ef
+
+                SOLVED["pre_3"] = pre_3
+                SOLVED["evap_station"] = evap_station
+                SOLVED["pre_pfd"] = pre_fig
+                SOLVED["evap_pfds"] = evap_figs
+                SOLVED["v1_demand"] = v1_demand
+                SOLVED["v2_demand"] = v2_demand
+                SOLVED["v3_demand"] = v3_demand
+                SOLVED["v4_demand"] = v4_demand
+                SOLVED["v1_delivered"] = v1_delivered
+                SOLVED["v2_delivered"] = v2_delivered
+                SOLVED["v3_delivered"] = v3_delivered
+                SOLVED["v4_delivered"] = v4_delivered
+                SOLVED["evap_ok"] = True
+                SOLVED["evap_error"] = None
+            except Exception as exc:
+                SOLVED["pre_3"] = None
+                SOLVED["evap_station"] = []
+                SOLVED["evap_ok"] = False
+                SOLVED["evap_error"] = str(exc)
+
+        pre_3 = SOLVED.get("pre_3")
+        evap_station = SOLVED.get("evap_station", [])
+        evap_ok = SOLVED.get("evap_ok", False)
+        v1_delivered = SOLVED.get("v1_delivered", 0.0)
+        v2_delivered = SOLVED.get("v2_delivered", 0.0)
+        v3_delivered = SOLVED.get("v3_delivered", 0.0)
+        v4_delivered = SOLVED.get("v4_delivered", 0.0)
+
+        if SOLVED.get("evap_error"):
+            st.error(f"Evaporation failed to solve: {SOLVED['evap_error']}")
+        elif not evap_ok:
+            st.info("Click **Solve Entire Plant** above to compute the evaporation station.")
 
         if evap_ok:
             st.divider()
@@ -994,9 +1178,7 @@ with tab_evap:
                 st.markdown(f"**Pre-Evaporator** — {pre_3.vapor_bleed_lb_per_hr:,.0f} lb/hr bleed, "
                             f"{pre_3.exhaust_required_lb_per_hr:,.0f} lb/hr exhaust, "
                             f"U ratio {pre_3.U_ratio:.3f}")
-                fig = pre_3.generate_pfd(show=False)
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
+                st.pyplot(SOLVED.get("pre_pfd"), use_container_width=True)
 
                 st.markdown("**Pre-Evaporator — Streams**")
                 st.dataframe(pre_evaporator_streams_table(pre_3), hide_index=True,
@@ -1005,14 +1187,14 @@ with tab_evap:
                 st.dataframe(pre_evaporator_performance_table(pre_3), hide_index=True,
                              use_container_width=True)
 
+            evap_figs = SOLVED.get("evap_pfds", {})
             for evap in evap_station:
                 syrup_out = evap.evaporator_list[-1].juice_side_out
                 st.markdown(f"**{evap.name}** — steam {evap.supply_steam.flow_lb_per_hr:,.0f} lb/hr, "
                             f"syrup out {syrup_out.flow_lb_per_hr:,.0f} lb/hr @ {syrup_out.brix:.1f} Bx, "
                             f"U ratio {evap.U_ratio_avg:.3f}")
-                fig = evap.generate_pfd(show=False, pre_evap=pre_3)
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
+                if evap.name in evap_figs:
+                    st.pyplot(evap_figs[evap.name], use_container_width=True)
 
                 st.markdown(f"**{evap.name} — Summary**")
                 st.dataframe(evap_set_summary_table(evap), hide_index=True, use_container_width=True)
@@ -1048,16 +1230,24 @@ with tab_evap:
                     use_container_width=True, hide_index=True,
                 )
 
+
+with tab_evap:
+    render_tab_evap()
 # ============================================================================
 # STEAM & EXHAUST SUMMARY TAB
 # ============================================================================
-steam_ok = False
-exh_dict = {}
-total_exhaust_required = 0.0
-da = None
-
-with tab_steam:
+@st.fragment
+def render_tab_steam():
     st.subheader("Steam & Exhaust Summary")
+    # Re-derive every upstream value from the cache — Juice Heating, Pan Floor, and
+    # Evaporation are each their own fragment now, so their plain variables from a
+    # prior tab's own run aren't reliably visible here.
+    evap_ok = SOLVED.get("evap_ok", False)
+    pre_3 = SOLVED.get("pre_3")
+    evap_station = SOLVED.get("evap_station", [])
+    pan_floor = SOLVED.get("pan_floor")
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
     if not evap_ok:
         st.info("Solve Evaporation first (see its tab) to compute the exhaust steam summary.")
     else:
@@ -1077,58 +1267,89 @@ with tab_steam:
         da_water_temp = dz2.number_input("Water in temp (°F)", value=200.0, step=5.0)
         da_water_flow = dz3.number_input("Water in flow (lb/hr)", value=800000.0, step=10000.0)
         da_vent_pct = dz4.number_input("Vent (%)", value=4.0, step=0.5)
-        da = Deaerator(deaerator_psig=da_psig, water_in_deg_F=da_water_temp,
-                        water_in_lb_hr=da_water_flow, vent_pct=da_vent_pct)
-
-        exhaust_for_Pre = pre_3.supply_steam.flow_lb_per_hr if pre_3 is not None else 0.0
-        exhaust_for_evaporators = sum(evap.supply_steam.flow_lb_per_hr for evap in evap_station)
-        exhaust_for_pans = pan_floor.total_exhaust_steam_lb_hr
-        clar_juice_heater_exhaust_lb_hr = (
-            clar_juice_heater.steam_required_lb_per_hr if clar_juice_heater.steam_type == 0 else 0.0
-        )
-        exhaust_for_heaters = juice_heaters.total_exhaust_steam_lb_hr + clar_juice_heater_exhaust_lb_hr
-        exhaust_for_da = da.steam_flow_lb_hr
-        subtotal_exh = (exhaust_for_Pre + exhaust_for_evaporators + exhaust_for_pans
-                         + exhaust_for_heaters + exhaust_for_da)
         exh_losses_pct = st.number_input("Exhaust losses (% of subtotal)", value=5.0, step=0.5)
-        total_exhaust_required = subtotal_exh * (1 + exh_losses_pct / 100)
 
-        exh_dict = {
-            "Exhaust for Pre": exhaust_for_Pre,
-            "Exhaust for Evaporators": exhaust_for_evaporators,
-            "Exhaust for Pans": exhaust_for_pans,
-            "Exhaust for Heaters": exhaust_for_heaters,
-            "Exhaust for Deaerator": exhaust_for_da,
-            "Exhaust Losses": subtotal_exh * exh_losses_pct / 100,
-            "Total Exhaust Required": total_exhaust_required,
-        }
-        st.dataframe(pd.DataFrame(exh_dict.items(), columns=["Item", "lb/hr"]),
-                     hide_index=True, use_container_width=True)
+        if should_resolve("steam"):
+            mark_resolved("steam")
+            try:
+                da = Deaerator(deaerator_psig=da_psig, water_in_deg_F=da_water_temp,
+                                water_in_lb_hr=da_water_flow, vent_pct=da_vent_pct)
 
-        st.markdown("**Vapor Bleed Demand vs. Delivered** (set on the Evaporation tab)")
-        vapor_check_df = pd.DataFrame(
-            [["V1", v1_demand, v1_delivered], ["V2", v2_demand, v2_delivered],
-             ["V3", v3_demand, v3_delivered], ["V4", v4_demand, v4_delivered]],
-            columns=["Grade", "Demand (lb/hr)", "Delivered (lb/hr)"],
-        )
-        st.dataframe(vapor_check_df, hide_index=True, use_container_width=True)
+                exhaust_for_Pre = pre_3.supply_steam.flow_lb_per_hr if pre_3 is not None else 0.0
+                exhaust_for_evaporators = sum(evap.supply_steam.flow_lb_per_hr for evap in evap_station)
+                exhaust_for_pans = pan_floor.total_exhaust_steam_lb_hr
+                clar_juice_heater_exhaust_lb_hr = (
+                    clar_juice_heater.steam_required_lb_per_hr if clar_juice_heater.steam_type == 0 else 0.0
+                )
+                exhaust_for_heaters = juice_heaters.total_exhaust_steam_lb_hr + clar_juice_heater_exhaust_lb_hr
+                exhaust_for_da = da.steam_flow_lb_hr
+                subtotal_exh = (exhaust_for_Pre + exhaust_for_evaporators + exhaust_for_pans
+                                 + exhaust_for_heaters + exhaust_for_da)
+                total_exhaust_required = subtotal_exh * (1 + exh_losses_pct / 100)
 
-        st.caption("See the Turbines & Boiler tab for live steam demand, exhaust availability, and "
-                   "makeup steam, which build on the exhaust total computed here.")
-        steam_ok = True
+                exh_dict = {
+                    "Exhaust for Pre": exhaust_for_Pre,
+                    "Exhaust for Evaporators": exhaust_for_evaporators,
+                    "Exhaust for Pans": exhaust_for_pans,
+                    "Exhaust for Heaters": exhaust_for_heaters,
+                    "Exhaust for Deaerator": exhaust_for_da,
+                    "Exhaust Losses": subtotal_exh * exh_losses_pct / 100,
+                    "Total Exhaust Required": total_exhaust_required,
+                }
 
+                SOLVED["da"] = da
+                SOLVED["exh_dict"] = exh_dict
+                SOLVED["total_exhaust_required"] = total_exhaust_required
+                SOLVED["vapor_check"] = (
+                    SOLVED.get("v1_demand", 0.0), SOLVED.get("v1_delivered", 0.0),
+                    SOLVED.get("v2_demand", 0.0), SOLVED.get("v2_delivered", 0.0),
+                    SOLVED.get("v3_demand", 0.0), SOLVED.get("v3_delivered", 0.0),
+                    SOLVED.get("v4_demand", 0.0), SOLVED.get("v4_delivered", 0.0),
+                )
+                SOLVED["steam_ok"] = True
+                SOLVED["steam_error"] = None
+            except Exception as exc:
+                SOLVED["da"] = None
+                SOLVED["steam_ok"] = False
+                SOLVED["steam_error"] = str(exc)
+
+        da = SOLVED.get("da")
+        exh_dict = SOLVED.get("exh_dict", {})
+        total_exhaust_required = SOLVED.get("total_exhaust_required", 0.0)
+        steam_ok = SOLVED.get("steam_ok", False)
+
+        if steam_ok:
+            st.dataframe(pd.DataFrame(exh_dict.items(), columns=["Item", "lb/hr"]),
+                         hide_index=True, use_container_width=True)
+
+            st.markdown("**Vapor Bleed Demand vs. Delivered** (set on the Evaporation tab)")
+            vc_v1d, vc_v1x, vc_v2d, vc_v2x, vc_v3d, vc_v3x, vc_v4d, vc_v4x = SOLVED["vapor_check"]
+            vapor_check_df = pd.DataFrame(
+                [["V1", vc_v1d, vc_v1x], ["V2", vc_v2d, vc_v2x],
+                 ["V3", vc_v3d, vc_v3x], ["V4", vc_v4d, vc_v4x]],
+                columns=["Grade", "Demand (lb/hr)", "Delivered (lb/hr)"],
+            )
+            st.dataframe(vapor_check_df, hide_index=True, use_container_width=True)
+
+            st.caption("See the Turbines & Boiler tab for live steam demand, exhaust availability, and "
+                       "makeup steam, which build on the exhaust total computed here.")
+        elif SOLVED.get("steam_error"):
+            st.error(f"Exhaust summary failed to solve: {SOLVED['steam_error']}")
+        else:
+            st.info("Click **Solve Entire Plant** above to compute the exhaust steam summary.")
+
+
+with tab_steam:
+    render_tab_steam()
 # ============================================================================
 # TURBINES & BOILER TAB
 # ============================================================================
-turb_ok = False
-knf_trbs = mill_trbs = misc_trbs = None
-blrs = None
-live_steam_dict = {}
-exhaust_available = 0.0
-makeup_steam = 0.0
-
-with tab_turb:
+@st.fragment
+def render_tab_turb():
     st.subheader("Turbine Steam Demand & Boiler Room")
+    steam_ok = SOLVED.get("steam_ok", False)
+    da = SOLVED.get("da")
+    total_exhaust_required = SOLVED.get("total_exhaust_required", 0.0)
     if not steam_ok:
         st.warning("Solve the Exhaust Summary tab first — makeup steam needs the total exhaust required.")
     else:
@@ -1153,98 +1374,162 @@ with tab_turb:
         def _group_steam(psig):
             return SteamStream(P=psig + 14.696, h=live_steam_gen.h)
 
-        try:
-            st.markdown("**Cane Prep (Knife) Turbines**")
-            kg1, kg2 = st.columns(2)
-            knf_live_psig = kg1.number_input("Knife live steam (psig)", value=165.0, step=5.0, key="knf_live")
-            knf_exh_psig = kg2.number_input("Knife exhaust (psig)", value=16.0, step=1.0, key="knf_exh")
-            knf_defaults = pd.DataFrame([
-                {"Name": "Knife 1", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "Knife 2", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "Knife 3", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
-            ])
-            knf_df = st.data_editor(knf_defaults, hide_index=True, use_container_width=True,
-                                     num_rows="dynamic", key="knf_editor")
-            knf_trbs = CanePrepTurbines(
-                name_list=list(knf_df["Name"]),
-                hp_ton_fiber_hr=list(knf_df["HP per Ton Fiber/hr"]),
-                isentropic_efficiency=list(knf_df["Isentropic Eff (%)"]),
-                live_steam_object=_group_steam(knf_live_psig),
-                exhaust_psia=knf_exh_psig + 14.696,
-                tons_fiber_hr=tons_fiber_hr,
-            )
+        st.markdown("**Cane Prep (Knife) Turbines**")
+        kg1, kg2 = st.columns(2)
+        knf_live_psig = kg1.number_input("Knife live steam (psig)", value=165.0, step=5.0, key="knf_live")
+        knf_exh_psig = kg2.number_input("Knife exhaust (psig)", value=16.0, step=1.0, key="knf_exh")
+        knf_defaults = pd.DataFrame([
+            {"Name": "Knife 1", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "Knife 2", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "Knife 3", "HP per Ton Fiber/hr": 16.0, "Isentropic Eff (%)": 50.0},
+        ])
+        knf_df = st.data_editor(knf_defaults, hide_index=True, use_container_width=True,
+                                 num_rows="dynamic", key="knf_editor")
 
-            st.markdown("**Mill Turbines**")
-            mg1, mg2 = st.columns(2)
-            mill_live_psig = mg1.number_input("Mill live steam (psig)", value=170.0, step=5.0, key="mill_live")
-            mill_exh_psig = mg2.number_input("Mill exhaust (psig)", value=15.0, step=1.0, key="mill_exh")
-            mill_hp_defaults = [18.0, 16.0, 16.0, 16.0, 16.0, 18.0]
-            mill_defaults = pd.DataFrame([
-                {"HP per Ton Fiber/hr": mill_hp_defaults[i] if i < len(mill_hp_defaults) else 16.0,
-                 "Isentropic Eff (%)": 50.0}
-                for i in range(mills.number_of_mills)
-            ])
-            mill_df = st.data_editor(mill_defaults, hide_index=True, use_container_width=True,
-                                      num_rows="dynamic", key="mill_trb_editor")
-            mill_trbs = MillTurbines(
-                hp_ton_fiber_hr=list(mill_df["HP per Ton Fiber/hr"]),
-                isentropic_efficiency=list(mill_df["Isentropic Eff (%)"]),
-                live_steam_object=_group_steam(mill_live_psig),
-                exhaust_psia=mill_exh_psig + 14.696,
-                tons_fiber_hr=tons_fiber_hr,
-            )
+        st.markdown("**Mill Turbines**")
+        mg1, mg2 = st.columns(2)
+        mill_live_psig = mg1.number_input("Mill live steam (psig)", value=170.0, step=5.0, key="mill_live")
+        mill_exh_psig = mg2.number_input("Mill exhaust (psig)", value=15.0, step=1.0, key="mill_exh")
+        mill_hp_defaults = [18.0, 16.0, 16.0, 16.0, 16.0, 18.0]
+        mill_defaults = pd.DataFrame([
+            {"HP per Ton Fiber/hr": mill_hp_defaults[i] if i < len(mill_hp_defaults) else 16.0,
+             "Isentropic Eff (%)": 50.0}
+            for i in range(mills.number_of_mills)
+        ])
+        mill_df = st.data_editor(mill_defaults, hide_index=True, use_container_width=True,
+                                  num_rows="dynamic", key="mill_trb_editor")
 
-            st.markdown("**Auxiliary Turbines** (fans, pumps, misc.)")
-            ag1, ag2, ag3 = st.columns(3)
-            aux_group_name = ag1.text_input("Group name", value="Fan and Pump Turbines")
-            aux_live_psig = ag2.number_input("Aux live steam (psig)", value=170.0, step=5.0, key="aux_live")
-            aux_exh_psig = ag3.number_input("Aux exhaust (psig)", value=16.0, step=1.0, key="aux_exh")
-            aux_defaults = pd.DataFrame([
-                {"Name": "ID 123", "HP": 750.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "ID 4", "HP": 235.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "ID 5", "HP": 400.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "ID 6", "HP": 795.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "ID 7", "HP": 1200.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "FD 7", "HP": 233.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "ID 8", "HP": 1300.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "FD 8", "HP": 350.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "BFW 1", "HP": 400.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "BFW 2", "HP": 400.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "BFW 3", "HP": 400.0, "Isentropic Eff (%)": 50.0},
-                {"Name": "JCE 1", "HP": 400.0, "Isentropic Eff (%)": 50.0},
-            ])
-            aux_df = st.data_editor(aux_defaults, hide_index=True, use_container_width=True,
-                                     num_rows="dynamic", key="aux_trb_editor")
-            misc_trbs = AuxillaryTurbines(
-                group_name=aux_group_name,
-                name_list=list(aux_df["Name"]),
-                hp_list=list(aux_df["HP"]),
-                isentropic_efficiency=list(aux_df["Isentropic Eff (%)"]),
-                live_steam_object=_group_steam(aux_live_psig),
-                exhaust_psia=aux_exh_psig + 14.696,
-            )
+        st.markdown("**Auxiliary Turbines** (fans, pumps, misc.)")
+        ag1, ag2, ag3 = st.columns(3)
+        aux_group_name = ag1.text_input("Group name", value="Fan and Pump Turbines")
+        aux_live_psig = ag2.number_input("Aux live steam (psig)", value=170.0, step=5.0, key="aux_live")
+        aux_exh_psig = ag3.number_input("Aux exhaust (psig)", value=16.0, step=1.0, key="aux_exh")
+        aux_defaults = pd.DataFrame([
+            {"Name": "ID 123", "HP": 750.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "ID 4", "HP": 235.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "ID 5", "HP": 400.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "ID 6", "HP": 795.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "ID 7", "HP": 1200.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "FD 7", "HP": 233.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "ID 8", "HP": 1300.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "FD 8", "HP": 350.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "BFW 1", "HP": 400.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "BFW 2", "HP": 400.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "BFW 3", "HP": 400.0, "Isentropic Eff (%)": 50.0},
+            {"Name": "JCE 1", "HP": 400.0, "Isentropic Eff (%)": 50.0},
+        ])
+        aux_df = st.data_editor(aux_defaults, hide_index=True, use_container_width=True,
+                                 num_rows="dynamic", key="aux_trb_editor")
 
-            st.markdown("**Losses & Jets**")
-            lj1, lj2 = st.columns(2)
-            live_steam_jets_lb_hr = lj1.number_input("Live steam for jets (lb/hr)", value=25000.0, step=1000.0)
-            live_steam_loss_pct = lj2.number_input("Live steam losses (% of subtotal)", value=2.0, step=0.5)
+        st.markdown("**Losses & Jets**")
+        lj1, lj2 = st.columns(2)
+        live_steam_jets_lb_hr = lj1.number_input("Live steam for jets (lb/hr)", value=25000.0, step=1000.0)
+        live_steam_loss_pct = lj2.number_input("Live steam losses (% of subtotal)", value=2.0, step=0.5)
 
-            live_steam_subtotal = (knf_trbs.total_inlet_flow_lb_hr + mill_trbs.total_inlet_flow_lb_hr
-                                    + misc_trbs.total_inlet_flow_lb_hr + live_steam_jets_lb_hr)
-            live_steam_loss_lb_hr = live_steam_subtotal * live_steam_loss_pct / 100
-            live_steam_total_lb_hr = live_steam_subtotal + live_steam_loss_lb_hr
-            exhaust_available = (knf_trbs.total_exhaust_available_lb_hr + mill_trbs.total_exhaust_available_lb_hr
-                                  + misc_trbs.total_exhaust_available_lb_hr)
-            makeup_steam = max(total_exhaust_required - exhaust_available, 0.0)
+        st.markdown("**Boiler Room**")
+        b1, b2, b3, b4 = st.columns(4)
+        blr_efficiency = b1.number_input("Boiler efficiency (%)", value=60.0, step=1.0)
+        blr_pressure_psig = b2.number_input("Boiler pressure (psig)", value=float(live_gen_psig), step=5.0)
+        blr_superheat = b3.number_input("Boiler superheat (°F)", value=float(live_gen_superheat), step=5.0)
+        blr_capacity = b4.number_input("Boiler capacity (lb/hr, 0 = unlimited)", value=900000.0, step=10000.0)
+        b5, b6 = st.columns(2)
+        use_da_fw_temp = b5.checkbox("Feedwater temp = Deaerator water out", value=True)
+        manual_fw_temp = b6.number_input("Feedwater temp (°F, used if unchecked)", value=230.0, step=5.0,
+                                          disabled=use_da_fw_temp)
 
-            live_steam_dict = {
-                "Cane Prep Turbines": knf_trbs.total_inlet_flow_lb_hr,
-                "Mill Turbines": mill_trbs.total_inlet_flow_lb_hr,
-                "Fan and Pump Turbines": misc_trbs.total_inlet_flow_lb_hr,
-                "Steam Jets": live_steam_jets_lb_hr,
-                "Live Steam Losses": live_steam_loss_lb_hr,
-                "Total Live Steam": live_steam_total_lb_hr,
-            }
+        if should_resolve("turb"):
+            mark_resolved("turb")
+            try:
+                knf_trbs = CanePrepTurbines(
+                    name_list=list(knf_df["Name"]),
+                    hp_ton_fiber_hr=list(knf_df["HP per Ton Fiber/hr"]),
+                    isentropic_efficiency=list(knf_df["Isentropic Eff (%)"]),
+                    live_steam_object=_group_steam(knf_live_psig),
+                    exhaust_psia=knf_exh_psig + 14.696,
+                    tons_fiber_hr=tons_fiber_hr,
+                )
+                mill_trbs = MillTurbines(
+                    hp_ton_fiber_hr=list(mill_df["HP per Ton Fiber/hr"]),
+                    isentropic_efficiency=list(mill_df["Isentropic Eff (%)"]),
+                    live_steam_object=_group_steam(mill_live_psig),
+                    exhaust_psia=mill_exh_psig + 14.696,
+                    tons_fiber_hr=tons_fiber_hr,
+                )
+                misc_trbs = AuxillaryTurbines(
+                    group_name=aux_group_name,
+                    name_list=list(aux_df["Name"]),
+                    hp_list=list(aux_df["HP"]),
+                    isentropic_efficiency=list(aux_df["Isentropic Eff (%)"]),
+                    live_steam_object=_group_steam(aux_live_psig),
+                    exhaust_psia=aux_exh_psig + 14.696,
+                )
+
+                live_steam_subtotal = (knf_trbs.total_inlet_flow_lb_hr + mill_trbs.total_inlet_flow_lb_hr
+                                        + misc_trbs.total_inlet_flow_lb_hr + live_steam_jets_lb_hr)
+                live_steam_loss_lb_hr = live_steam_subtotal * live_steam_loss_pct / 100
+                live_steam_total_lb_hr = live_steam_subtotal + live_steam_loss_lb_hr
+                exhaust_available = (knf_trbs.total_exhaust_available_lb_hr + mill_trbs.total_exhaust_available_lb_hr
+                                      + misc_trbs.total_exhaust_available_lb_hr)
+                makeup_steam = max(total_exhaust_required - exhaust_available, 0.0)
+
+                live_steam_dict = {
+                    "Cane Prep Turbines": knf_trbs.total_inlet_flow_lb_hr,
+                    "Mill Turbines": mill_trbs.total_inlet_flow_lb_hr,
+                    "Fan and Pump Turbines": misc_trbs.total_inlet_flow_lb_hr,
+                    "Steam Jets": live_steam_jets_lb_hr,
+                    "Live Steam Losses": live_steam_loss_lb_hr,
+                    "Total Live Steam": live_steam_total_lb_hr,
+                }
+
+                fw_temp = da.water_out.T if (use_da_fw_temp and da is not None) else manual_fw_temp
+                blrs = Boiler(
+                    bagasse=mills.bagasse_stream,
+                    efficiency=blr_efficiency,
+                    pressure_psig=blr_pressure_psig,
+                    deg_superheat=blr_superheat,
+                    feed_water_temp=fw_temp,
+                    capacity=blr_capacity,
+                    name="All Boilers",
+                )
+
+                knf_fig = knf_trbs.generate_pfd(show=False)
+                mill_fig = mill_trbs.generate_pfd(show=False)
+                misc_fig = misc_trbs.generate_pfd(show=False)
+                plt.close(knf_fig)
+                plt.close(mill_fig)
+                plt.close(misc_fig)
+
+                SOLVED["knf_trbs"] = knf_trbs
+                SOLVED["mill_trbs"] = mill_trbs
+                SOLVED["misc_trbs"] = misc_trbs
+                SOLVED["blrs"] = blrs
+                SOLVED["knf_pfd"] = knf_fig
+                SOLVED["mill_pfd"] = mill_fig
+                SOLVED["misc_pfd"] = misc_fig
+                SOLVED["live_steam_dict"] = live_steam_dict
+                SOLVED["live_steam_total_lb_hr"] = live_steam_total_lb_hr
+                SOLVED["exhaust_available"] = exhaust_available
+                SOLVED["makeup_steam"] = makeup_steam
+                SOLVED["aux_group_name"] = aux_group_name
+                SOLVED["turb_ok"] = True
+                SOLVED["turb_error"] = None
+            except Exception as exc:
+                SOLVED["turb_ok"] = False
+                SOLVED["turb_error"] = str(exc)
+
+        knf_trbs = SOLVED.get("knf_trbs")
+        mill_trbs = SOLVED.get("mill_trbs")
+        misc_trbs = SOLVED.get("misc_trbs")
+        blrs = SOLVED.get("blrs")
+        live_steam_dict = SOLVED.get("live_steam_dict", {})
+        exhaust_available = SOLVED.get("exhaust_available", 0.0)
+        makeup_steam = SOLVED.get("makeup_steam", 0.0)
+        turb_ok = SOLVED.get("turb_ok", False)
+
+        if turb_ok:
+            live_steam_total_lb_hr = SOLVED["live_steam_total_lb_hr"]
+            cached_aux_group_name = SOLVED.get("aux_group_name", aux_group_name)
+
             st.dataframe(pd.DataFrame(live_steam_dict.items(), columns=["Item", "lb/hr"]),
                          hide_index=True, use_container_width=True)
 
@@ -1254,27 +1539,6 @@ with tab_turb:
             c3.metric("Exhaust Available from Turbines", f"{exhaust_available:,.0f} lb/hr")
             c4.metric("Makeup Required", f"{makeup_steam:,.0f} lb/hr")
 
-            st.markdown("**Boiler Room**")
-            b1, b2, b3, b4 = st.columns(4)
-            blr_efficiency = b1.number_input("Boiler efficiency (%)", value=60.0, step=1.0)
-            blr_pressure_psig = b2.number_input("Boiler pressure (psig)", value=float(live_gen_psig), step=5.0)
-            blr_superheat = b3.number_input("Boiler superheat (°F)", value=float(live_gen_superheat), step=5.0)
-            blr_capacity = b4.number_input("Boiler capacity (lb/hr, 0 = unlimited)", value=900000.0, step=10000.0)
-            b5, b6 = st.columns(2)
-            use_da_fw_temp = b5.checkbox("Feedwater temp = Deaerator water out", value=True)
-            manual_fw_temp = b6.number_input("Feedwater temp (°F, used if unchecked)", value=230.0, step=5.0,
-                                              disabled=use_da_fw_temp)
-            fw_temp = da.water_out.T if (use_da_fw_temp and da is not None) else manual_fw_temp
-
-            blrs = Boiler(
-                bagasse=mills.bagasse_stream,
-                efficiency=blr_efficiency,
-                pressure_psig=blr_pressure_psig,
-                deg_superheat=blr_superheat,
-                feed_water_temp=fw_temp,
-                capacity=blr_capacity,
-                name="All Boilers",
-            )
             c1, c2 = st.columns(2)
             c1.metric("Steam Available from Bagasse", f"{blrs.steam_availabe_lb_hr:,.0f} lb/hr")
             c2.metric("Live Steam Demand vs. Available",
@@ -1291,34 +1555,33 @@ with tab_turb:
 
             st.markdown("**Cane Prep (Knife) Turbines — Output**")
             st.dataframe(turbine_group_table(knf_trbs), hide_index=True, use_container_width=True)
-            fig = knf_trbs.generate_pfd(show=False)
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
+            st.pyplot(SOLVED["knf_pfd"], use_container_width=True)
 
             st.markdown("**Mill Turbines — Output**")
             st.dataframe(turbine_group_table(mill_trbs), hide_index=True, use_container_width=True)
-            fig = mill_trbs.generate_pfd(show=False)
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
+            st.pyplot(SOLVED["mill_pfd"], use_container_width=True)
 
-            st.markdown(f"**{aux_group_name} — Output**")
+            st.markdown(f"**{cached_aux_group_name} — Output**")
             st.dataframe(turbine_group_table(misc_trbs), hide_index=True, use_container_width=True)
-            fig = misc_trbs.generate_pfd(show=False)
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
+            st.pyplot(SOLVED["misc_pfd"], use_container_width=True)
+        elif SOLVED.get("turb_error"):
+            st.error(f"Turbines/Boiler failed to solve: {SOLVED['turb_error']}")
+        else:
+            st.info("Click **Solve Entire Plant** above to compute turbines and the boiler room.")
 
-            turb_ok = True
-        except Exception as exc:
-            st.error(f"Turbines/Boiler failed to solve: {exc}")
 
+with tab_turb:
+    render_tab_turb()
 # ============================================================================
 # COOLING TOWER TAB
 # ============================================================================
-cool_ok = False
-ctwrs = None
-
-with tab_cool:
+@st.fragment
+def render_tab_cool():
     st.subheader("Cooling Tower System")
+    pan_ok = SOLVED.get("pan_ok", False)
+    evap_ok = SOLVED.get("evap_ok", False)
+    pan_floor = SOLVED.get("pan_floor")
+    evap_station = SOLVED.get("evap_station", [])
     if not (pan_ok and evap_ok):
         st.warning("Solve Pan Floor and Evaporation first — the cooling tower collects every "
                    "condenser from both.")
@@ -1329,20 +1592,37 @@ with tab_cool:
         ct_makeup_water_temp = ct3.number_input("Makeup water temp (°F)", value=70.0, step=1.0)
         ct_iterations = int(ct4.number_input("Solver iterations", value=20, step=1, key="ct_iterations"))
 
-        try:
-            condenser_list = list(pan_floor.pan_condensers)
-            for evap in evap_station:
-                condenser_list.append(evap.condenser)
+        if should_resolve("cool"):
+            mark_resolved("cool")
+            try:
+                condenser_list = list(pan_floor.pan_condensers)
+                for evap in evap_station:
+                    condenser_list.append(evap.condenser)
 
-            ctwrs = CoolingTowerSystem(
-                condensers=condenser_list,
-                cool_water_temp_F=ct_cool_water_temp,
-                percent_blowdown=ct_pct_blowdown,
-                makeup_water_temp_F=ct_makeup_water_temp,
-                iterations=ct_iterations,
-                name="Cooling Tower System",
-            )
+                ctwrs = CoolingTowerSystem(
+                    condensers=condenser_list,
+                    cool_water_temp_F=ct_cool_water_temp,
+                    percent_blowdown=ct_pct_blowdown,
+                    makeup_water_temp_F=ct_makeup_water_temp,
+                    iterations=ct_iterations,
+                    name="Cooling Tower System",
+                )
+                ctwrs_fig = ctwrs.generate_pfd(show=False)
+                plt.close(ctwrs_fig)
 
+                SOLVED["ctwrs"] = ctwrs
+                SOLVED["ctwrs_pfd"] = ctwrs_fig
+                SOLVED["cool_ok"] = True
+                SOLVED["cool_error"] = None
+            except Exception as exc:
+                SOLVED["ctwrs"] = None
+                SOLVED["cool_ok"] = False
+                SOLVED["cool_error"] = str(exc)
+
+        ctwrs = SOLVED.get("ctwrs")
+        cool_ok = SOLVED.get("cool_ok", False)
+
+        if cool_ok:
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total Vapor Condensed", f"{ctwrs.total_vapor_lb_hr:,.0f} lb/hr")
             c2.metric("Injection Water Demand", f"{ctwrs.total_injection_water_lb_hr:,.0f} lb/hr")
@@ -1355,9 +1635,7 @@ with tab_cool:
             c3.metric("Surplus", f"{ctwrs.surplus_lb_hr:,.0f} lb/hr")
 
             st.subheader("Process Flow Diagram")
-            fig = ctwrs.generate_pfd(show=False)
-            st.pyplot(fig, use_container_width=True)
-            plt.close(fig)
+            st.pyplot(SOLVED["ctwrs_pfd"], use_container_width=True)
 
             st.markdown("**System Streams**")
             st.dataframe(cooling_tower_streams_table(ctwrs), hide_index=True, use_container_width=True)
@@ -1371,113 +1649,143 @@ with tab_cool:
             st.subheader("Balance Check")
             bal_df = pd.DataFrame([ctwrs.balance_check])
             st.dataframe(bal_df, use_container_width=True, hide_index=True)
+        elif SOLVED.get("cool_error"):
+            st.error(f"Cooling tower failed to solve: {SOLVED['cool_error']}")
+        else:
+            st.info("Click **Solve Entire Plant** above to compute the cooling tower system.")
 
-            cool_ok = True
-        except Exception as exc:
-            st.error(f"Cooling tower failed to solve: {exc}")
 
+with tab_cool:
+    render_tab_cool()
 # ============================================================================
 # CONDENSATE BALANCE TAB
 # ============================================================================
-cond_ok = False
-condensate_balance = None
-
-with tab_cond:
+@st.fragment
+def render_tab_cond():
     st.subheader("Condensate Balance")
+    heat_ok = SOLVED.get("heat_ok", False)
+    pan_ok = SOLVED.get("pan_ok", False)
+    evap_ok = SOLVED.get("evap_ok", False)
+    steam_ok = SOLVED.get("steam_ok", False)
+    cool_ok = SOLVED.get("cool_ok", False)
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
+    pan_floor = SOLVED.get("pan_floor")
+    pre_3 = SOLVED.get("pre_3")
+    evap_station = SOLVED.get("evap_station", [])
+    da = SOLVED.get("da")
+    ctwrs = SOLVED.get("ctwrs")
     if not (heat_ok and pan_ok and evap_ok and steam_ok and cool_ok):
         st.warning("Solve Juice Heating, Pan Floor, Evaporation, Exhaust Summary, and Cooling Tower "
                    "first — condensate supply and water demand both draw from those sections.")
     else:
-        try:
-            clar_juice_heater_condensate = flash_condensate(
-                clar_juice_heater.steam_required_lb_per_hr, clar_juice_heater.hot_stream.T)
-            clar_juice_heater_label = f"Clarified Juice Heater ({STEAM_TYPES[clar_juice_heater.steam_type]})"
+        clar_juice_heater_condensate = flash_condensate(
+            clar_juice_heater.steam_required_lb_per_hr, clar_juice_heater.hot_stream.T)
+        clar_juice_heater_label = f"Clarified Juice Heater ({STEAM_TYPES[clar_juice_heater.steam_type]})"
 
-            clean_condensate_dict = {
-                "Pre-Evaporator": pre_3.clean_condensate if pre_3 is not None else 0.0,
-                "Evaporator Sets (Effect 1s)": sum(evap.clean_condensate for evap in evap_station),
-                "Pan Floor - Exhaust Pans": pan_floor.clean_condensate,
-                "Juice Heaters - Exhaust Station": juice_heaters.clean_condensate,
-                **({clar_juice_heater_label: clar_juice_heater_condensate}
-                   if clar_juice_heater.steam_type == 0 else {}),
-            }
-            dirty_condensate_dict = {
-                "Evaporator Sets (Effects 2+)": sum(evap.dirty_condensate for evap in evap_station),
-                "Pan Floor - V1-V4 Pans": pan_floor.dirty_condensate,
-                "Juice Heaters - V1-V4 Station": juice_heaters.dirty_condensate,
-                **({clar_juice_heater_label: clar_juice_heater_condensate}
-                   if clar_juice_heater.steam_type != 0 else {}),
-            }
+        clean_condensate_dict = {
+            "Pre-Evaporator": pre_3.clean_condensate if pre_3 is not None else 0.0,
+            "Evaporator Sets (Effect 1s)": sum(evap.clean_condensate for evap in evap_station),
+            "Pan Floor - Exhaust Pans": pan_floor.clean_condensate,
+            "Juice Heaters - Exhaust Station": juice_heaters.clean_condensate,
+            **({clar_juice_heater_label: clar_juice_heater_condensate}
+               if clar_juice_heater.steam_type == 0 else {}),
+        }
+        dirty_condensate_dict = {
+            "Evaporator Sets (Effects 2+)": sum(evap.dirty_condensate for evap in evap_station),
+            "Pan Floor - V1-V4 Pans": pan_floor.dirty_condensate,
+            "Juice Heaters - V1-V4 Station": juice_heaters.dirty_condensate,
+            **({clar_juice_heater_label: clar_juice_heater_condensate}
+               if clar_juice_heater.steam_type != 0 else {}),
+        }
 
-            st.markdown("**Available Condensate**")
-            avail_df = pd.DataFrame(
-                list(clean_condensate_dict.items()) + list(dirty_condensate_dict.items()),
-                columns=["Source", "lb/hr"],
-            )
-            avail_df.insert(1, "Type", ["Clean"] * len(clean_condensate_dict) + ["Dirty"] * len(dirty_condensate_dict))
-            st.dataframe(avail_df, hide_index=True, use_container_width=True)
+        st.markdown("**Available Condensate**")
+        avail_df = pd.DataFrame(
+            list(clean_condensate_dict.items()) + list(dirty_condensate_dict.items()),
+            columns=["Source", "lb/hr"],
+        )
+        avail_df.insert(1, "Type", ["Clean"] * len(clean_condensate_dict) + ["Dirty"] * len(dirty_condensate_dict))
+        st.dataframe(avail_df, hide_index=True, use_container_width=True)
 
-            # Wash water differs by boiling scheme — collect whichever centrifugals exist.
-            if is_fbdm:
-                cent_wash_water_lb_hr = (pan_floor.A1_centrifugals.wash_water_lb_hr
-                                          + pan_floor.A2_centrifugals.wash_water_lb_hr
-                                          + pan_floor.B_centrifugals.wash_water_lb_hr
-                                          + pan_floor.C_centrifugals.wash_water_lb_hr)
-            elif is_tbdm:
-                cent_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
-                                          + pan_floor.B_centrifugals.wash_water_lb_hr
-                                          + pan_floor.C_centrifugals.wash_water_lb_hr)
-            else:
-                cent_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
-                                          + pan_floor.C_centrifugals.wash_water_lb_hr)
-            pan_dilution_water_lb_hr = pan_floor.total_water.flow_lb_per_hr - cent_wash_water_lb_hr
+        # Wash water differs by boiling scheme — collect whichever centrifugals exist.
+        # Use the scheme pan_floor was ACTUALLY solved with (not the live radio widget,
+        # which may have been changed since without a re-solve yet) so this always matches
+        # the real type of the cached pan_floor object.
+        solved_pan_scheme = SOLVED.get("pan_scheme")
+        if solved_pan_scheme == "FBDM":
+            cent_wash_water_lb_hr = (pan_floor.A1_centrifugals.wash_water_lb_hr
+                                      + pan_floor.A2_centrifugals.wash_water_lb_hr
+                                      + pan_floor.B_centrifugals.wash_water_lb_hr
+                                      + pan_floor.C_centrifugals.wash_water_lb_hr)
+        elif solved_pan_scheme == "TBDM":
+            cent_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
+                                      + pan_floor.B_centrifugals.wash_water_lb_hr
+                                      + pan_floor.C_centrifugals.wash_water_lb_hr)
+        else:
+            cent_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
+                                      + pan_floor.C_centrifugals.wash_water_lb_hr)
+        pan_dilution_water_lb_hr = pan_floor.total_water.flow_lb_per_hr - cent_wash_water_lb_hr
 
-            filter_wash_water_lb_hr = clar.filter_wash_water_lb_hr
+        filter_wash_water_lb_hr = clar.filter_wash_water_lb_hr
 
-            st.markdown("**Water Demand — input table** (flow, target temp, and method are all editable)")
-            demand_defaults = pd.DataFrame([
-                {"Demand": "Boiler Feed Water", "Flow (lb/hr)": da.water_in_lb_hr,
-                 "Target Temp (°F)": da.water_in_deg_F, "Method": "blended"},
-                {"Demand": "Imbibition", "Flow (lb/hr)": mills.imbibition_lb_hr,
-                 "Target Temp (°F)": 150.0, "Method": "blended"},
-                {"Demand": "Wash Water - Centrifugals", "Flow (lb/hr)": cent_wash_water_lb_hr,
-                 "Target Temp (°F)": 180.0, "Method": "cooled"},
-                {"Demand": "Dilution Water - Pans/Molasses/Remelt", "Flow (lb/hr)": pan_dilution_water_lb_hr,
-                 "Target Temp (°F)": 150.0, "Method": "blended"},
-                {"Demand": "Mud Filter Wash Water", "Flow (lb/hr)": filter_wash_water_lb_hr,
-                 "Target Temp (°F)": 180.0, "Method": "blended"},
-            ])
-            demand_df = st.data_editor(
-                demand_defaults, hide_index=True, use_container_width=True, num_rows="fixed",
-                key="condensate_demand_editor", disabled=["Demand"],
-                column_config={"Method": st.column_config.SelectboxColumn(options=["blended", "cooled"])},
-            )
+        st.markdown("**Water Demand — input table** (flow, target temp, and method are all editable)")
+        demand_defaults = pd.DataFrame([
+            {"Demand": "Boiler Feed Water", "Flow (lb/hr)": da.water_in_lb_hr,
+             "Target Temp (°F)": da.water_in_deg_F, "Method": "blended"},
+            {"Demand": "Imbibition", "Flow (lb/hr)": mills.imbibition_lb_hr,
+             "Target Temp (°F)": 150.0, "Method": "blended"},
+            {"Demand": "Wash Water - Centrifugals", "Flow (lb/hr)": cent_wash_water_lb_hr,
+             "Target Temp (°F)": 180.0, "Method": "cooled"},
+            {"Demand": "Dilution Water - Pans/Molasses/Remelt", "Flow (lb/hr)": pan_dilution_water_lb_hr,
+             "Target Temp (°F)": 150.0, "Method": "blended"},
+            {"Demand": "Mud Filter Wash Water", "Flow (lb/hr)": filter_wash_water_lb_hr,
+             "Target Temp (°F)": 180.0, "Method": "blended"},
+        ])
+        demand_df = st.data_editor(
+            demand_defaults, hide_index=True, use_container_width=True, num_rows="fixed",
+            key="condensate_demand_editor", disabled=["Demand"],
+            column_config={"Method": st.column_config.SelectboxColumn(options=["blended", "cooled"])},
+        )
 
-            gt1, gt2 = st.columns(2)
-            well_water_temp_F = gt1.number_input(
-                "Well water temp (°F)", value=float(ctwrs.makeup_water_temp_F) if ctwrs.makeup_water_temp_F
-                else 70.0, step=1.0,
-            )
-            combined_condensate_temp_F = gt2.number_input("Combined condensate temp (°F)", value=210.0, step=5.0)
+        gt1, gt2 = st.columns(2)
+        well_water_temp_F = gt1.number_input(
+            "Well water temp (°F)", value=float(ctwrs.makeup_water_temp_F) if ctwrs.makeup_water_temp_F
+            else 70.0, step=1.0,
+        )
+        combined_condensate_temp_F = gt2.number_input("Combined condensate temp (°F)", value=210.0, step=5.0)
 
-            demand_notes = {
-                "Boiler Feed Water": "Recommend usage of clean condensate, make up with minimal dirty "
-                                      "condensate or well water",
-            }
-            condensate_demands = [
-                CondensateDemand(row["Demand"], flow_lb_hr=row["Flow (lb/hr)"],
-                                  temp_F=row["Target Temp (°F)"], method=row["Method"],
-                                  note=demand_notes.get(row["Demand"], ""))
-                for _, row in demand_df.iterrows()
-            ]
+        if should_resolve("cond"):
+            mark_resolved("cond")
+            try:
+                demand_notes = {
+                    "Boiler Feed Water": "Recommend usage of clean condensate, make up with minimal dirty "
+                                          "condensate or well water",
+                }
+                condensate_demands = [
+                    CondensateDemand(row["Demand"], flow_lb_hr=row["Flow (lb/hr)"],
+                                      temp_F=row["Target Temp (°F)"], method=row["Method"],
+                                      note=demand_notes.get(row["Demand"], ""))
+                    for _, row in demand_df.iterrows()
+                ]
 
-            condensate_balance = CondensateBalance(
-                clean_condensate_dict, dirty_condensate_dict, condensate_demands,
-                well_water_temp_F=well_water_temp_F,
-                combined_condensate_temp_F=combined_condensate_temp_F,
-                name="Condensate Balance",
-            )
+                condensate_balance = CondensateBalance(
+                    clean_condensate_dict, dirty_condensate_dict, condensate_demands,
+                    well_water_temp_F=well_water_temp_F,
+                    combined_condensate_temp_F=combined_condensate_temp_F,
+                    name="Condensate Balance",
+                )
+                SOLVED["condensate_balance"] = condensate_balance
+                SOLVED["cond_ok"] = True
+                SOLVED["cond_error"] = None
+            except Exception as exc:
+                SOLVED["condensate_balance"] = None
+                SOLVED["cond_ok"] = False
+                SOLVED["cond_error"] = str(exc)
 
+        condensate_balance = SOLVED.get("condensate_balance")
+        cond_ok = SOLVED.get("cond_ok", False)
+
+        if cond_ok:
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total Condensate Available", f"{condensate_balance.total_condensate_available_lb_hr:,.0f} lb/hr")
             c2.metric("Total Water Demand", f"{condensate_balance.total_water_demand_lb_hr:,.0f} lb/hr")
@@ -1496,16 +1804,43 @@ with tab_cond:
                                                     "Condensate %", "Warning"]),
                 hide_index=True, use_container_width=True,
             )
+        elif SOLVED.get("cond_error"):
+            st.error(f"Condensate balance failed to solve: {SOLVED['cond_error']}")
+        else:
+            st.info("Click **Solve Entire Plant** above to compute the condensate balance.")
 
-            cond_ok = True
-        except Exception as exc:
-            st.error(f"Condensate balance failed to solve: {exc}")
 
+with tab_cond:
+    render_tab_cond()
 # ============================================================================
 # DOWNLOAD TAB
 # ============================================================================
-with tab_dl:
+@st.fragment
+def render_tab_dl():
     st.write("Export everything solved so far to a styled Excel workbook.")
+    heat_ok = SOLVED.get("heat_ok", False)
+    pan_ok = SOLVED.get("pan_ok", False)
+    evap_ok = SOLVED.get("evap_ok", False)
+    steam_ok = SOLVED.get("steam_ok", False)
+    turb_ok = SOLVED.get("turb_ok", False)
+    cool_ok = SOLVED.get("cool_ok", False)
+    cond_ok = SOLVED.get("cond_ok", False)
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
+    pan_floor = SOLVED.get("pan_floor")
+    pre_3 = SOLVED.get("pre_3")
+    evap_station = SOLVED.get("evap_station", [])
+    da = SOLVED.get("da")
+    knf_trbs = SOLVED.get("knf_trbs")
+    mill_trbs = SOLVED.get("mill_trbs")
+    misc_trbs = SOLVED.get("misc_trbs")
+    blrs = SOLVED.get("blrs")
+    live_steam_dict = SOLVED.get("live_steam_dict", {})
+    exh_dict = SOLVED.get("exh_dict", {})
+    exhaust_available = SOLVED.get("exhaust_available", 0.0)
+    makeup_steam = SOLVED.get("makeup_steam", 0.0)
+    ctwrs = SOLVED.get("ctwrs")
+    condensate_balance = SOLVED.get("condensate_balance")
     if st.button("Build workbook", use_container_width=True):
         wb = new_workbook()
         mills.to_excel(wb)
@@ -1556,3 +1891,6 @@ with tab_dl:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
+
+with tab_dl:
+    render_tab_dl()
