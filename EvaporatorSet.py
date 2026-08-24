@@ -667,6 +667,68 @@ def sets_to_excel(evap_sets, workbook, sheet_name="Evaporator Station"):
         ws.column_dimensions[letter].width = (px - 5) / 7
     return ws
 
+import numpy as np
+from scipy.optimize import root
+ 
+from EvaporatorSet import EvaporatorSet
+ 
+ 
+class EvaporatorSetSciPy(EvaporatorSet):
+    """EvaporatorSet with a scipy.optimize.root pressure-profile solver."""
+ 
+    def _apply_pressures(self, P_interior):
+        """Push the N-1 interior vapor pressures into the effects.
+ 
+        Effect i's vapor space is set to P_interior[i], and that same pressure
+        becomes the calandria (heating) pressure of effect i+1. The last effect's
+        vapor pressure stays pinned to the condenser.
+        """
+        for i in range(self.number_of_effects - 1):
+            self.evaporator_list[i].vapor_pressure_psia = float(P_interior[i])
+            self.evaporator_list[i + 1].calandria_side.P_psia = float(P_interior[i])
+ 
+    def _profile_residuals(self, P_interior):
+        """One residual per pair of adjacent effects: their U_ratios should match.
+ 
+        np.diff([a, b, c]) -> [b-a, c-b]. When both are zero, all three U_ratios
+        are equal -- the same target as your stdev(U_ratio) -> 0 criterion.
+        """
+        self._apply_pressures(P_interior)
+        self.update_set()
+        self.solve_for_steam()   # your trusted 1-D secant keeps brix on target
+        u = np.array([e.U_ratio for e in self.evaporator_list])
+        return np.diff(u)
+ 
+    def _equal_split_guess(self):
+        """Starting profile: split the total pressure drop evenly across effects.
+ 
+        This mirrors evaporator_functions.pressure_profile_initial and gives a
+        valid, correctly ordered profile to start from.
+        """
+        P_top = self.supply_steam.P_psia
+        P_bot = self.last_effect_pressure_psia
+        step = (P_top - P_bot) / self.number_of_effects
+        return np.array([P_top - step * (i + 1)
+                         for i in range(self.number_of_effects - 1)])
+ 
+    def adjust_pressure_profile_scipy(self, method="hybr", tol=None):
+        """Solve the pressure profile with scipy.optimize.root.
+ 
+        Returns the scipy OptimizeResult (check .success, .x). The converged
+        profile and steam flow are already applied to the set on return.
+        """
+        if self.number_of_effects < 2:          # nothing to distribute
+            self.update_set()
+            self.solve_for_steam()
+            return None
+ 
+        P0 = self._equal_split_guess()
+        sol = root(self._profile_residuals, P0, method=method, tol=tol)
+        self._profile_residuals(sol.x)          # apply the converged state
+ 
+        if not sol.success:
+            print(f"[EvaporatorSetSciPy] root did not fully converge: {sol.message}")
+        return sol
 
 if __name__ == "__main__":
     from PreEvaporator import PreEvaporator
