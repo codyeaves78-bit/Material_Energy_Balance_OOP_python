@@ -66,6 +66,7 @@ st.title("Cane Sugar Factory Material & Energy Balance")
 st.caption("Trial Streamlit walkthrough: Mill Floor → Clarification → Juice Heating → "
            "Pan Floor → Evaporation → Steam & Exhaust Summary.")
 st.caption("Version 0.1")
+st.caption("Creator: Cody Eaves")
 
 # ============================================================================
 # SOLVE CACHE
