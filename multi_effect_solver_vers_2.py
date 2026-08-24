@@ -1,6 +1,6 @@
 from time import time
 
-from EvaporatorSet import EvaporatorSet
+from EvaporatorSet import EvaporatorSet, EvaporatorSetSciPy
 from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam
 
@@ -156,7 +156,7 @@ def solve_evaporator_sets(
             clarified_juice,
             flow_lb_per_hr=fracs[i] * juice_flow_lb_per_hr,
         )
-        evap_set = EvaporatorSet(
+        evap_set = EvaporatorSetSciPy(
             juice_in=juice_i,
             supply_steam=EvaporatorSteam(cfg["supply_steam_psia"]),
             last_effect_pressure_psia=cfg["last_effect_psia"],
@@ -188,7 +188,7 @@ def solve_evaporator_sets(
     # Apply refined fractions and run initial pressure-profile solve on each set
     for i, evap in enumerate(sets):
         evap.juice_in.flow_lb_per_hr = fracs[i] * juice_flow_lb_per_hr
-        evap.adjust_pressure_profile()
+        evap.adjust_pressure_profile_scipy()
         if verbose:
             print(f"── Initial solve: {set_names[i]} ──")
             evap.neat_display()
@@ -217,7 +217,7 @@ def solve_evaporator_sets(
 
         for i, evap in enumerate(sets):
             evap.juice_in.flow_lb_per_hr = fracs[i] * juice_flow_lb_per_hr
-            evap.adjust_pressure_profile()
+            evap.adjust_pressure_profile_scipy()
 
         if verbose:
             u_str = "  ".join(f"{name}:{u:.4f}" for name, u in zip(set_names, u_vals))
@@ -293,3 +293,6 @@ if __name__ == "__main__":
     end_time = time() * 1000
     solve_time = end_time - start_time
     print(f"\n Time to solve {solve_time:.0f} ms")
+
+# test with original solver, time to solve = 131 ms
+# test with scipy solver, time to solve = 78 ms
