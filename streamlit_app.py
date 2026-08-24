@@ -7,6 +7,8 @@
 
 import io
 
+import time
+from datetime import datetime
 import matplotlib
 matplotlib.use("Agg")  # headless backend, required before pyplot is imported anywhere
 import matplotlib.pyplot as plt
@@ -34,6 +36,7 @@ from pan_floor_streamlit_table import (
 )
 from PreEvaporator import PreEvaporator
 from EvaporatorSet import sets_to_excel
+from multi_effect_solver_scipy import solve_evaporator_sets_scipy
 from multi_effect_solver_vers_2 import solve_evaporator_sets
 from evaporator_streamlit_tables import (
     pre_evaporator_streams_table, pre_evaporator_performance_table,
@@ -88,6 +91,15 @@ SOLVED = st.session_state.solved
 if "solve_gen" not in st.session_state:
     st.session_state.solve_gen = 0
 
+# PFD figures are kept out of SOLVED on purpose: SOLVED entries are wiped/rebuilt
+# every time their pipeline stage re-solves, but generating a PFD is the slow part
+# (that's why it got pulled out of the solve path in the first place — see the
+# "Check Process Flow Diagrams" tab), so a diagram should only regenerate when its
+# own button is clicked, not on every re-solve of its station.
+if "pfd_cache" not in st.session_state:
+    st.session_state.pfd_cache = {}
+PFD_CACHE = st.session_state.pfd_cache
+
 
 def should_resolve(stage_key):
     """True exactly once per click of "Solve Entire Plant", per pipeline stage.
@@ -113,10 +125,6 @@ def mark_resolved(stage_key):
 STEAM_TYPES = ["Exhaust", "V1", "V2", "V3", "V4"]
 WATER_LB_PER_GAL = 8.33045
 
-# Evaporator station solver tuning — not user-editable, changing these is a
-# code change, not a run-to-run input.
-EVAP_N_ITERATIONS = 10
-EVAP_DAMPENING = 0.2
 
 def resolve_cj():
     """Clarified juice as it exists right now: post juice-heating if that stage has
@@ -239,6 +247,7 @@ def turbine_group_table(group):
 # SIDEBAR — MILL FLOOR + CLARIFICATION
 # ============================================================================
 with st.sidebar:
+    solve_clicked = st.button("🔄 Solve Entire Plant", type="primary", use_container_width=True)    
     st.header("Mill Floor Inputs")
     st.subheader("Cane & Mills")
     cane_tpd = st.number_input("Cane throughput (TPD)", value=19000.0, step=100.0)
@@ -276,6 +285,7 @@ with st.sidebar:
     )
     clarifier_underflow_pct_cane = st.number_input("Clarifier underflow (% on cane)", value=20.0, step=0.5)
 
+    
 st.divider()
 psia_col, psig_col = st.columns([1, 3])
 with psia_col:
@@ -290,7 +300,7 @@ with psig_col:
         unsafe_allow_html=True,
     )
 
-solve_clicked = st.button("🔄 Solve Entire Plant", type="primary", use_container_width=True)
+
 if solve_clicked:
     st.session_state.solve_gen += 1
 st.caption(
@@ -340,15 +350,15 @@ if solve_clicked:
             name="Clarification",
         )
 
-        mills_fig = mills.generate_pfd(show=False)
-        clar_fig = clar.generate_pfd(show=False, include_table=False)
-        plt.close(mills_fig)
-        plt.close(clar_fig)
+       # mills_fig = mills.generate_pfd(show=False)
+       # clar_fig = clar.generate_pfd(show=False, include_table=False)
+       # plt.close(mills_fig)
+       # plt.close(clar_fig)
 
         SOLVED["mills"] = mills
         SOLVED["clar"] = clar
-        SOLVED["mills_pfd"] = mills_fig
-        SOLVED["clar_pfd"] = clar_fig
+       # SOLVED["mills_pfd"] = mills_fig
+       # SOLVED["clar_pfd"] = clar_fig
         SOLVED["mill_clar_error"] = None
     except Exception as exc:
         SOLVED["mills"] = None
@@ -371,10 +381,10 @@ cj = clar.clarified_juice_stream
 
 
 (tab_mill, tab_clar, tab_heat, tab_pan, tab_evap, tab_steam, tab_turb, tab_cool,
- tab_cond, tab_dl) = st.tabs([
+ tab_cond, tab_dl, tab_pfd) = st.tabs([
     "Mill Floor", "Clarification", "Juice Heating", "Pan Floor",
     "Evaporation", "Exhaust Summary", "Turbines & Boiler", "Cooling Tower",
-    "Condensate Balance", "Download",
+    "Condensate Balance", "Download", "Check Process Flow Diagrams"
 ])
 
 # ============================================================================
@@ -387,9 +397,6 @@ def render_tab_mill():
     c2.metric("Mixed juice flow", f"{mj.flow_lb_per_hr:,.0f} lb/hr")
     c3.metric("Mixed juice brix / purity", f"{mj.brix:.2f}% / {mj.purity:.1f}%")
     c4.metric("Bagasse flow", f"{bag.flowrate_lb_hr / 2000 * 24:,.0f} TPD")
-
-    st.subheader("Process Flow Diagram")
-    st.pyplot(SOLVED["mills_pfd"], use_container_width=True)
 
     st.subheader("Stream Table (TPH)")
     rows, in_tot, out_tot = mills._stream_table_rows()
@@ -424,9 +431,6 @@ def render_tab_clar():
     c2.metric("Clarified juice brix / purity", f"{cj.brix:.2f}% / {cj.purity:.1f}%")
     c3.metric("Flash vapor", f"{clar.flash_vapor_pct:.3f}%")
     c4.metric("Filter cake pol loss", f"{clar.filter_cake_pol_lb_per_day:,.0f} lb/day")
-
-    st.subheader("Process Flow Diagram")
-    st.pyplot(SOLVED["clar_pfd"], use_container_width=True)
 
     st.subheader("Stream Table (tags match the diagram)")
     stream_cols = ["#", "Stream", "Dir", "lb/hr", "GPM", "Brix lb/hr", "Pol lb/hr",
@@ -560,17 +564,17 @@ def render_tab_heat():
             cj_after_heat = SugarStream.copy(cj)
             cj_after_heat.temp_deg_F = clar_juice_heater.juice_out_temp_degF
 
-            heaters_fig = juice_heaters.generate_pfd(show=False)
-            cjh_fig = clar_juice_heater.generate_pfd(show=False)
-            plt.close(heaters_fig)
-            plt.close(cjh_fig)
+           # heaters_fig = juice_heaters.generate_pfd(show=False)
+           # cjh_fig = clar_juice_heater.generate_pfd(show=False)
+           # plt.close(heaters_fig)
+           # plt.close(cjh_fig)
 
             SOLVED["juice_heaters"] = juice_heaters
             SOLVED["clar_juice_heater"] = clar_juice_heater
             SOLVED["cj_after_heat"] = cj_after_heat
             SOLVED["cjh_steam_type"] = cjh_steam_type
-            SOLVED["heaters_pfd"] = heaters_fig
-            SOLVED["cjh_pfd"] = cjh_fig
+           # SOLVED["heaters_pfd"] = heaters_fig
+           # SOLVED["cjh_pfd"] = cjh_fig
             SOLVED["heat_ok"] = True
             SOLVED["heat_error"] = None
         except Exception as exc:
@@ -626,8 +630,8 @@ def render_tab_heat():
         c4.metric(f"Steam required ({SOLVED.get('cjh_steam_type', cjh_steam_type)})",
                   f"{clar_juice_heater.steam_required_lb_per_hr:,.0f} lb/hr")
 
-        st.pyplot(SOLVED["heaters_pfd"], use_container_width=True)
-        st.pyplot(SOLVED["cjh_pfd"], use_container_width=True)
+       # st.pyplot(SOLVED["heaters_pfd"], use_container_width=True)
+        # st.pyplot(SOLVED["cjh_pfd"], use_container_width=True)
     elif SOLVED.get("heat_error"):
         st.error(f"Juice heating failed to solve: {SOLVED['heat_error']}")
     else:
@@ -853,11 +857,11 @@ def render_tab_pan():
                     condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
                     iterations=PAN_SOLVER_ITERATIONS,
                 )
-            pan_fig = pan_floor.generate_pfd(show=False)
-            plt.close(pan_fig)
+           # pan_fig = pan_floor.generate_pfd(show=False)
+           # plt.close(pan_fig)
 
             SOLVED["pan_floor"] = pan_floor
-            SOLVED["pan_pfd"] = pan_fig
+           # SOLVED["pan_pfd"] = pan_fig
             SOLVED["pan_scheme"] = scheme_key
             SOLVED["pan_ok"] = True
             SOLVED["pan_error"] = None
@@ -940,7 +944,7 @@ def render_tab_pan():
             use_container_width=True, hide_index=True, height="content",
         )
 
-        st.pyplot(SOLVED["pan_pfd"], use_container_width=True)
+       # st.pyplot(SOLVED["pan_pfd"], use_container_width=True)
     elif SOLVED.get("pan_error"):
         st.error(f"Pan floor failed to solve: {SOLVED['pan_error']}")
     else:
@@ -1053,9 +1057,13 @@ def render_tab_evap():
             elif "Set 2" in cname:
                 v1_default_pcts[cname] = 7.0
         v1_share, v1_dist_df = vapor_dist_editor(1, v1_demand, v1_consumers, "v1_dist_editor", v1_default_pcts)
+        st.markdown(f"{"-"*270} % total {v1_dist_df.iloc[:,1].sum()}")
         v2_share, v2_dist_df = vapor_dist_editor(2, v2_demand, v2_consumers, "v2_dist_editor")
+        st.markdown(f"{"-"*270} % total {v2_dist_df.iloc[:,1].sum()}")
         v3_share, v3_dist_df = vapor_dist_editor(3, v3_demand, v3_consumers, "v3_dist_editor")
+        st.markdown(f"{"-"*270} % total {v3_dist_df.iloc[:,1].sum()}")
         v4_share, v4_dist_df = vapor_dist_editor(4, v4_demand, v4_consumers, "v4_dist_editor")
+        st.markdown(f"{"-"*270} % total {v4_dist_df.iloc[:,1].sum()}")
         share_by_grade = {1: v1_share, 2: v2_share, 3: v3_share, 4: v4_share}
 
         if active_sets.empty:
@@ -1100,7 +1108,7 @@ def render_tab_evap():
                     })
 
                 if set_configs:
-                    evap_station = solve_evaporator_sets(
+                    evap_station = solve_evaporator_sets_scipy(
                         juice_brix=juice_to_sets.brix,
                         juice_purity=juice_to_sets.purity,
                         juice_flow_lb_per_hr=juice_to_sets.flow_lb_per_hr,
@@ -1109,8 +1117,6 @@ def render_tab_evap():
                         target_brix_out=target_brix_out,
                         injection_water_temp_F=evap_injection_water_temp_F,
                         condenser_leg_temp_drop_F=evap_condenser_leg_temp_drop_F,
-                        n_iterations=EVAP_N_ITERATIONS,
-                        dampening=EVAP_DAMPENING,
                         set_configs=set_configs,
                         verbose=False,
                     )
@@ -1122,20 +1128,20 @@ def render_tab_evap():
                 v3_delivered = sum(v3_share(c) for c in v3_consumers)
                 v4_delivered = sum(v4_share(c) for c in v4_consumers)
 
-                pre_fig = None
-                if pre_3 is not None:
-                    pre_fig = pre_3.generate_pfd(show=False)
-                    plt.close(pre_fig)
-                evap_figs = {}
-                for evap in evap_station:
-                    ef = evap.generate_pfd(show=False, pre_evap=pre_3)
-                    plt.close(ef)
-                    evap_figs[evap.name] = ef
+                #pre_fig = None
+                #if pre_3 is not None:
+                   # pre_fig = pre_3.generate_pfd(show=False)
+                   # plt.close(pre_fig)
+                #evap_figs = {}
+                #for evap in evap_station:
+                    #ef = evap.generate_pfd(show=False, pre_evap=pre_3)
+                    #plt.close(ef)
+                    #evap_figs[evap.name] = ef
 
                 SOLVED["pre_3"] = pre_3
                 SOLVED["evap_station"] = evap_station
-                SOLVED["pre_pfd"] = pre_fig
-                SOLVED["evap_pfds"] = evap_figs
+                #SOLVED["pre_pfd"] = pre_fig
+               # SOLVED["evap_pfds"] = evap_figs
                 SOLVED["v1_demand"] = v1_demand
                 SOLVED["v2_demand"] = v2_demand
                 SOLVED["v3_demand"] = v3_demand
@@ -1178,7 +1184,7 @@ def render_tab_evap():
                 st.markdown(f"**Pre-Evaporator** — {pre_3.vapor_bleed_lb_per_hr:,.0f} lb/hr bleed, "
                             f"{pre_3.exhaust_required_lb_per_hr:,.0f} lb/hr exhaust, "
                             f"U ratio {pre_3.U_ratio:.3f}")
-                st.pyplot(SOLVED.get("pre_pfd"), use_container_width=True)
+                # st.pyplot(SOLVED.get("pre_pfd"), use_container_width=True)
 
                 st.markdown("**Pre-Evaporator — Streams**")
                 st.dataframe(pre_evaporator_streams_table(pre_3), hide_index=True,
@@ -1492,20 +1498,20 @@ def render_tab_turb():
                     name="All Boilers",
                 )
 
-                knf_fig = knf_trbs.generate_pfd(show=False)
-                mill_fig = mill_trbs.generate_pfd(show=False)
-                misc_fig = misc_trbs.generate_pfd(show=False)
-                plt.close(knf_fig)
-                plt.close(mill_fig)
-                plt.close(misc_fig)
+               # knf_fig = knf_trbs.generate_pfd(show=False)
+               # mill_fig = mill_trbs.generate_pfd(show=False)
+               # misc_fig = misc_trbs.generate_pfd(show=False)
+               # plt.close(knf_fig)
+               # plt.close(mill_fig)
+               # plt.close(misc_fig)
 
                 SOLVED["knf_trbs"] = knf_trbs
                 SOLVED["mill_trbs"] = mill_trbs
                 SOLVED["misc_trbs"] = misc_trbs
                 SOLVED["blrs"] = blrs
-                SOLVED["knf_pfd"] = knf_fig
-                SOLVED["mill_pfd"] = mill_fig
-                SOLVED["misc_pfd"] = misc_fig
+               # SOLVED["knf_pfd"] = knf_fig
+               # SOLVED["mill_pfd"] = mill_fig
+               # SOLVED["misc_pfd"] = misc_fig
                 SOLVED["live_steam_dict"] = live_steam_dict
                 SOLVED["live_steam_total_lb_hr"] = live_steam_total_lb_hr
                 SOLVED["exhaust_available"] = exhaust_available
@@ -1555,15 +1561,15 @@ def render_tab_turb():
 
             st.markdown("**Cane Prep (Knife) Turbines — Output**")
             st.dataframe(turbine_group_table(knf_trbs), hide_index=True, use_container_width=True)
-            st.pyplot(SOLVED["knf_pfd"], use_container_width=True)
+            # st.pyplot(SOLVED["knf_pfd"], use_container_width=True)
 
             st.markdown("**Mill Turbines — Output**")
             st.dataframe(turbine_group_table(mill_trbs), hide_index=True, use_container_width=True)
-            st.pyplot(SOLVED["mill_pfd"], use_container_width=True)
+            # st.pyplot(SOLVED["mill_pfd"], use_container_width=True)
 
             st.markdown(f"**{cached_aux_group_name} — Output**")
             st.dataframe(turbine_group_table(misc_trbs), hide_index=True, use_container_width=True)
-            st.pyplot(SOLVED["misc_pfd"], use_container_width=True)
+            # st.pyplot(SOLVED["misc_pfd"], use_container_width=True)
         elif SOLVED.get("turb_error"):
             st.error(f"Turbines/Boiler failed to solve: {SOLVED['turb_error']}")
         else:
@@ -1607,11 +1613,11 @@ def render_tab_cool():
                     iterations=ct_iterations,
                     name="Cooling Tower System",
                 )
-                ctwrs_fig = ctwrs.generate_pfd(show=False)
-                plt.close(ctwrs_fig)
+               # ctwrs_fig = ctwrs.generate_pfd(show=False)
+               # plt.close(ctwrs_fig)
 
                 SOLVED["ctwrs"] = ctwrs
-                SOLVED["ctwrs_pfd"] = ctwrs_fig
+               # SOLVED["ctwrs_pfd"] = ctwrs_fig
                 SOLVED["cool_ok"] = True
                 SOLVED["cool_error"] = None
             except Exception as exc:
@@ -1633,9 +1639,6 @@ def render_tab_cool():
             c1.metric("Evaporation Loss", f"{ctwrs.evaporated_lb_hr:,.0f} lb/hr")
             c2.metric("Blowdown", f"{ctwrs.blowdown_lb_hr:,.0f} lb/hr")
             c3.metric("Surplus", f"{ctwrs.surplus_lb_hr:,.0f} lb/hr")
-
-            st.subheader("Process Flow Diagram")
-            st.pyplot(SOLVED["ctwrs_pfd"], use_container_width=True)
 
             st.markdown("**System Streams**")
             st.dataframe(cooling_tower_streams_table(ctwrs), hide_index=True, use_container_width=True)
@@ -1884,13 +1887,102 @@ def render_tab_dl():
     )
 
     if "workbook_bytes" in st.session_state:
+        now = datetime.now()
+        formatted_dt = now.strftime("%Y%m%d-%H%M%S")
+        prefix = st.text_input(label='File Name Prefix Input: ', value='Factory')
+        excel_filename = f"{prefix}_{formatted_dt}.xlsx"
         st.download_button(
             "Download Excel workbook",
             data=st.session_state["workbook_bytes"],
-            file_name="factory_balance.xlsx",
+            file_name=excel_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
 
 with tab_dl:
     render_tab_dl()
+# ============================================================================
+# PROCESS FLOW DIAGRAMS TAB — on-demand PFD generation, one button per station.
+# ============================================================================
+def _pfd_button(label, state_key, fig_fn, available, unavailable_msg):
+    st.markdown(f"**{label}**")
+    if not available:
+        st.caption(unavailable_msg)
+        st.divider()
+        return
+    if st.button(f"Generate {label} PFD", key=f"pfd_btn_{state_key}"):
+        old_fig = PFD_CACHE.get(state_key)
+        if old_fig is not None:
+            plt.close(old_fig)
+        try:
+            PFD_CACHE[state_key] = fig_fn()
+            PFD_CACHE[f"{state_key}_error"] = None
+        except Exception as exc:
+            PFD_CACHE[state_key] = None
+            PFD_CACHE[f"{state_key}_error"] = str(exc)
+    if PFD_CACHE.get(f"{state_key}_error"):
+        st.error(f"Failed to generate PFD: {PFD_CACHE[f'{state_key}_error']}")
+    elif PFD_CACHE.get(state_key) is not None:
+        st.pyplot(PFD_CACHE[state_key], use_container_width=True)
+    st.divider()
+
+
+@st.fragment
+def render_tab_pfd():
+    st.subheader("Process Flow Diagrams")
+    st.caption(
+        "Drawing a PFD is the slow part of solving a station, so it's opt-in here — click a "
+        "button to render that station's diagram from its last successful solve. Diagrams do "
+        "not refresh automatically on re-solve; re-click a button to update its picture."
+    )
+
+    mills = SOLVED.get("mills")
+    clar = SOLVED.get("clar")
+    juice_heaters = SOLVED.get("juice_heaters")
+    clar_juice_heater = SOLVED.get("clar_juice_heater")
+    pan_floor = SOLVED.get("pan_floor")
+    pre_3 = SOLVED.get("pre_3")
+    evap_station = SOLVED.get("evap_station", [])
+    da = SOLVED.get("da")
+    knf_trbs = SOLVED.get("knf_trbs")
+    mill_trbs = SOLVED.get("mill_trbs")
+    misc_trbs = SOLVED.get("misc_trbs")
+    ctwrs = SOLVED.get("ctwrs")
+
+    _pfd_button("Mill Floor", "mills", lambda: mills.generate_pfd(show=False),
+                mills is not None, "Click Solve Entire Plant above first.")
+    _pfd_button("Clarification", "clar", lambda: clar.generate_pfd(show=False, include_table=False),
+                clar is not None, "Click Solve Entire Plant above first.")
+    _pfd_button("Juice Heating Station", "juice_heaters", lambda: juice_heaters.generate_pfd(show=False),
+                juice_heaters is not None, "Solve Juice Heating first (see its tab).")
+    _pfd_button("Clarified Juice Heater", "clar_juice_heater",
+                lambda: clar_juice_heater.generate_pfd(show=False),
+                clar_juice_heater is not None, "Solve Juice Heating first (see its tab).")
+    _pfd_button("Pan Floor", "pan_floor", lambda: pan_floor.generate_pfd(show=False),
+                pan_floor is not None, "Solve the Pan Floor first (see its tab).")
+    _pfd_button("Pre-Evaporator", "pre_3", lambda: pre_3.generate_pfd(show=False),
+                pre_3 is not None, "Solve Evaporation with the Pre-Evaporator active first (see its tab).")
+
+    st.markdown("**Evaporator Sets**")
+    if not evap_station:
+        st.caption("Solve Evaporation first (see its tab).")
+    else:
+        for evap in evap_station:
+            _pfd_button(evap.name, f"evap_{evap.name}",
+                        lambda evap=evap: evap.generate_pfd(show=False, pre_evap=pre_3),
+                        True, "")
+
+    _pfd_button("Deaerator", "da", lambda: da.generate_pfd(show=False),
+                da is not None, "Solve the Exhaust Summary tab first.")
+    _pfd_button("Cane Prep (Knife) Turbines", "knf_trbs", lambda: knf_trbs.generate_pfd(show=False),
+                knf_trbs is not None, "Solve the Turbines & Boiler tab first.")
+    _pfd_button("Mill Turbines", "mill_trbs", lambda: mill_trbs.generate_pfd(show=False),
+                mill_trbs is not None, "Solve the Turbines & Boiler tab first.")
+    _pfd_button("Auxiliary Turbines", "misc_trbs", lambda: misc_trbs.generate_pfd(show=False),
+                misc_trbs is not None, "Solve the Turbines & Boiler tab first.")
+    _pfd_button("Cooling Tower System", "ctwrs", lambda: ctwrs.generate_pfd(show=False),
+                ctwrs is not None, "Solve the Cooling Tower tab first.")
+
+
+with tab_pfd:
+    render_tab_pfd()

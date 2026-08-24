@@ -770,7 +770,7 @@ if __name__ == "__main__":
         tag = "  [pre-evap]" if cfg['pre_evap'] else ""
         print(f"  {n:>2}: {cfg['desc']}{tag}")
 
-    raw = 4 # select a case number here to run, you can compare to Birkett's numbers
+    raw = 13 # select a case number here to run, you can compare to Birkett's numbers
 
     if int(raw) not in CASES:
         print("Invalid selection — choose a number from 1 to 13.")
@@ -797,7 +797,7 @@ if __name__ == "__main__":
             print()
             juice_in = pre.juice_out
 
-        evap_set = EvaporatorSet(
+        evap_set = EvaporatorSetSciPy(
             juice_in               = juice_in,
             supply_steam           = EvaporatorSteam(P_psia=STEAM_PSIA, flow_lb_per_hr=0),
             last_effect_pressure_psia = LAST_PSIA,
@@ -810,7 +810,9 @@ if __name__ == "__main__":
             name                   = f"Birkett Case {case_num} — {cfg['desc']}",
         )
 
-        evap_set.adjust_pressure_profile()
+        evap_set.adjust_pressure_profile_scipy()
+        solve_time = (time.time() - start) * 1000
+
         evap_set.neat_display()
         evap_set.condenser.neat_display()
         evap_set.generate_pfd(pre_evap=pre)
@@ -821,5 +823,5 @@ if __name__ == "__main__":
         evap_set.to_excel(wb)
         wb.save("evaporation.xlsx")
         print("\nSaved evaporation.xlsx")
+        print(f"\nSolve time: {solve_time:.4f} ms")
 
-        print(f"\nExecution time: {time.time() - start:.4f} s")
