@@ -65,7 +65,7 @@ st.set_page_config(page_title="Factory Balance Trial", layout="wide")
 st.title("Cane Sugar Factory Material & Energy Balance")
 st.caption("Trial Streamlit walkthrough: Mill Floor → Clarification → Juice Heating → "
            "Pan Floor → Evaporation → Steam & Exhaust Summary.")
-st.caption("Enjoy")
+st.caption("Version 0.1")
 
 # ============================================================================
 # SOLVE CACHE
