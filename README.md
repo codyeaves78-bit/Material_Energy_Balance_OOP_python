@@ -54,4 +54,4 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 Windows users may also need Git installed first: [git-scm.com/downloads](https://git-scm.com/downloads).
 
 ## Documentation
-See the [Documentation](Documentation/) folder for the User Guide and worked examples.
+See the [Documentation](documentation/) folder for the User Guide and worked examples.
