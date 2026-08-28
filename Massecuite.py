@@ -1,5 +1,5 @@
 # Massecuite class for vacuum pan calculations.
-# BPR regression sourced from Birkett fig 12.14 (°F). Valid range: ml_purity 30–100.
+# BPR regression sourced from Birkett fig 12.14 in his Nicholl's Class Notes (°F). Valid range: ml_purity 30–100.
 # Below ml_purity 60 is extrapolated — use with caution.
 
 import functools
