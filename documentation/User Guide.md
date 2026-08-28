@@ -342,6 +342,77 @@ Notice the boiling-only rows (`vapor_pressure_psia`, `water_bp_surface`, `bpr_at
 
 The stream and massecuite classes above are the building blocks. The equipment classes assemble them into unit operations and whole stations — evaporators, pans, boilers, mills, clarifiers, juice heaters, turbines, deaerators, cooling towers, and so on. Each generally takes streams (or the parameters to build them) and runs the material and energy balance for that piece of equipment.
 
+### JuiceHeaterShellTube
+This class represents a heat exchanger, though originally intended for shell and tube calculations (tube velocity, P drop, n passes) that was dropped due to being outside of the scope of this project, though the name is still intact. Instead, it is a class that does basic heat exchanger calculations, Q = U * A * LMTD, you can use it for either kind of heat exchanger, that is plate or shell and tube. 
+
+With the knowledge of how the Stream classes from above work, using the JuiceHeaterShellTube is pretty intuitive.
+```python
+In [44]: from JuiceHeater import JuiceHeaterShellTube
+In [45]:     heater = JuiceHeaterShellTube(
+    ...:         cold_stream=SugarStream(brix=14, purity=90, temp_deg_F=90, pressure_psia=40, level_ft=0, flow_lb_per_
+       ⋮ hr=100),
+    ...:         hot_stream=SteamStream(x=1, P=30),
+    ...:         name="Clarified Juice Heater",
+    ...:         juice_out_temp_degF=225,
+    ...:         U_btu_per_ft2_degF=185,
+    ...:         installed_area_ft2=6000,
+    ...:     )
+
+In [46]: heater.properties()
+Out[46]: 
+{'name': 'Clarified Juice Heater',
+ 'U': 185,
+ 'cold_stream': SugarStream(brix=14.00, purity=90.00, flow=100.00 lb/hr, temp=90.00°F, pressure=40.00 psia, level=0.0 ft),
+ 'hot_stream': SteamStream(T=250.30°F, P=30.00 psia, h=1164.14 BTU/lb, x=1),
+ 'juice_out_temp_degF': 225,
+ 'installed_area_ft2': 6000,
+ 'steam_type': 0,
+ 'juice_out': SugarStream(brix=14.00, purity=90.00, flow=100.00 lb/hr, temp=225.00°F, pressure=40.00 psia, level=0.0 ft),
+ 'cold_delta_T': 135,
+ 'Q_btu_per_hr': 12382.416,
+ 'LMTD_degF': np.float64(73.1230258073131),
+ 'required_area_ft2': np.float64(0.9153338177601021),
+ 'steam_required_lb_per_hr': np.float64(13.10013671652346),
+ 'is_steam_hot_enough': 'YES'}
+```
+Objects from here on out are packaged with .neat_display, .to_excel, and for some .generate_pfd
+```python
+In [47]: heater.neat_display()
+==============================================================
+           JUICE HEATER  —  CLARIFIED JUICE HEATER            
+==============================================================
+
+  DESIGN PARAMETERS
+--------------------------------------------------------------
+  Overall HT Coeff. (U)                     185.0 BTU/ft²·°F
+  Juice Outlet Temperature                          225.0 °F
+  Installed Area                                   6,000 ft²
+
+  INLET CONDITIONS
+--------------------------------------------------------------
+  Juice Inlet Temperature                            90.0 °F
+  Juice Flow Rate                                  100 lb/hr
+  Juice Brix                                        14.0 °Bx
+  Juice Purity                                        90.0 %
+  Steam Temperature                                 250.3 °F
+
+  HEAT TRANSFER RESULTS
+--------------------------------------------------------------
+  Juice Temperature Rise (ΔT)                       135.0 °F
+  LMTD                                               73.1 °F
+  Heat Duty (Q)                                12,382 BTU/hr
+  Required Area                                        1 ft²
+  Steam Required                                    13 lb/hr
+  Steam Hot Enough?                                      YES
+
+==============================================================
+In [48]: heater.generate_pfd()
+Out[48]: <Figure size 1050x958 with 2 Axes>
+```
+<img width="1050" height="958" alt="Figure_1" src="https://github.com/user-attachments/assets/10584998-5324-4b65-9dbc-2c607f510b3b" />
+
+
+
 These are not yet individually documented here. Until the worked examples are finished, the best reference is **`main.py`**, which drives the full factory and shows each class being constructed and chained. `examples.py` also shows a compact end-to-end run of the mill floor.
 
 _Individual equipment sections and worked examples: in progress._
