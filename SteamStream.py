@@ -81,7 +81,7 @@ class SteamStream:
         return (sat_vap.h - sat_liq.h) / 2.326
     
     @property
-    def is_superheater(self):
+    def is_superheated(self):
         """Check if the steam is superheated (x=1 and T > saturation temp)"""
         sat_temp_kelvin = IAPWS97(P=self._state.P, x=1).T
         sat_temp = (sat_temp_kelvin - 273.15) * 9/5 + 32 # conversion to °F
