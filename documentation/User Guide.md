@@ -337,6 +337,7 @@ Units: T(°F), BPR(°F), density(lb/ft³), flow(lb/hr), purity/brix/yield(%)
 Notice the boiling-only rows (`vapor_pressure_psia`, `water_bp_surface`, `bpr_at_head`, and so on) are gone — in set-temperature mode those aren't defined, and reaching for them raises a clear error telling you to `copy(supersaturation=...)` if the massecuite is back in a pan. Because the copy runs back through the constructor, validation re-runs and it solves fresh, with no stale cached results carried over.
 
 ---
+# Equipment Classes
 
 ## JuiceHeaterShellTube
 
