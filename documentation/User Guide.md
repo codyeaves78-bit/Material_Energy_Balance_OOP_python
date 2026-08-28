@@ -338,54 +338,54 @@ Notice the boiling-only rows (`vapor_pressure_psia`, `water_bp_surface`, `bpr_at
 
 ---
 
-## Equipment classes
+## JuiceHeaterShellTube
 
-The stream and massecuite classes above are the building blocks. The equipment classes assemble them into unit operations and whole stations — evaporators, pans, boilers, mills, clarifiers, juice heaters, turbines, deaerators, cooling towers, and so on. Each generally takes streams (or the parameters to build them) and runs the material and energy balance for that piece of equipment.
+This class represents a heat exchanger. It was originally intended for shell-and-tube calculations (tube velocity, pressure drop, number of passes), but that scope was dropped as outside the project, though the name is still intact. Instead it does the basic heat-exchanger balance, `Q = U * A * LMTD`, and works for either type — plate or shell-and-tube.
 
-### JuiceHeaterShellTube
-This class represents a heat exchanger, though originally intended for shell and tube calculations (tube velocity, P drop, n passes) that was dropped due to being outside of the scope of this project, though the name is still intact. Instead, it is a class that does basic heat exchanger calculations, Q = U * A * LMTD, you can use it for either kind of heat exchanger, that is plate or shell and tube. 
+With the stream classes above under your belt, `JuiceHeaterShellTube` is intuitive: hand it a cold `SugarStream` and a hot `SteamStream`, plus the design parameters. `steam_type` tags which steam source feeds the heater — `0` for exhaust, `1`–`4` for vapor bleeds V1 through V4.
 
-With the knowledge of how the Stream classes from above work, using the JuiceHeaterShellTube is pretty intuitive.
 ```python
-In [44]: from JuiceHeater import JuiceHeaterShellTube
-In [45]:     heater = JuiceHeaterShellTube(
-    ...:         cold_stream=SugarStream(brix=14, purity=90, temp_deg_F=90, pressure_psia=40, level_ft=0, flow_lb_per_
-       ⋮ hr=100),
-    ...:         hot_stream=SteamStream(x=1, P=30),
-    ...:         name="Clarified Juice Heater",
-    ...:         juice_out_temp_degF=225,
-    ...:         U_btu_per_ft2_degF=185,
-    ...:         installed_area_ft2=6000,
-    ...:     )
-
-In [46]: heater.properties()
-Out[46]: 
-{'name': 'Clarified Juice Heater',
+>>> from JuiceHeater import JuiceHeaterShellTube
+>>> heater = JuiceHeaterShellTube(
+...     cold_stream=SugarStream(brix=14, purity=90, temp_deg_F=90, pressure_psia=40, level_ft=0, flow_lb_per_hr=100),
+...     hot_stream=SteamStream(x=1, P=30),
+...     name="Juice Heater",
+...     juice_out_temp_degF=220,
+...     U_btu_per_ft2_degF=185,
+...     installed_area_ft2=6000,
+...     steam_type=0,   # 0 = exhaust, 1–4 = vapor bleeds V1–V4
+... )
+>>> heater.properties()
+{'name': 'Juice Heater',
  'U': 185,
  'cold_stream': SugarStream(brix=14.00, purity=90.00, flow=100.00 lb/hr, temp=90.00°F, pressure=40.00 psia, level=0.0 ft),
  'hot_stream': SteamStream(T=250.30°F, P=30.00 psia, h=1164.14 BTU/lb, x=1),
- 'juice_out_temp_degF': 225,
+ 'juice_out_temp_degF': 220,
  'installed_area_ft2': 6000,
  'steam_type': 0,
- 'juice_out': SugarStream(brix=14.00, purity=90.00, flow=100.00 lb/hr, temp=225.00°F, pressure=40.00 psia, level=0.0 ft),
- 'cold_delta_T': 135,
- 'Q_btu_per_hr': 12382.416,
- 'LMTD_degF': np.float64(73.1230258073131),
- 'required_area_ft2': np.float64(0.9153338177601021),
- 'steam_required_lb_per_hr': np.float64(13.10013671652346),
+ 'juice_out': SugarStream(brix=14.00, purity=90.00, flow=100.00 lb/hr, temp=220.00°F, pressure=40.00 psia, level=0.0 ft),
+ 'cold_delta_T': 130,
+ 'Q_btu_per_hr': 11923.807999999999,
+ 'LMTD_degF': np.float64(78.03739510075035),
+ 'required_area_ft2': np.float64(0.8259247522678584),
+ 'steam_required_lb_per_hr': np.float64(12.614946467763332),
  'is_steam_hot_enough': 'YES'}
 ```
-Objects from here on out are packaged with .neat_display, .to_excel, and for some .generate_pfd
+
+Please note that `steam_type` doesn't actually do anything within the heater class itself, but rather serves a more important role in `main.py` (or any full factory balance `.py` file): being able to work with the `Evaporator` and `EvaporatorSet` classes to automate the V1–V4 bleed quantities needed, rather than manually inputting bleed quantities. You can even wrap your balance in a loop to update the heater class steam pressure and feed that output back to the `EvaporatorSet`, but we'll cover that later.
+
+From here on, the equipment objects are packaged with `neat_display()`, `to_excel()`, and — for some — `generate_pfd()`.
+
 ```python
-In [47]: heater.neat_display()
+>>> heater.neat_display()
 ==============================================================
-           JUICE HEATER  —  CLARIFIED JUICE HEATER            
+                JUICE HEATER  —  JUICE HEATER
 ==============================================================
 
   DESIGN PARAMETERS
 --------------------------------------------------------------
   Overall HT Coeff. (U)                     185.0 BTU/ft²·°F
-  Juice Outlet Temperature                          225.0 °F
+  Juice Outlet Temperature                          220.0 °F
   Installed Area                                   6,000 ft²
 
   INLET CONDITIONS
@@ -398,21 +398,46 @@ In [47]: heater.neat_display()
 
   HEAT TRANSFER RESULTS
 --------------------------------------------------------------
-  Juice Temperature Rise (ΔT)                       135.0 °F
-  LMTD                                               73.1 °F
-  Heat Duty (Q)                                12,382 BTU/hr
+  Juice Temperature Rise (ΔT)                       130.0 °F
+  LMTD                                               78.0 °F
+  Heat Duty (Q)                                11,924 BTU/hr
   Required Area                                        1 ft²
   Steam Required                                    13 lb/hr
   Steam Hot Enough?                                      YES
 
 ==============================================================
-In [48]: heater.generate_pfd()
-Out[48]: <Figure size 1050x958 with 2 Axes>
 ```
-<img width="1050" height="958" alt="Figure_1" src="https://github.com/user-attachments/assets/10584998-5324-4b65-9dbc-2c607f510b3b" />
 
+`generate_pfd()` returns a matplotlib figure of the process flow diagram:
 
+```python
+>>> heater.generate_pfd()
+<Figure size 1050x958 with 2 Axes>
+```
 
-These are not yet individually documented here. Until the worked examples are finished, the best reference is **`main.py`**, which drives the full factory and shows each class being constructed and chained. `examples.py` also shows a compact end-to-end run of the mill floor.
+<img width="1050" height="958" alt="Juice heater PFD" src="https://github.com/user-attachments/assets/ba3d8ef7-dcce-43cf-88d4-527ec2f58115" />
+
+By default `generate_pfd()` has `show=True`, which opens a window — fine interactively, but in a script or headless environment pass `save_path="pfd.png"` (or set a non-interactive matplotlib backend) so it doesn't block.
+
+`to_excel()` writes the results into a workbook:
+
+```python
+>>> from excel_export import new_workbook
+>>> wb = new_workbook()
+>>> heater.to_excel(wb)
+>>> wb.save("juice_heater.xlsx")
+>>> print("Saved juice_heater.xlsx")
+Saved juice_heater.xlsx
+```
+
+The workbook is saved in the current working directory. Check out `JuiceHeater.py` and run it to see the workbook.
+
+---
+
+## Other equipment classes
+
+`JuiceHeaterShellTube` above is the pattern for the rest: take streams (or the parameters to build them), run the material and energy balance, and expose `neat_display()`, `to_excel()`, and sometimes `generate_pfd()`. The remaining equipment classes assemble streams into unit operations and whole stations — evaporators, pans, boilers, mills, clarifiers, turbines, deaerators, cooling towers, and so on.
+
+These aren't yet individually documented here. Until the worked examples are finished, the best reference is **`main.py`**, which drives the full factory and shows each class being constructed and chained. `examples.py` also shows a compact end-to-end run of the mill floor.
 
 _Individual equipment sections and worked examples: in progress._
