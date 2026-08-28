@@ -34,6 +34,7 @@ Four classes make up the foundation everything else is built on: `SugarStream` a
 `SugarStream` covers every water–sugar–non-sugar mixture in the factory: juice, syrup, molasses, massecuite, and magma. There is a dedicated `Massecuite` class for pan material and energy balances, but `SugarStream` gives you the basic properties engineers typically look for.
 
 ```python
+>>> from SugarStream import SugarStream
 >>> my_stream = SugarStream(brix=14, purity=90, flow_lb_per_hr=100, temp_deg_F=225, pressure_psia=50, level_ft=2)
 >>> my_stream.display_properties()
 stream_id: 2.00
