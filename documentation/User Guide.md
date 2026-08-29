@@ -841,10 +841,581 @@ For a fuller system model — makeup water, blended delivery temperature to mult
 
 ---
 
-## Other equipment classes
+## Boiler
 
-The pattern above — take streams (or the parameters to build them), run the material and energy balance, expose `properties()`/`display_properties()` and usually `neat_display()` — carries through the rest of the project: boilers, mills, clarifiers, turbines, deaerators, and the mill-floor/pan-floor station assemblies (`Boiler.py`, `MillFloor.py`, `Clarification.py`, `Turbine.py`, `Deaerator.py`, `FourBoilingDoubleMagma.py`, `ThreeBoilingDoubleMagma.py`, `TwoBoiling.py`, and so on).
+`Boiler` turns a `Bagasse` stream into a steam-availability number: given the bagasse's GCV, a thermal efficiency, and the boiler's operating pressure/superheat/feed-water temperature, it tells you how much steam that fuel can raise. It doesn't model combustion or drum internals — it's a fuel-to-steam energy balance, one `SteamStream` in (feed water) and one out (steam), scaled by GCV and efficiency.
 
-These aren't yet individually documented here. Until the worked examples are finished, the best reference is **`main.py`**, which drives the full factory and shows each class being constructed and chained. `examples.py` also shows a compact end-to-end run of the mill floor.
+```python
+>>> from Boiler import Boiler
+>>> from Bagasse import Bagasse
+>>> b = Boiler(
+...     bagasse=Bagasse(moisture_pct=49.0, brix_pct=3.2, pol_pct=1.8, ash_pct=4.0, flowrate_lb_hr=100_000),
+...     efficiency=68,
+...     pressure_psig=600,
+...     deg_superheat=150,
+...     feed_water_temp=230,
+...     capacity=650_000,
+...     name='Boiler 1',
+... )
+>>> b.neat_display()
+==================================================
+                BOILER — Boiler 1
+==================================================
+                --- Parameters ---
+  Efficiency                     68.0  %
+  Pressure                      600.0  psig  (614.696 psia)
+  Feed Water Temp               230.0  °F
+  Superheat                     150.0  °F above sat
+--------------------------------------------------
+                --- Feed Water ---
+  Temperature                  230.00  °F
+  Enthalpy                     199.63  BTU/lb
+--------------------------------------------------
+                --- Steam Out ---
+  Temperature                  638.86  °F
+  Enthalpy                    1313.31  BTU/lb
+  Condition                Superheated
+--------------------------------------------------
+               --- Performance ---
+  Heat to make 1 lb steam     1113.67  BTU/lb steam
+  Steam/Bagasse Ratio           2.393  lb/lb
+  Steam Available from Bagasse  239,255.0  lb/hr
+Rated Steam Capacity: 650,000
+==================================================
+```
 
-_Individual equipment sections and worked examples: in progress._
+A few things worth knowing:
+
+- **`feed_water_stream`** and **`steam_stream`** are `SteamStream` properties, not stored streams — they're rebuilt from `psia`/`feed_wat_temp`/`deg_sh` every time you read them, so changing pressure or superheat on the fly and re-reading them (or calling `neat_display()` again) picks up the new state with no manual resolve.
+- **`deg_superheat=0`** (the default) gives you saturated steam (`x=1`); anything above 0 adds that many degrees above the saturation temperature at `psia`.
+- **`steam_available_per_lb_bagasse`** is `bagasse.gcv * efficiency/100 / btu_for_1_lb` — GCV converted to usable heat by efficiency, divided by the enthalpy rise needed to make 1 lb of the boiler's steam. Multiply by the bagasse flow and you get `steam_availabe_lb_hr` (note the missing `l` — that's the actual attribute name, not a typo you're allowed to "fix" without checking every caller).
+- **`capacity`** is purely informational — a rated-capacity number you pass in for the `neat_display()`/`to_excel()` footer; nothing in the class checks the computed steam availability against it.
+
+`Boiler` has no `properties()`/`display_properties()` or `generate_pfd()` — `neat_display()` above is the full report. `to_excel()` writes parameters, the feed water/steam streams, the bagasse fuel breakdown, and performance onto their own sheet.
+
+---
+
+## Turbine
+
+`Turbine` is an isentropic steam turbine with an efficiency correction, wrapping IAPWS97 directly (not `SteamStream`) for the isentropic expansion step so it can solve on entropy at the outlet pressure. Give it an inlet `SteamStream`, the exhaust (back) pressure, an isentropic efficiency, and the mechanical HP it needs to deliver — it back-solves the steam flow required to make that HP.
+
+```python
+>>> from SteamStream import SteamStream
+>>> from Turbine import Turbine
+>>> live_steam = SteamStream(T=750, P=600)
+>>> turbine = Turbine(inlet_steam=live_steam, outlet_pressure_psia=30,
+...                   isentropic_efficiency=0.75, hp_demand=5000, name="Turbo-Alternator")
+>>> turbine.neat_display()
+==============================================================
+                 TURBINE  —  TURBO-ALTERNATOR
+==============================================================
+      |   psia    |  temp °F   | enthalpy BTU/lb  |  quality
+------+-----------+------------+------------------+-----------
+   IN |     600.0 |      750.0 |         1,379.77 | Superheat
+  OUT |      30.0 |      264.4 |         1,171.42 | Superheat
+==============================================================
+Steam Rate: 12.22 lb/HP-hr  |  HP: 5,000  |  Flow: 61,077 lb/hr  |  Eff: 75.0%
+Exhaust for Process: 61,529 lb/hr  |  Desuperheater Water: 452 lb/hr
+==============================================================
+```
+
+The solve, in order: expand isentropically (`s_out = s_in`) to `outlet_pressure_psia` for `h_out_isentropic`, apply the efficiency correction for the actual `h_out_actual`, get `work_per_lb = h_in - h_out_actual`, then `steam_flow_lb_hr = hp_demand * 2545 / work_per_lb` (2545 BTU/hr per mechanical HP). `exhaust_steam` is the resulting `SteamStream` at `(outlet_pressure_psia, h_out_actual)`.
+
+A few things worth knowing:
+
+- **`isentropic_efficiency` is a fraction here (0–1), not a percent** — construction raises `ValueError` outside that range. This is the opposite convention from the turbine *group* classes below (`CanePrepTurbines`, `MillTurbines`, `AuxillaryTurbines`), which take efficiency as a percent (e.g. `50` for 50%) and divide by 100 before handing it to `Turbine` — don't double-convert if you're building `Turbine` objects directly.
+- **`exhaust_steam.x` can land above, at, or below 1.0** — superheated, exactly saturated, or wet — depending on the pressure drop and efficiency. Always check `x` before assuming a condition; the class doesn't clamp it for you.
+- **`exhaust_available`** is what's actually usable downstream, and it branches on that quality: exactly saturated (`x=1`) returns the flow as-is; **superheated** adds a `desuperheating_water_temp` (default 212°F) water injection to knock it down to saturation, and the *returned* flow includes that added water (452 lb/hr in the example above, on top of the 61,077 lb/hr turbine exhaust); **wet** (`x<1`) returns only the dry fraction (`exhaust_steam.flow_lb_per_hr * x`) — the moisture is treated as separated out before the flow reaches process equipment.
+- **`steam_rate`** (lb steam/HP-hr) is the standard turbine performance metric — lower is better (less steam per unit of work).
+
+`Turbine` has `properties()`, `display_properties()`, and `neat_display()`. No `to_excel()` or `generate_pfd()` on its own — those live one level up, on the turbine *group* classes (see Equipment Management Classes below), which wrap a list of `Turbine` instances and report them together.
+
+---
+
+## Deaerator
+
+`Deaerator` is a straightforward energy and mass balance: incoming feedwater is heated to saturation at the deaerator's operating pressure by condensing live steam, with a percentage of that steam lost to atmospheric vent.
+
+```python
+>>> from Deaerator import Deaerator
+>>> da = Deaerator(deaerator_psig=10, water_in_deg_F=205, water_in_lb_hr=800_000, vent_pct=1.0)
+>>> da.display_properties()
+
+===========================================================
+  Deaerator  |  24.70 psia  |  T_sat = 239.4 degF
+===========================================================
+
+  ENTERING
+  Feedwater flow                                  800,000.00  lb/hr
+  Feedwater temperature                               205.00  degF
+  Feedwater enthalpy                                  173.13  BTU/lb
+  Steam flow (total)                               29,432.12  lb/hr
+  Steam enthalpy                                    1,160.31  BTU/lb
+  Steam h_fg                                          952.49  BTU/lb
+
+  LEAVING
+  Deaerated water flow                            829,137.80  lb/hr
+  Water out temperature                               239.36  degF
+  Water out enthalpy                                  207.82  BTU/lb
+  Vent flow                                           294.32  lb/hr
+  Vent pct                                              1.00  %
+
+  Net (In - Out):                                    -0.0000  lb/hr
+===========================================================
+```
+
+**`steam_flow_lb_hr`** is solved from the sensible heat needed to bring `water_in_lb_hr` up to saturation (`Q_sens = water_in × (h_sat − h_feedwater)`), divided by the steam's `h_fg`, then grossed up for vent loss: `steam_net / (1 − vent_pct/100)`. `water_out_flow_lb_hr` is everything that came in minus what left as vent — `water_in + steam_flow − vent_flow`.
+
+`steam_in`, `water_in`, `water_out`, and `vent` each hand you a ready-made `SteamStream` (state + flow) if you want to wire the deaerator into a condensate/feedwater balance rather than reading the scalar properties. `Deaerator` has no `neat_display()` — `display_properties()` above is the full report — plus `generate_pfd()` and `to_excel()` (streams table, energy/mass balance, and the PFD on one sheet).
+
+---
+
+## PreEvaporator
+
+`PreEvaporator` models a single-effect pre-evaporator the way `Evaporator` doesn't: here the **vapor bleed is the fixed, known input** (you've decided how much vapor you want to pull off for juice heaters or pans), and the class iterates to find the vapor-space pressure — and hence the juice's boiling temperature — that's consistent with the available heating surface and the Dessin U. It mirrors Birkett's pre-evaporator method, and its typical job is supplying `juice_in` to an `EvaporatorSet` after the bleed has already been taken.
+
+```python
+>>> from SugarStream import SugarStream
+>>> from SteamStream import EvaporatorSteam
+>>> from PreEvaporator import PreEvaporator
+>>> juice = SugarStream(brix=12, purity=90, flow_lb_per_hr=1_000_000, temp_deg_F=225, pressure_psia=60, level_ft=0)
+>>> steam = EvaporatorSteam(P_psia=34.7, flow_lb_per_hr=0)
+>>> pre = PreEvaporator(juice_in=juice, supply_steam=steam, vapor_bleed_lb_per_hr=120_000,
+...                     area_ft2=20_000, liquid_level_ft=2, dessin_coefficient=18000)
+>>> pre.display_properties()
+  Juice in:          500.000 tph @ 12.00 brix, 225.00 °F
+  Juice out:         440.000 tph @ 13.64 brix, 247.28 °F
+  Vapor bleed:       60.000 tph
+  Vapor pressure:    27.6590 psia  (12.9630 psig)
+  Vapor temp:        245.6976 °F
+  Calandria temp:    258.7573 °F
+  Exhaust required:  143,136.01 lb/hr  (71.568 tph)
+  Heat duty:         134,488,503 BTU/hr
+  Heating surface:   20,000 ft²
+  U dessin:          585.8596 BTU/hr·ft²·°F
+```
+
+A few things worth knowing:
+
+- **The juice-side mass balance is fixed at construction**, before any iteration: `juice_out_flow_lb_per_hr = juice_in.flow − vapor_bleed_lb_per_hr`, brix out from conserved solids. Only the *temperature* side (vapor pressure, calandria ΔT, exhaust steam demand) is solved iteratively.
+- **`solve()` runs automatically in `__init__`** for a fixed 20 iterations, no convergence tolerance check — unlike `Evaporator`, where you call `.solve()` yourself. If you change an input afterward (area, bleed, supply steam), call `.solve()` again to re-converge.
+- **`supply_steam.flow_lb_per_hr` gets overwritten** by the solve (`exhaust_required_lb_per_hr`) — whatever flow you passed in at construction is just a starting value.
+- **`clean_condensate`** nets out flash loss on the fresh exhaust supply via `condensate_utils.flash_condensate()`, same convention used by `EvaporatorSet`/`JuiceHeatingStation`/the pan-floor classes.
+- **`U_ratio`** (`U_calc / U_dessin`) reads ~1.0 by construction here, since the solve pins the calandria ΔT to make Dessin U and heat-transfer U agree — it's not an independent sanity check the way it is on `Evaporator`, where area and duty come from separate inputs.
+
+`PreEvaporator` has no `neat_display()` — `display_properties()` above is the full report — plus `generate_pfd()` and `to_excel()`.
+
+---
+
+# Equipment Management Classes
+
+The equipment classes above each model one physical unit. The classes in this section wire several of those units together into a station or an entire section of the factory: they build the individual `Pan`/`Centrifugal`/`Evaporator`/`Turbine`/`JuiceHeaterShellTube` objects internally (usually from *configuration templates* you hand in with feed streams left as placeholders), run whatever iteration the recycle streams require, and then report the whole assembly with one `neat_display()`/`to_excel()`/`generate_pfd()`. `main.py` is still the best single reference for how they all chain together into a full factory balance; `examples.py` shows a compact mill-floor run.
+
+## MillFloor
+
+`MillFloor` is the cane-milling-train material balance: cane and imbibition water in, mixed juice and bagasse out, plus a per-mill maceration table for pump sizing. Everything solves in `__init__` — no `solve()` call needed.
+
+```python
+>>> from MillFloor import MillFloor
+>>> mill = MillFloor(
+...     cane_tpd=17_000, cane_pol_pct=13.5, cane_fiber_pct=14.0,
+...     imbibition_pct_on_cane=25.0, bagasse_pol_pct=1.8, last_roll_purity=72.0,
+...     bagasse_moisture_pct=49.0, mix_juice_purity=88.0, number_of_mills=6, juice_temp_F=90.0,
+... )
+>>> mill
+MillFloor(cane=17,000 TPD, pol=13.5%, fiber=14.0%, extraction=96.15%, mills=6)
+>>> mill.mixed_juice_stream
+SugarStream(brix=15.34, purity=88.00, flow=1,361,898.63 lb/hr, temp=90.00°F, pressure=14.70 psia, level=0.0 ft)
+```
+
+Key outputs: **`mixed_juice_stream`** (a `SugarStream`, ready to feed `Clarification`), **`bagasse_stream`** (a `Bagasse`, ready to feed `Boiler`), **`mill_extraction_pct`**, **`imbibition_gpm`**, and **`mill_balances`** — a list of per-mill dicts (bagasse in/out, maceration liquid in and its source, juice out and its destination) driven by `mill_1_fiber_rise_load_fraction`, the fraction of the total cane→bagasse fiber-% rise that Mill 1 absorbs in one step. Print that table on its own with `display_mill_balances()`:
+
+```
+Per-Mill Maceration Balance
+------  ----------------  ----------------  ----------------------  ----------------  --------------------------
+Mill    Bagasse In (TPD)  Liquid In (TPD)   Liquid In Source        Bagasse Out (TPD)  Juice Out (TPD) / Dest
+------  ----------------  ----------------  ----------------------  ----------------  --------------------------
+1       17,000.0          0.0               None                    9,127.5           7,872.5  ->  To process
+2       9,127.5           7,130.7           Mill 3 maceration       7,788.0           8,470.3  ->  To process
+3       7,788.0           6,134.1           Mill 4 maceration       6,791.3           7,130.7  ->  Mill 2 maceration
+4       6,791.3           5,363.5           Mill 5 maceration       6,020.7           6,134.1  ->  Mill 3 maceration
+5       6,020.7           4,750.0           Mill 6 maceration       5,407.2           5,363.5  ->  Mill 4 maceration
+6       5,407.2           4,250.0           Imbibition              4,907.2           4,750.0  ->  Mill 5 maceration
+------  ----------------  ----------------  ----------------------  ----------------  --------------------------
+```
+
+Note the counter-current logic in the "Source"/"Dest" columns: each mill's maceration liquid comes from the *next* mill down the train (imbibition water only enters at the last mill), and juice from mills 3+ feeds back as maceration to the mill *before* it — only mills 1 and 2's juice actually goes "To process." `balance_check` gives you a total/pol/brix/fiber/water in-vs-out reconciliation dict, mirroring the pattern used by `Clarification` below. `generate_pfd()` and `to_excel()` are also available.
+
+---
+
+## Clarification
+
+`Clarification` runs the clarifier + rotary vacuum filter material balance for a single-clarifier station, taking `MillFloor`'s `mixed_juice_stream` straight in.
+
+```python
+>>> from Clarification import Clarification
+>>> clar = Clarification(
+...     mixed_juice_stream=mill.mixed_juice_stream, cane_tpd=mill.cane_tpd,
+...     filter_wash_water_pct_on_cane=8.0, filter_cake_pct_on_cane=6.0, filter_cake_pol_pct=2.0,
+...     clarified_juice_purity=90.0, limed_juice_hot_temp_f=220.0,
+... )
+>>> clar
+Clarification(cane=17,000 TPD, CJ brix=14.53%, purity=90.0%, flow=1,393,081 lb/hr)
+>>> clar.flash_vapor_pct
+0.754
+>>> clar.filter_cake_pol_lb_per_day
+40800
+```
+
+The internal balance runs lime, milk-of-lime dilution, polymer/flocculant, rotary-filter wash water, flash-tank vapor loss (limed juice flashing down to 212°F before the clarifier), and the clarifier underflow — all as lb/hr streams stored in the **`streams`** dict, keyed by stream name, each with flow/brix/pol/purity/specific gravity/GPM/% on cane. **`clarified_juice_stream`** is the `SugarStream` output (feeds an `Evaporator`/`EvaporatorSet` next); **`limed_juice_cold_stream`** is exposed separately since it's the usual cold-side feed into `JuiceHeatingStation`. `balance_check` totals every "In"/"Out"-tagged stream in `streams` (flow, brix-lb/hr, pol-lb/hr) for a reconciliation check.
+
+`neat_display()` prints the full stream table grouped by In/Out/Internal; `generate_pfd()` and `to_excel()` are also available (the Excel sheet includes a numbered stream table matching the PFD's tags).
+
+---
+
+## JuiceHeatingStation
+
+`JuiceHeatingStation` arranges a group of `JuiceHeaterShellTube` units in **series** or **parallel** and solves the train — the heat-transfer math itself still lives entirely in `JuiceHeaterShellTube`; this class only wires the cold streams together (chained outlet→inlet for series, a flow split for parallel) and reports the whole station.
+
+The `heaters` argument is a list of `JuiceHeaterShellTube` objects used purely as **configuration templates** — their `cold_stream` gets replaced internally; `hot_stream`, `juice_out_temp_degF`, `U`, `installed_area_ft2`, and `name` are kept:
+
+```python
+>>> from JuiceHeater import JuiceHeaterShellTube
+>>> from JuiceHeatingStation import JuiceHeatingStation
+>>> juice = SugarStream(brix=15, purity=88, flow_lb_per_hr=1_400_000, temp_deg_F=95, pressure_psia=14.7, level_ft=0)
+>>> primary = JuiceHeaterShellTube(cold_stream=juice, hot_stream=SteamStream(x=1, P=19), steam_type=1,
+...                                name='Primary Heaters', juice_out_temp_degF=180,
+...                                U_btu_per_ft2_degF=220, installed_area_ft2=8000)
+>>> secondary = JuiceHeaterShellTube(cold_stream=juice, hot_stream=SteamStream(x=1, P=30), steam_type=0,
+...                                  name='Secondary Heaters', juice_out_temp_degF=220,
+...                                  U_btu_per_ft2_degF=220, installed_area_ft2=8000)
+>>> ser = JuiceHeatingStation(cold_stream=juice, heaters=[primary, secondary],
+...                           mode='series', name='Juice Heaters - Series')
+>>> ser.neat_display()
+===================================================================================================================
+                                         JUICE HEATERS - SERIES  -  SERIES
+===================================================================================================================
+  Heater                    Juice lb/hr   T in F  T out F   LMTD F    Duty BTU/hr      U   Req ft2  Inst ft2 Steam psia  Steam lb/hr
+-------------------------------------------------------------------------------------------------------------------
+  Primary Heaters             1,400,000     95.0    180.0     80.3    108,475,640    220     6,137     8,000       19.0      112,796
+  Secondary Heaters           1,400,000    180.0    220.0     47.5     51,047,360    220     4,882     8,000       30.0       54,006
+-------------------------------------------------------------------------------------------------------------------
+  TOTAL                                                               159,523,000                                            166,802
+
+  Hot juice out: 1,400,000 lb/hr @ 220.0 F  (15.00 Bx, 88.0 purity)
+-------------------------------------------------------------------------------------------------------------------
+  Clean condensate (Exhaust steam heaters) :       51,874 lb/hr
+  Dirty condensate (V1-V4 steam heaters)   :      111,261 lb/hr
+  Total condensate                         :      163,134 lb/hr
+===================================================================================================================
+```
+
+For `mode='parallel'`, `cold_stream` is split across the heaters by `split_pcts` (defaults to an equal split; must sum to 100), each solved independently, then recombined at the mass-weighted blend temperature.
+
+**`set_steam_pressure(steam_type, P)`** is the hook `main.py` uses to close the loop with `EvaporatorSet`/`EvaporatorSetSciPy`: it re-pressures every heater on a given `steam_type` (0=Exhaust, 1–4=V1–V4) — keeping the same quality if the steam was saturated, or the same temperature if it was superheated — then resolves the whole station. It raises `ValueError` if no heater in the station uses that `steam_type`.
+
+Totals: `total_steam_lb_hr`, per-bleed `total_exhaust_steam_lb_hr`/`total_V1_steam_lb_hr` ... `total_V4_steam_lb_hr`, `total_duty_btu_hr`, and `clean_condensate`/`dirty_condensate` (post-flash, same `condensate_utils.flash_condensate()` convention used everywhere else). `generate_pfd()` (series or parallel layout) and `to_excel()` are also available.
+
+---
+
+## EvaporatorSet
+
+`EvaporatorSet` chains multiple `Evaporator` instances into a rigorous multi-effect station. Where a single `Evaporator` needs you to hand it a vapor-space pressure and just tells you what happens, `EvaporatorSet` **solves for** the supply steam flow needed to hit a target syrup brix, and the vapor-pressure profile across effects needed to equalize heat-transfer performance (U_calc/U_dessin) between them.
+
+```python
+>>> from SugarStream import SugarStream
+>>> from SteamStream import EvaporatorSteam
+>>> from EvaporatorSet import EvaporatorSet
+>>> from evaporator_functions import convert_inHg_vacuum_to_psia, convert_psig_to_psia
+>>> juice = SugarStream(brix=12, purity=90, flow_lb_per_hr=200_000, temp_deg_F=225, pressure_psia=60, level_ft=0)
+>>> steam = EvaporatorSteam(P_psia=convert_psig_to_psia(20), flow_lb_per_hr=0)
+>>> evap_set = EvaporatorSet(
+...     juice_in=juice, supply_steam=steam,
+...     last_effect_pressure_psia=convert_inHg_vacuum_to_psia(26),
+...     target_brix_out=60, effect_areas_ft2=[4800, 4800, 4800], name='Triple Effect',
+... )
+>>> evap_set.adjust_pressure_profile()   # required — see gotcha below
+>>> evap_set.neat_display()
+===============================================================
+  Triple Effect
+===============================================================
+  Juice In     :      200,000 lb/hr  |   12.00 brix  |   225.0 deg F
+  Syrup Out    :       40,000 lb/hr  |   60.00 brix  |   140.5 deg F
+  Steam Req'd  :       53,826 lb/hr  |   34.70 psia -  20.00 psig  |   258.8 deg F
+  Last Eff Vac :  26.00 inHg
+  Avg U Ratio  :  0.905
+```
+
+(`neat_display()` continues with a full per-effect table — flows, brix, temperatures, vapor/calandria conditions, U calc vs. Dessin — an energy-balance walk-through per effect, the last-effect condenser, and the condensate return; see the example above for the general shape.)
+
+A few things worth knowing:
+
+- **Construction alone doesn't converge the balance.** `__init__` builds each `Evaporator` at an initial guessed pressure profile (`pressure_profile_initial`) and a shortcut steam-flow estimate, and solves each one *once* at those starting conditions — it does **not** iterate to hit `target_brix_out` or equalize U ratios. You always call `adjust_pressure_profile()` (or `adjust_pressure_profile_scipy()` on the SciPy variant) right after construction, exactly as every docstring example and the `__main__` block do.
+- **`adjust_pressure_profile()`** is a fixed-point loop: it nudges each effect's vapor pressure by `(average_U_ratio / this_effect's_U_ratio) ** 0.1` per pass, calling `solve_for_steam()` (a secant-method search on the supply steam flow) after every pressure change, until the U-ratio spread (`stdev`) falls below `0.0001` or 100 iterations pass. `manually_set_pressures()` lets you bypass this and pin a pressure profile directly, for testing.
+- **`EvaporatorSetSciPy`** (also defined in `EvaporatorSet.py`) is a subclass swapping that hand-rolled loop for `scipy.optimize.root` via `adjust_pressure_profile_scipy()` — same target (equal U_ratio across effects, brix on target), tighter convergence, and it's what `multi_effect_solver_scipy.py`/`multi_effect_solver_vers_2.py` build internally. Prefer it unless you have a reason not to.
+- **`vapor_bleeds`** is a list, one entry per effect (first effect first) — a nonzero entry pulls that much vapor off as a `vapor_bleed` stream (e.g. to a `JuiceHeaterShellTube`) *before* the remainder flows on to feed the next effect's calandria.
+- **A `PreEvaporator` chains in front of an `EvaporatorSet`** by passing `pre.juice_out` as `juice_in` — see the class docstring for a full worked example, and `generate_pfd(pre_evap=pre)` to draw both on one figure.
+- **`condenser`** is a live `Condenser` property built from the last effect's vapor (net of any last-effect bleed); **`clean_condensate`**/**`dirty_condensate`** split effect 1 (fresh exhaust) from effects 2+ (inter-effect vapor), same `flash_condensate()` convention as elsewhere.
+- **`check_material_balance()`** and **`check_energy_balance()`** are standalone diagnostic prints (not part of `neat_display()`) that flag any effect whose in/out flows or energy don't reconcile within a small tolerance — useful after you've been poking at inputs manually.
+
+`sets_to_excel(evap_sets, workbook)` (a module-level function, not a method) writes several solved `EvaporatorSet`s onto **one shared sheet** — used together with `solve_evaporator_sets`/`solve_evaporator_sets_scipy` below, which hand you back a list of sets. `show_me_evaporator_details()` prints every effect's full `display_properties()` back-to-back; `show_brix_list_actual()` is a quick one-line-per-effect brix check.
+
+---
+
+## FourBoilingDoubleMagma, ThreeBoilingDoubleMagma, TwoBoiling, ThreeBoiling (planned)
+
+These are the full pan-floor boiling schemes — the "management" layer over `Pan`, `Centrifugal`, `Crystallizer`, and `Reheater`, the same way `EvaporatorSet` sits over `Evaporator`. You hand each one syrup plus one `Pan`/`Centrifugal`/`Crystallizer`/`Reheater` object **per station**, used purely as a configuration template (feed streams / massecuite left as `None`/`0` placeholders — you don't need to define inlet streams yourself); the class rebuilds each unit internally, wired to the streams the scheme actually produces.
+
+Why rebuilding is necessary: these floors are **recycle loops**. C magma feeds back to foot the A (or B) pans; A/B molasses feed the grain pans; grain massecuite feeds the C pans; remelted magma feeds back into the syrup itself. None of that can be solved in one pass, so `_solve()` runs a fixed number of iterations (`iterations=`, default 15–20 depending on the class) rebuilding every station each pass from the previous pass's outputs, until the recycle streams settle. There's no convergence *check* — just a fixed iteration count, so if you push these to extreme inputs, bump `iterations` up and re-inspect rather than trusting the default blindly.
+
+**TwoBoiling** — the simplest scheme, two product streams (A sugar, C final molasses), no B stage:
+Syrup + C-magma footing + top-off A molasses → **A pans** → **A centrifugals** → A sugar (final product) + A molasses. A molasses splits three ways: top-off back to A pans, to the grain pans, and to the C pans. Syrup + A molasses → **grain pans** → grain massecuite + remaining A molasses + syrup → **C pans** → **C crystallizers** → **C reheaters** → **C centrifugals** → C magma (mingled from C sugar) splits to A-pan footing and remelt (remelt rejoins the syrup feed) + C final molasses (terminal product, leaves the floor).
+
+**ThreeBoilingDoubleMagma** — adds a B stage between A and C, "double magma" meaning both B and C magma get re-mingled and recycled (footing + remelt) rather than going straight to product:
+Syrup → **A pans** (footed by B magma) → **A centrifugals** → A sugar (final product) + A molasses (→ B pans, grain, top-off). **B pans** (footed by C magma, fed by A molasses) → **B centrifugals** → B magma (→ A footing + remelt) + B molasses (→ grain, C pans). Grain massecuite + B molasses → **C pans** → crystallizer → reheater → **C centrifugals** → C magma (→ B footing + remelt) + C final molasses (terminal product).
+
+**FourBoilingDoubleMagma** — splits the A stage into **A1** and **A2** pans (two independently-run product streams, `A1_centrifugals.sugar_stream` and `A2_centrifugals.sugar_stream`), both footed off B magma:
+Syrup splits to A1 pans, A2 pans, and grain. **A1 pans** → **A1 centrifugals** → A1 sugar + A1 molasses, which splits to A2 pans, grain, and B pans. **A2 pans** (fed by syrup + A1 molasses + B-magma footing) → **A2 centrifugals** → A2 sugar + A2 molasses, split to grain and B pans. **B pans** (fed by A1 molasses + A2 molasses + C-magma footing) → **B centrifugals** → B magma (→ A1 + A2 footings, remelt) + B molasses (→ grain, C pans). Grain + B molasses → **C pans** → crystallizer → reheater → **C centrifugals** → C magma (→ B footing + remelt) + C final molasses.
+
+```python
+>>> from FourBoilingDoubleMagma import FourBoilingDoubleMagma
+>>> pan_floor = FourBoilingDoubleMagma(syrup=..., A1_pans=..., A2_pans=..., B_pans=..., C_pans=...,
+...                                     grain_pans=..., A1_centrifugals=..., A2_centrifugals=...,
+...                                     B_centrifugals=..., C_centrifugals=..., ...)  # see FourBoilingDoubleMagma.py __main__
+>>> pan_floor.neat_display()
+===================================================================================================================
+                                FOUR BOILING DOUBLE MAGMA - COMPLETE FLOOR BALANCE
+===================================================================================================================
+
+-------------------------------------------------------------------------------------------------------------------
+  OVERALL FLOOR BALANCE
+-------------------------------------------------------------------------------------------------------------------
+  (Feed = Evaporator syrup + Wash Water; Products = A1+A2 sugar + C final molasses)
+
+  Stream                           Flow (lb/hr)  Solids (lb/hr) Pol (lb/hr)   Water (lb/hr)  Brix%   Pur%     ft3/hr
+
+  ENTERING
+    Syrup From Evaporators               100,000        65,000        57,850        35,000   65.0   89.0      1,218
+    Wash and Dilution Water               24,678             0             0        24,678    0.0    0.0        395
+
+  LEAVING
+    A1 Product Sugar                      36,126        36,053        35,945            72   99.8   99.7        373
+    A2 Product Sugar                      19,116        19,078        18,944            38   99.8   99.3        198
+    Total Raw Sugar                       55,241        55,131        54,889           110      -      -          -
+    C Final Molasses                      12,035         9,869         2,961         2,166   82.0   30.0        135
+    Evaporated (all pans)                 57,401             0             0        57,401      -      -          -
+-------------------------------------------------------------------------------------------------------------------
+    Total Entering                       124,678        65,000        57,850        59,678      -      -          -
+    Total Leaving                        124,678        65,000        57,850        59,678      -      -          -
+-------------------------------------------------------------------------------------------------------------------
+  Pol% Recovered in Raw Sugar (A1+A2 / feed):    94.88 %
+```
+
+Every scheme shares the same properties for wiring into the rest of the factory: **`pan_condensers`** (a `[(name, Condenser)]` list, one barometric condenser per pan — feed straight into `CoolingTowerSystem`), **`total_exhaust_steam_lb_hr`**/**`total_V1_steam_lb_hr`**...**`total_V4_steam_lb_hr`** (summed across every pan, by `steam_type`), **`clean_condensate`**/**`dirty_condensate`**, and **`total_water`** (fresh water added: centrifugal wash + magma minglers + remelt/dilution water — everything not drawn on the PFD). `generate_pfd()` and `to_excel()` are on all three; **`ThreeBoilingDoubleMagma`** and **`FourBoilingDoubleMagma`** also have a full station-by-station `neat_display()` — **`TwoBoiling` does not** (no `neat_display()`, no `__repr__`, no `properties()`/`display_properties()`); read its attributes (`pan_floor.A_centrifugals.sugar_stream`, etc.) directly, or go straight to `to_excel()`/`generate_pfd()`.
+
+**ThreeBoiling** (a non-double-magma, three-stage scheme) is referenced in the codebase's naming pattern but **doesn't exist yet** — only `TwoBoiling.py` and the two `*DoubleMagma` variants are implemented today. If you need a plain three-boiling scheme (B and C magma going straight to product rather than being re-mingled and recycled), `ThreeBoilingDoubleMagma` is the closest existing template to adapt.
+
+---
+
+## CanePrepTurbines, MillTurbines, AuxillaryTurbines
+
+These three classes solve a *group* of `Turbine` objects from parallel lists and report them side by side in one table — cane prep drives (shredder/knives), mill drives, and everything else (ID fans, boiler feed pumps, etc.), respectively. All three share the same shape: build one `Turbine` per entry, expose `.turbines` (the list) plus `total_hp`/`total_inlet_flow_lb_hr`/`total_exhaust_available_lb_hr`, and the same `neat_display()`/`generate_pfd()`/`to_excel()` (the last two both delegate to shared helpers in `turbine_diagram.py`).
+
+They differ only in how HP demand is specified and named:
+
+- **`CanePrepTurbines`** and **`MillTurbines`** take `hp_ton_fiber_hr` (a list of HP-per-ton-fiber-per-hour, one entry per unit) and a single `tons_fiber_hr` — each turbine's `hp_demand` is `hp_ton_fiber_hr[i] * tons_fiber_hr`, so bumping the cane rate rescales every turbine's demand automatically. `CanePrepTurbines` defaults to naming units `Shredder`, `Knife 1`, `Knife 2`, `Knife 3` (override with `name_list`) and skips any unit with `hp_ton_fiber_hr == 0` in the display; `MillTurbines` always names units `Mill 1`, `Mill 2`, ... and shows every one.
+- **`AuxillaryTurbines`** takes an explicit `hp_list` instead (no per-ton-fiber scaling) plus a **required** `name_list` and `group_name` — it's for drives whose load doesn't track fiber rate. Units with `hp_list[i] == 0` are skipped in the display, same as `CanePrepTurbines`.
+
+All three require `isentropic_efficiency` as a **list of percents** (e.g. `50` for 50%, matching the count of the HP list) — they divide by 100 before constructing each `Turbine`, so pass percents here even though `Turbine` itself wants a 0–1 fraction.
+
+```python
+>>> from AuxillaryTurbines import AuxillaryTurbines
+>>> from SteamStream import SteamStream
+>>> aux = AuxillaryTurbines(
+...     group_name='ID Fan Turbines',
+...     name_list=['123 ID Fan', '4 ID Fan', '5 ID Fan', '6 ID Fan', '7 ID Fan', '8 ID Fan'],
+...     hp_list=[750, 235, 400, 795, 1200, 1300],
+...     isentropic_efficiency=[50, 50, 50, 50, 50, 50],
+...     live_steam_object=SteamStream(P=190, x=1),
+...     exhaust_psia=32,
+... )
+>>> aux.neat_display()
+============================================================================================================================
+                                                      ID Fan Turbines
+============================================================================================================================
+             |  Inlet Flow  | Exhaust Avail |    HP     | Steam Rate |  Inlet   |  Inlet   |  Outlet  |  Outlet  |  Outlet
+    Unit     |    lb/hr     |     lb/hr     |           |  lb/HP-hr  |   psia   | temp °F  |   psia   | temp °F  |  quality
+-------------+--------------+---------------+-----------+------------+----------+----------+----------+----------+----------
+  123 ID Fan |       28,176 |        27,128 |       750 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+    4 ID Fan |        8,829 |         8,500 |       235 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+    5 ID Fan |       15,027 |        14,468 |       400 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+    6 ID Fan |       29,867 |        28,756 |       795 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+    7 ID Fan |       45,082 |        43,405 |     1,200 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+    8 ID Fan |       48,839 |        47,022 |     1,300 |      37.57 |    190.0 |    377.5 |     32.0 |    254.0 |  0.9628
+-------------+--------------+---------------+-----------+------------+----------+----------+----------+----------+----------
+       TOTAL |      175,820 |       169,279 |     4,680 |      37.57 |          |          |          |          |
+============================================================================================================================
+```
+
+All three turbines in a group share one `live_steam_object` and one `exhaust_psia` — if part of your plant runs on a different steam header, build a separate group for it (`main.py` typically ends up with several `AuxillaryTurbines` groups: ID fans, FD fans, boiler feed pumps, and so on).
+
+---
+
+## CoolingTowerSystem
+
+`CoolingTowerSystem` combines **every barometric condenser in the factory** — each evaporator set's last-effect condenser, plus every pan's condenser from the pan floor — into one shared cooling-tower and makeup-water balance. Each `Condenser` is solved independently wherever it's built (an `EvaporatorSet`, a boiling scheme's `pan_condensers`); this class just gathers them, in the same spirit as the boiling schemes' "streams not shown" water table:
+
+```python
+>>> from CoolingTowerSystem import CoolingTowerSystem
+>>> cts = CoolingTowerSystem(
+...     condensers=(pan_floor.pan_condensers + [(s.name, s.condenser) for s in evap_station]),
+...     cool_water_temp_F=90, percent_blowdown=1.0,
+... )
+>>> cts.neat_display()
+```
+
+producing a report shaped like (5-condenser demo from `CoolingTowerSystem.py`'s own `__main__`):
+
+```
+COOLING TOWER SYSTEM - COMBINED CONDENSER / TOWER BALANCE
+...
+  CONDENSER INVENTORY  (5 condensers, delivered injection water @ 88.5 F)
+  ...
+  Total                             190,000                      194.011     4,808,686     9,656              4,998,686
+
+  HOT WATER RETURN TO TOWER
+  Total return                            4,998,686 lb/hr    10,038 GPM  @ 128.9 F mixed
+
+  COOLING TOWER  (128.9 F -> 90 F, blowdown 10.0%)
+  Blowdown                                  499,869 lb/hr     1,004 GPM
+  Evaporated to atmosphere                  174,905 lb/hr       351 GPM
+  Cool water from tower                   4,323,913 lb/hr     8,683 GPM  @ 90 F
+
+  SYSTEM BALANCE
+  Cold water demand (condensers)          4,808,686 lb/hr     9,656 GPM
+  Cool water available (tower)            4,323,913 lb/hr     8,683 GPM  @ 90 F
+  MAKEUP WATER REQUIRED                     484,774 lb/hr       973 GPM  @ 75 F
+
+  Delivered injection water temp (cool + makeup blend): 88.5 F
+```
+
+The mechanics worth understanding:
+
+- **This is a circular dependency, solved by plain iteration.** The delivered injection-water temperature depends on how much makeup is needed, which depends on the condensers' cold-water demand, which depends on the delivered temperature. `_solve()` just loops a fixed `iterations` times (default 15) re-solving every condenser at `delivered_water_temp_F` — no tolerance check, same pattern as the boiling schemes.
+- **The condensers you pass in were each solved standalone**, usually at some assumed injection temperature (often 90°F, whatever the owning `EvaporatorSet`/pan floor used). `CoolingTowerSystem` re-solves them at the *actual* delivered temperature once the tower and makeup are accounted for — that's exactly the "ignore this injection water demand, it's re-solved here" note you'll see printed by `EvaporatorSet.neat_display()` and the boiling schemes. **`mismatched_inlets`** lists which condensers arrived at a different temperature than what got delivered, if you want to double check.
+- **`makeup_water_temp_F=None`** (the default) means makeup arrives at the tower's own cool-water temperature, so the delivered temp equals `cool_water_temp_F` exactly and the loop above converges in one pass. Give it an actual makeup source temperature (well water, city water) and the delivered temp becomes a mass/heat blend of tower water and makeup — that's what produces the 88.5°F in the example (blended from 90°F tower water and 75°F makeup).
+- **`makeup_lb_hr`** is `max(injection demand − cool water from tower, 0)`; if the vapor condensed across the factory actually exceeds what the tower needs to reject, the shortfall goes negative and shows up instead as **`surplus_lb_hr`** (overflow) — the system doesn't need makeup in that case.
+- **`tower`** is a live `CoolingTower` property (see the base equipment class) built from the combined hot-water return; **`balance_check`** reconciles the whole system (vapor + makeup in, vs. evaporated + blowdown + surplus out).
+
+`generate_pfd()` and `to_excel()` are both available.
+
+---
+
+# Useful Functions
+
+Beyond the equipment and management classes, a handful of standalone modules do work that doesn't belong to any one unit — condensate/water reconciliation, unit conversions feeding into the evaporator solves, and the multi-set juice-balancing solvers. This section covers the ones worth knowing about if you're assembling your own factory balance the way `main.py` does.
+
+## condensate_utils
+
+The whole project's condensate accounting runs through one function: **`flash_condensate(flow_lb_per_hr, sat_temp_deg_F, flash_temp_F=212.0, h_fg_flash_btu_lb=970.0)`**. Condensate hotter than atmospheric partially flashes to vapor when it's let down to atmospheric pressure on its way back to the boiler feed system; this returns the liquid fraction that survives that flash — `flow − flow*(sat_temp − 212)/970` when `sat_temp > 212°F`, or the full flow unchanged otherwise. Every `clean_condensate`/`dirty_condensate` property you've seen above (`EvaporatorSet`, `JuiceHeatingStation`, `PreEvaporator`, the boiling schemes) is built from this one call, tagged clean (fresh exhaust) vs. dirty (V1–V4 / inter-effect vapor) purely by which `steam_type`/effect it came from — the function itself doesn't know or care about that distinction.
+
+## condensate_balance
+
+`CondensateBalance` (with `CondensateDemand`) takes the `clean_condensate`/`dirty_condensate` totals you've already tallied from the rest of the factory and reconciles them, informationally, against a list of named water-demand locations — boiler feed water, imbibition, wash water, dilution water, and so on.
+
+```python
+>>> from condensate_balance import CondensateBalance, CondensateDemand
+>>> demands = [
+...     CondensateDemand('Boiler Feed Water', flow_lb_hr=800_000, temp_F=227, method='blended',
+...                      note="Recommend usage of clean condensate, make up with minimal dirty condensate or well water"),
+...     CondensateDemand('Imbibition', flow_lb_hr=1_200_000, temp_F=150, method='blended'),
+...     CondensateDemand('Wash Water - Pans', flow_lb_hr=150_000, temp_F=160, method='cooled'),
+...     CondensateDemand('Dilution Water - Molasses/Remelt', flow_lb_hr=90_000, temp_F=180, method='blended'),
+... ]
+>>> cb = CondensateBalance(
+...     clean_condensate_dict={'Evap Set - Effect 1': 41_000, 'Pan Floor - Exhaust Pans': 15_000, 'Juice Heaters - Exhaust': 52_000},
+...     dirty_condensate_dict={'Evap Set - Effects 2+': 102_000, 'Pan Floor - V1-V4 Pans': 50_000, 'Juice Heaters - V1-V4': 111_000},
+...     demands=demands, well_water_temp_F=90, combined_condensate_temp_F=210,
+... )
+>>> cb.neat_display()
+```
+
+```
+  CONDENSATE DEMAND
+  (combined condensate temp = 210.0 °F, well water temp = 90.0 °F)
+------------------------------------------------------------------------------------------
+  Location                       Method   Flow lb/hr   Temp F   Cond lb/hr   Well lb/hr   Cond %
+------------------------------------------------------------------------------------------
+  Boiler Feed Water             blended      800,000    227.0      800,000            0   100.0%
+      -> Recommend usage of clean condensate, make up with minimal dirty condensate or well water
+      WARNING: Target 227.0 °F is above the condensate temp (210.0 °F) — clamped to 100% condensate.
+  Imbibition                    blended    1,200,000    150.0      600,000      600,000    50.0%
+  Wash Water - Pans              cooled      150,000    160.0      150,000            0   100.0%
+  Dilution Water - Molasses/Remelt  blended       90,000    180.0       67,500       22,500    75.0%
+------------------------------------------------------------------------------------------
+  TOTAL                                    2,240,000             1,617,500      622,500
+
+  CONDENSATE CHECK  (informational — reconcile against the demand list yourself)
+------------------------------------------------------------------------------------------
+  Total condensate available                       371,000 lb/hr
+  Total condensate required                      1,617,500 lb/hr
+  Surplus / (Deficit)                           -1,246,500 lb/hr
+```
+
+A few things worth knowing:
+
+- **This does not auto-allocate condensate to demands.** The supply side (clean/dirty totals) and the demand side (condensate/well-water split per location) are computed completely independently and shown side by side — the "Surplus/(Deficit)" line is informational only, telling you whether there's roughly enough condensate to go around; nothing routes an actual lb/hr of clean condensate to a specific demand for you. You reconcile the two by eye and decide routing yourself.
+- **Each `CondensateDemand` picks one of two methods.** `'blended'` splits the demand's flow between condensate and well water via a straight linear temperature blend against a single `combined_condensate_temp_F` (one lumped number for the whole balance, not tracked per source) — `cond_frac = (target − well) / (cond − well)`, clamped to [0, 1] with a warning if the target temperature is outside the condensate/well-water range. `'cooled'` means the full flow is condensate by definition (it's cooled via a heat exchanger rather than diluted with well water), so `well_water_flow_lb_hr` is always 0.
+- **`note`** on a `CondensateDemand` is a free-text tag only — printed/exported as-is, with no effect on the calculation. Use it the way the example does, to record a routing recommendation for whoever reads the report.
+
+`to_excel()` writes the same supply/demand tables to their own sheet (or appends onto a shared `SheetWriter`).
+
+## multi_effect_solver_vers_2 and multi_effect_solver_scipy
+
+Both modules solve the same problem `EvaporatorSet` doesn't: balancing juice flow **across several parallel evaporator sets** sharing one clarified-juice feed (e.g. two independent triple-effect trains) so every set converges to the same average `U_ratio_avg` — a fair load split, not just "however much juice each train happens to get." Each set's own internal pressure profile is solved via `EvaporatorSetSciPy.adjust_pressure_profile_scipy()` either way; the two modules differ only in how the **outer** juice-split is solved.
+
+```python
+>>> from multi_effect_solver_scipy import solve_evaporator_sets_scipy
+>>> sets = solve_evaporator_sets_scipy(
+...     juice_brix=14, juice_purity=90, juice_flow_lb_per_hr=1_500_000, juice_temp_deg_F=220,
+...     set_configs=[
+...         {"name": "Set 1 (4-eff 25k ft2)", "effect_areas_ft2": [25000]*4,
+...          "supply_steam_psia": 30, "last_effect_psia": 2.4, "vapor_bleeds": [100000, 50000, 50000]},
+...         {"name": "Set 2 (4-eff 12k ft2)", "effect_areas_ft2": [12000]*4,
+...          "supply_steam_psia": 25, "last_effect_psia": 2.4, "vapor_bleeds": [50000, 20000]},
+...         {"name": "Set 3 (3-eff 11-9k ft2)", "effect_areas_ft2": [11000, 9000, 9000],
+...          "supply_steam_psia": 16, "last_effect_psia": 2.4, "vapor_bleeds": [50000]},
+...     ],
+... )
+
+Initial fractions (HS x dP / n_eff):
+  Set 1 (4-eff 25k ft2): 0.6315  Set 2 (4-eff 12k ft2): 0.2482  Set 3 (3-eff 11-9k ft2): 0.1203
+
+Converged in 7 evals  (145.2 ms)
+  Set 1 (4-eff 25k ft2)    63.40% of juice  (     951,021 lb/hr)  U_ratio_avg=1.142367
+  Set 2 (4-eff 12k ft2)    24.70% of juice  (     370,551 lb/hr)  U_ratio_avg=1.142367
+  Set 3 (3-eff 11-9k ft2)   11.90% of juice  (     178,428 lb/hr)  U_ratio_avg=1.142367
+  total fraction check: 1.000000
+```
+
+- **`solve_evaporator_sets` (in `multi_effect_solver_vers_2.py`)** — the one `main.py` actually imports — starts each set at a juice fraction weighted by `(total heating surface / n_effects) × ΔP`, then runs `n_iterations` (default 10) of a **damped fixed-point** update: under-loaded sets (low `U_ratio_avg` relative to the group average) get more juice next pass, over-loaded sets give some away, scaled by a `dampening` exponent (default 0.1–0.2; smaller = more stable, more iterations needed). It always prints verbose per-iteration progress and a full `neat_display()` per set at the end unless you set `verbose=False`.
+- **`solve_evaporator_sets_scipy` (in `multi_effect_solver_scipy.py`)** — same seeding logic, but wraps the outer fraction split in `scipy.optimize.root` instead of the damped loop. Per the module's own benchmark note, this is a **package deal**: `root` estimates its Jacobian by nudging each fraction and watching the U-average move, and that only works cleanly because the *inner* per-set solve (`adjust_pressure_profile_scipy`, not the plain `adjust_pressure_profile`) converges to ~1e-10 instead of ~1e-4 — mixing `root` with the old inner solver doesn't converge. Measured ~1.8x faster on a 3-set station in the module's own comparison. Pass `bounded=True` to switch to `scipy.optimize.least_squares` with fraction bounds `(0, 1)`, which is only worth reaching for if the station might otherwise start from a non-physical fraction guess.
+
+Both return `list[EvaporatorSet]` (or `EvaporatorSetSciPy` instances) in `set_configs` order — call `.neat_display()` on any of them individually, or pass the whole list to `sets_to_excel()` (see `EvaporatorSet` above) to write them onto one shared sheet.
+
+## excel_export and steam_summary_excel
+
+Every `to_excel()` method throughout this guide is built on **`excel_export.py`**: `new_workbook()` returns a styled `openpyxl` `Workbook`, and `SheetWriter` is the class every equipment/management class's `to_excel()` uses internally (`title()`, `section()`, `row()`, `table()`, `row_pair()`, `image()`, `page_break()`, `finish()`) to lay its own sheet out consistently. You won't usually touch `SheetWriter` directly — the pattern throughout `main.py` is just:
+
+```python
+>>> from excel_export import new_workbook
+>>> wb = new_workbook()
+>>> boiler.to_excel(wb)
+>>> mill.to_excel(wb)
+>>> # ... every other unit ...
+>>> wb.save("factory_balance.xlsx")
+```
+
+— but it's worth knowing about if you want to append a custom section onto an existing sheet: most `to_excel()` methods accept an existing `sheet_writer=` to append onto rather than starting a new sheet (see `EvaporatorSet.to_excel`/`sets_to_excel` for the pattern).
+
+**`steam_summary_excel.steam_summary_to_excel(workbook, live_steam_dict, exh_dict, ...)`** writes the plant-wide live-steam and exhaust-steam demand summary — the same `{label: lb/hr}` dictionaries `main.py` already builds while walking through the boiler, turbine groups, juice heaters, and pans — onto one sheet. Pass `exhaust_available_lb_hr`/`makeup_steam_lb_hr` to also include the exhaust-availability-vs-makeup balance, and `steam_available_lb_hr` (from `Boiler.steam_availabe_lb_hr`, once you've solved it) to include live-steam availability vs. demand.
