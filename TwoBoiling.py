@@ -321,6 +321,320 @@ class TwoBoiling:
         return plot_two_boiling(self, show=show, save_path=save_path,
                                 include_table=include_table)
 
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    def properties(self):
+        """Flat dict of the top-level floor balance — the same numbers shown
+        in the OVERALL FLOOR BALANCE section of neat_display(), plus steam/
+        condensate totals. For the full station-by-station breakdown, use
+        neat_display() or read each station object directly."""
+        a_sugar = self.A_centrifugals.sugar_stream
+        c_mol   = self.C_centrifugals.molasses_stream
+        total_evap = (self.A_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
+                      + self.C_pans.water_evaporated_lb_hr)
+        pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
+        return {
+            'syrup_flow_lb_hr':             self.syrup.flow_lb_per_hr,
+            'syrup_brix':                   self.syrup.brix,
+            'syrup_purity':                 self.syrup.purity,
+            'total_water_lb_hr':            self.total_water.flow_lb_per_hr,
+            'a_sugar_flow_lb_hr':           a_sugar.flow_lb_per_hr,
+            'a_sugar_brix':                 a_sugar.brix,
+            'a_sugar_purity':               a_sugar.purity,
+            'c_final_molasses_flow_lb_hr':  c_mol.flow_lb_per_hr,
+            'c_final_molasses_brix':        c_mol.brix,
+            'c_final_molasses_purity':      c_mol.purity,
+            'total_evaporated_lb_hr':       total_evap,
+            'pol_pct_recovered_in_raw_sugar': pol_extr,
+            'total_exhaust_steam_lb_hr':    self.total_exhaust_steam_lb_hr,
+            'total_V1_steam_lb_hr':         self.total_V1_steam_lb_hr,
+            'total_V2_steam_lb_hr':         self.total_V2_steam_lb_hr,
+            'total_V3_steam_lb_hr':         self.total_V3_steam_lb_hr,
+            'total_V4_steam_lb_hr':         self.total_V4_steam_lb_hr,
+            'clean_condensate_lb_hr':       self.clean_condensate,
+            'dirty_condensate_lb_hr':       self.dirty_condensate,
+        }
+
+    def display_properties(self):
+        """One-line-per-metric printout of properties() — the quick top-level
+        summary. For the full per-station report, use neat_display()."""
+        props = self.properties()
+        print("Units: flow(lb/hr), brix/purity/pol(%)")
+        for k, v in props.items():
+            if isinstance(v, str):
+                print(f"  {k:<34}: {v}")
+            else:
+                print(f"  {k:<34}: {v:,.3f}")
+
+    def neat_display(self):
+        W = 115
+        HEAVY = "=" * W
+        LIGHT = "-" * W
+
+        LBL = 32   # label column width
+        NUM = 13   # numeric column width
+        VOL = 10   # ft³/hr column width
+
+        def _row(label, flow, solids, pol, water, brix=None, purity=None, vol_ft3_hr=None):
+            b = f"{brix:6.1f}" if brix is not None else "     -"
+            p = f"{purity:6.1f}" if purity is not None else "     -"
+            v = f"{vol_ft3_hr:{VOL},.0f}" if vol_ft3_hr is not None else " " * (VOL - 1) + "-"
+            return (f"  {label:<{LBL}} {flow:{NUM},.0f} {solids:{NUM},.0f}"
+                    f" {pol:{NUM},.0f} {water:{NUM},.0f} {b} {p} {v}")
+
+        def _hdr():
+            return (f"  {'Stream':<{LBL}} {'Flow (lb/hr)':{NUM}} {'Solids (lb/hr)':{NUM}}"
+                    f" {'Pol (lb/hr)':{NUM}} {'Water (lb/hr)':{NUM}} {'Brix%':>6} {'Pur%':>6} {'ft3/hr':>{VOL}}")
+
+        def _stream(label, s):
+            sol = s.solids_flow
+            return _row(label, s.flow_lb_per_hr, sol, s.pol_flow,
+                        s.flow_lb_per_hr - sol, s.brix, s.purity, vol_ft3_hr=s.cu_ft_hr)
+
+        def _section(title):
+            return f"\n{LIGHT}\n  {title}\n{LIGHT}"
+
+        def _pan_station(pan):
+            lines = []
+            lines.append("  ENTERING")
+            for i, f in enumerate(pan.feed_streams, 1):
+                sol = f.solids_flow
+                lines.append(_row(f"    Feed {i}  (Bx={f.brix:.1f} Pu={f.purity:.1f})",
+                                  f.flow_lb_per_hr, sol, f.pol_flow,
+                                  f.flow_lb_per_hr - sol, f.brix, f.purity, vol_ft3_hr=f.cu_ft_hr))
+            ff = pan.feed_flow_lb_hr
+            fs = pan.feed_solids_lb_hr
+            fp = sum(f.pol_flow for f in pan.feed_streams)
+            lines.append(LIGHT)
+            lines.append(_row("  Total Feed In", ff, fs, fp, ff - fs))
+            lines.append("")
+            lines.append("  LEAVING")
+            masse_sol = fs          # solids conserved through evaporation
+            masse_pol = fp          # pol conserved through evaporation
+            masse_water = pan.massecuite_flow_lb_hr - masse_sol
+            masse_vol = pan.massecuite_flow_lb_hr / pan.massecuite.density
+            lines.append(_row("  Massecuite Out", pan.massecuite_flow_lb_hr,
+                               masse_sol, masse_pol, masse_water,
+                               pan.masse_brix, pan.masse_purity, vol_ft3_hr=masse_vol))
+            lines.append(_row("  Evaporated Water", pan.water_evaporated_lb_hr,
+                               0, 0, pan.water_evaporated_lb_hr))
+            lines.append(LIGHT)
+            net = ff - pan.massecuite_flow_lb_hr - pan.water_evaporated_lb_hr
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.0f} lb/hr")
+            return lines
+
+        def _cen_station(cen):
+            lines = []
+            ms  = cen.massecuite_solids_lb_hr
+            mw  = cen.massecuite_flow_lb_hr - ms
+            mp  = cen.pol_in_lb_hr
+            ww  = cen.wash_water_lb_hr
+            s_sol  = cen.crystals_to_sugar_lb_hr
+            s_wat  = cen.sugar_wet_lb_hr - s_sol
+            m_sol  = cen.molasses_solids_lb_hr
+            m_wat  = cen.molasses_flow_lb_hr - m_sol
+            masse_vol = cen.massecuite_flow_lb_hr / cen.massecuite.density
+            lines.append("  ENTERING")
+            lines.append(_row("    Massecuite", cen.massecuite_flow_lb_hr, ms, mp, mw,
+                               cen.massecuite.masse_brix, cen.massecuite.masse_purity,
+                               vol_ft3_hr=masse_vol))
+            lines.append(_row("    Wash Water", ww, 0, 0, ww))
+            lines.append(LIGHT)
+            lines.append(f"  {'Total In':<{LBL}} {cen.massecuite_flow_lb_hr + ww:{NUM},.0f}"
+                         f" {ms:{NUM},.0f} {mp:{NUM},.0f} {mw + ww:{NUM},.0f}")
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_row("    Sugar Out", cen.sugar_wet_lb_hr,
+                               s_sol, cen.sugar_pol_lb_hr, s_wat,
+                               cen.sugar_brix, cen.sugar_purity,
+                               vol_ft3_hr=cen.sugar_stream.cu_ft_hr))
+            lines.append(_row("    Molasses Out", cen.molasses_flow_lb_hr,
+                               m_sol, cen.pol_to_molasses_lb_hr, m_wat,
+                               cen.target_molasses_brix, cen.molasses_purity,
+                               vol_ft3_hr=cen.molasses_stream.cu_ft_hr))
+            lines.append(LIGHT)
+            total_out = cen.sugar_wet_lb_hr + cen.molasses_flow_lb_hr
+            net = (cen.massecuite_flow_lb_hr + ww) - total_out
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.0f} lb/hr")
+            return lines
+
+        def _dil_station(undiluted, diluted, label):
+            lines = []
+            water_added = diluted.flow_lb_per_hr - undiluted.flow_lb_per_hr
+            lines.append("  ENTERING")
+            lines.append(_stream(f"    {label} (undiluted)", undiluted))
+            lines.append(_row("    Dilution Water", water_added, 0, 0, water_added))
+            lines.append(LIGHT)
+            lines.append(_row("  Total In", diluted.flow_lb_per_hr, undiluted.solids_flow,
+                               undiluted.pol_flow, diluted.flow_lb_per_hr - undiluted.solids_flow))
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_stream(f"    {label} (diluted)", diluted))
+            lines.append(LIGHT)
+            net = diluted.flow_lb_per_hr - (undiluted.flow_lb_per_hr + water_added)
+            lines.append(f"  {'Net (In - Out):':<{LBL}} {net:{NUM},.2f} lb/hr")
+            return lines
+
+        def _heatx_station(unit, water_label):
+            """Crystallizer/reheater station — non-contact water, mass conserved."""
+            lines = []
+            m_in, m_out = unit.massecuite_in, unit.massecuite_out
+            flow = unit.massecuite_flow_lb_hr
+            sol  = flow * m_in.masse_brix / 100
+            pol  = flow * m_in.masse_purity * m_in.masse_brix / 10000
+            lines.append("  ENTERING")
+            lines.append(_row(f"    Massecuite In   (T={unit.masse_temp_in_deg_F:5.1f}F)",
+                               flow, sol, pol, flow - sol,
+                               m_in.masse_brix, m_in.masse_purity, vol_ft3_hr=flow / m_in.density))
+            lines.append("")
+            lines.append("  LEAVING")
+            lines.append(_row(f"    Massecuite Out  (T={unit.masse_temp_out_deg_F:5.1f}F)",
+                               flow, sol, pol, flow - sol,
+                               m_out.masse_brix, m_out.masse_purity, vol_ft3_hr=flow / m_out.density))
+            lines.append(LIGHT)
+            lines.append(f"  {'ML purity in -> out:':<{LBL}} {m_in.ml_purity:6.1f} -> {m_out.ml_purity:6.1f} %"
+                         f"     crystal content: {m_in.crystal_content:5.1f} -> {m_out.crystal_content:5.1f} %")
+            lines.append(f"  {'Duty:':<{LBL}} {unit.duty_btu_hr:{NUM},.0f} BTU/hr")
+            lines.append(f"  {water_label + ':':<{LBL}} {unit.water_lb_hr:{NUM},.0f} lb/hr"
+                         f" ({unit.water_gpm:,.0f} gpm), {unit.water_temp_in_deg_F:.0f} -> "
+                         f"{unit.water_temp_out_deg_F:.0f} F")
+            return lines
+
+        # ── Totals needed for Overall section ────────────────────────────
+        total_evap = (self.A_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
+                      + self.C_pans.water_evaporated_lb_hr)
+        a_sugar  = self.A_centrifugals.sugar_stream
+        c_mol    = self.C_centrifugals.molasses_stream
+        pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
+
+        out = []
+        out.append(HEAVY)
+        out.append(f"{'TWO BOILING - COMPLETE FLOOR BALANCE':^{W}}")
+        out.append(HEAVY)
+
+        # ── Overall ──────────────────────────────────────────────────────
+        out.append(_section("OVERALL FLOOR BALANCE"))
+        out.append(f"  (Feed = Evaporator syrup + Wash Water; Products = A sugar + C final molasses)")
+        out.append("")
+        out.append(_hdr())
+        out.append("")
+        out.append("  ENTERING")
+        out.append(_stream("  Syrup From Evaporators", self.syrup))
+        out.append(_stream("  Wash and Dilution Water", self.total_water))
+        out.append("")
+        out.append("  LEAVING")
+        out.append(_stream("  A Product Sugar", a_sugar))
+        out.append(_stream("  C Final Molasses", c_mol))
+        out.append(_row("  Evaporated (all pans)", total_evap, 0, 0, total_evap))
+        out.append("")
+        tw = self.total_water
+        in_flow    = self.syrup.flow_lb_per_hr + tw.flow_lb_per_hr
+        in_solids  = self.syrup.solids_flow
+        in_pol     = self.syrup.pol_flow
+        in_water   = (self.syrup.flow_lb_per_hr - self.syrup.solids_flow) + tw.flow_lb_per_hr
+        out_flow   = a_sugar.flow_lb_per_hr + c_mol.flow_lb_per_hr + total_evap
+        out_solids = a_sugar.solids_flow    + c_mol.solids_flow
+        out_pol    = a_sugar.pol_flow       + c_mol.pol_flow
+        out_water  = ((a_sugar.flow_lb_per_hr - a_sugar.solids_flow)
+                    + (c_mol.flow_lb_per_hr   - c_mol.solids_flow)
+                    + total_evap)
+        out.append(LIGHT)
+        out.append(_row("  Total Entering", in_flow,  in_solids,  in_pol,  in_water))
+        out.append(_row("  Total Leaving",  out_flow, out_solids, out_pol, out_water))
+        out.append(LIGHT)
+        out.append(_row("  Net (In - Out)", in_flow - out_flow, in_solids - out_solids,
+                                            in_pol  - out_pol,  in_water  - out_water))
+        out.append(f"  {'Pol% Recovered in Raw Sugar (A sugar / feed):':<{LBL+NUM}} {pol_extr:6.2f} %")
+        out.append("")
+
+        # ── A Pans ────────────────────────────────────────────────────────
+        out.append(_section(f"A PANS  [{self.A_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.A_pans))
+
+        # ── A Centrifugals ─────────────────────────────────────────────────
+        out.append(_section(f"A CENTRIFUGALS  [{self.A_centrifugals.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_cen_station(self.A_centrifugals))
+
+        # ── A Molasses Dilution ──────────────────────────────────────────
+        out.append(_section(f"A MOLASSES DILUTION  (target {self.a_mol_dilution_brix:.1f} Bx)"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_dil_station(self.A_centrifugals.molasses_stream, self._a_mol_diluted, "A Molasses"))
+
+        # ── Grain Pans ────────────────────────────────────────────────────
+        out.append(_section(f"GRAIN PANS  [{self.grain_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.grain_pans))
+
+        # ── C Pans ────────────────────────────────────────────────────────
+        out.append(_section(f"C PANS  [{self.C_pans.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_pan_station(self.C_pans))
+
+        # ── C Crystallizers ──────────────────────────────────────────────
+        out.append(_section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_heatx_station(self.C_crystallizers, "Cooling Water"))
+
+        # ── C Reheaters ──────────────────────────────────────────────────
+        out.append(_section(f"C REHEATERS  [{self.C_reheaters.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_heatx_station(self.C_reheaters, "Hot Water"))
+
+        # ── C Centrifugals ─────────────────────────────────────────────────
+        out.append(_section(f"C CENTRIFUGALS  [{self.C_centrifugals.name}]"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_cen_station(self.C_centrifugals))
+
+        # ── Pan Vapor Condensers ──────────────────────────────────────────
+        out.append(_section(f"PAN VAPOR CONDENSERS  (one per pan, injection water @ "
+                            f"{self.injection_water_temp_F:.0f} F)"))
+        out.append(f"  {'Condenser':<16} {'Vapor lb/hr':>12} {'Sat T F':>8} {'h_fg':>8}"
+                   f" {'MM BTU/hr':>10} {'Inj lb/hr':>13} {'Inj GPM':>9}"
+                   f" {'Out T F':>8} {'Total lb/hr':>13}")
+        out.append("")
+        tot_v = tot_h = tot_w = tot_g = tot_t = 0.0
+        for cname, cond in self.pan_condensers:
+            inj = cond.injection_water_flow_lb_hr
+            gpm = inj / 500.4
+            out.append(f"  {cname:<16} {cond.vapor_flow_lb_hr:>12,.0f}"
+                       f" {cond.vapor_sat_temp_F:>8.1f} {cond.vapor_h_fg_btu_lb:>8.1f}"
+                       f" {cond.heat_load_btu_hr / 1e6:>10.3f} {inj:>13,.0f} {gpm:>9,.0f}"
+                       f" {cond.water_outlet_temp_F:>8.1f} {cond.total_outlet_flow_lb_hr:>13,.0f}")
+            tot_v += cond.vapor_flow_lb_hr
+            tot_h += cond.heat_load_btu_hr / 1e6
+            tot_w += inj
+            tot_g += gpm
+            tot_t += cond.total_outlet_flow_lb_hr
+        out.append(LIGHT)
+        out.append(f"  {'Total':<16} {tot_v:>12,.0f} {'':>8} {'':>8}"
+                   f" {tot_h:>10.3f} {tot_w:>13,.0f} {tot_g:>9,.0f}"
+                   f" {'':>8} {tot_t:>13,.0f}")
+        out.append("")
+        out.append("  Note: if using CoolingTowerSystem, ignore these injection water"
+                   " demands - they are re-solved there at the delivered water temp.")
+
+        out.append(_section("CONDENSATE RETURN"))
+        out.append(f"  Clean condensate (Exhaust steam pans) : {self.clean_condensate:>12,.0f} lb/hr")
+        out.append(f"  Dirty condensate (V1-V4 steam pans)   : {self.dirty_condensate:>12,.0f} lb/hr")
+        out.append(f"  Total condensate                      : {self.clean_condensate + self.dirty_condensate:>12,.0f} lb/hr")
+
+        out.append("")
+        out.append(HEAVY)
+
+        print("\n".join(out))
+
     def to_excel(self, workbook):
         """Write the full floor balance to its own styled sheet: the PFD
         (diagram only), the numbered stream table, the water streams not
