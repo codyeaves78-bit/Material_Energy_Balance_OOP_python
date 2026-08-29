@@ -1211,7 +1211,68 @@ Syrup splits to A1 pans, A2 pans, and grain. **A1 pans** → **A1 centrifugals**
   Pol% Recovered in Raw Sugar (A1+A2 / feed):    94.88 %
 ```
 
-Every scheme shares the same properties for wiring into the rest of the factory: **`pan_condensers`** (a `[(name, Condenser)]` list, one barometric condenser per pan — feed straight into `CoolingTowerSystem`), **`total_exhaust_steam_lb_hr`**/**`total_V1_steam_lb_hr`**...**`total_V4_steam_lb_hr`** (summed across every pan, by `steam_type`), **`clean_condensate`**/**`dirty_condensate`**, and **`total_water`** (fresh water added: centrifugal wash + magma minglers + remelt/dilution water — everything not drawn on the PFD). `generate_pfd()` and `to_excel()` are on all three; **`ThreeBoilingDoubleMagma`** and **`FourBoilingDoubleMagma`** also have a full station-by-station `neat_display()` — **`TwoBoiling` does not** (no `neat_display()`, no `__repr__`, no `properties()`/`display_properties()`); read its attributes (`pan_floor.A_centrifugals.sugar_stream`, etc.) directly, or go straight to `to_excel()`/`generate_pfd()`.
+Every scheme shares the same properties for wiring into the rest of the factory: **`pan_condensers`** (a `[(name, Condenser)]` list, one barometric condenser per pan — feed straight into `CoolingTowerSystem`), **`total_exhaust_steam_lb_hr`**/**`total_V1_steam_lb_hr`**...**`total_V4_steam_lb_hr`** (summed across every pan, by `steam_type`), **`clean_condensate`**/**`dirty_condensate`**, and **`total_water`** (fresh water added: centrifugal wash + magma minglers + remelt/dilution water — everything not drawn on the PFD). `generate_pfd()` and `to_excel()` are on all three, and as of the latest update so is a full station-by-station `neat_display()` — **`TwoBoiling`'s** was added to match its two `*DoubleMagma` siblings, same shape (per-station `ENTERING`/`LEAVING` tables, pan-vapor-condenser table, condensate return), trimmed to the two-stage flow: no B stage, no magma tables (neither `*DoubleMagma` class prints those to the console either — that detail is `to_excel()`-only for all three).
+
+`TwoBoiling` also picked up **`properties()`**/**`display_properties()`** — a flat dict (and its one-line-per-metric printout) of the top-level floor balance: syrup in, A sugar out, C final molasses out, total evaporated, pol% recovered, steam demand by `steam_type`, and clean/dirty condensate. Neither `ThreeBoilingDoubleMagma` nor `FourBoilingDoubleMagma` has these yet — for those two, read the station attributes directly (`pan_floor.A_centrifugals.sugar_stream`, etc.) or use `neat_display()`'s full report.
+
+```python
+>>> from TwoBoiling import TwoBoiling
+>>> pan_floor = TwoBoiling(syrup=..., A_pans=..., C_pans=..., grain_pans=...,
+...                        A_centrifugals=..., C_centrifugals=..., ...)  # see TwoBoiling.py __main__
+>>> pan_floor.neat_display()
+===================================================================================================================
+                                       TWO BOILING - COMPLETE FLOOR BALANCE
+===================================================================================================================
+
+-------------------------------------------------------------------------------------------------------------------
+  OVERALL FLOOR BALANCE
+-------------------------------------------------------------------------------------------------------------------
+  (Feed = Evaporator syrup + Wash Water; Products = A sugar + C final molasses)
+
+  Stream                           Flow (lb/hr)  Solids (lb/hr) Pol (lb/hr)   Water (lb/hr)  Brix%   Pur%     ft3/hr
+
+  ENTERING
+    Syrup From Evaporators               166,666       100,000        78,000        66,666   60.0   78.0      2,077
+    Wash and Dilution Water               38,962             0             0        38,962    0.0    0.0        624
+
+  LEAVING
+    A Product Sugar                       67,480        67,278        66,874           202   99.7   99.4        698
+    C Final Molasses                      39,904        32,722        11,125         7,183   82.0   34.0        449
+    Evaporated (all pans)                 98,244             0             0        98,244      -      -          -
+
+-------------------------------------------------------------------------------------------------------------------
+    Total Entering                       205,628       100,000        78,000       105,629      -      -          -
+    Total Leaving                        205,628       100,000        78,000       105,629      -      -          -
+-------------------------------------------------------------------------------------------------------------------
+    Net (In - Out)                             0             0             0             0      -      -          -
+  Pol% Recovered in Raw Sugar (A sugar / feed):  85.74 %
+
+[... continues with A Pans, A Centrifugals, A Molasses Dilution, Grain Pans, C Pans, C Crystallizers,
+     C Reheaters, C Centrifugals, Pan Vapor Condensers, and Condensate Return, same table shapes as the
+     FourBoilingDoubleMagma example above ...]
+
+>>> pan_floor.display_properties()
+Units: flow(lb/hr), brix/purity/pol(%)
+  syrup_flow_lb_hr                  : 166,666.000
+  syrup_brix                        : 60.000
+  syrup_purity                      : 78.000
+  total_water_lb_hr                 : 38,962.377
+  a_sugar_flow_lb_hr                : 67,480.438
+  a_sugar_brix                      : 99.700
+  a_sugar_purity                    : 99.400
+  c_final_molasses_flow_lb_hr       : 39,904.344
+  c_final_molasses_brix             : 82.000
+  c_final_molasses_purity           : 34.000
+  total_evaporated_lb_hr            : 98,243.542
+  pol_pct_recovered_in_raw_sugar    : 85.737
+  total_exhaust_steam_lb_hr         : 113,916.690
+  total_V1_steam_lb_hr              : 0.000
+  total_V2_steam_lb_hr              : 0.000
+  total_V3_steam_lb_hr              : 0.000
+  total_V4_steam_lb_hr              : 0.000
+  clean_condensate_lb_hr            : 111,502.070
+  dirty_condensate_lb_hr            : 0.000
+```
 
 **ThreeBoiling** (a non-double-magma, three-stage scheme) is referenced in the codebase's naming pattern but **doesn't exist yet** — only `TwoBoiling.py` and the two `*DoubleMagma` variants are implemented today. If you need a plain three-boiling scheme (B and C magma going straight to product rather than being re-mingled and recycled), `ThreeBoilingDoubleMagma` is the closest existing template to adapt.
 
