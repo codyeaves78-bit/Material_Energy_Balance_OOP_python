@@ -18,8 +18,8 @@ To host an easy-to-use Streamlit application covering most of what cane sugar en
 ### macOS / Linux (bash)
 
 ```bash
-git clone https://github.com/codyeaves78-bit/Material_Energy_Balance_OOP_python
-cd Material_Energy_Balance_OOP_python
+git clone https://github.com/codyeaves78-bit/cane-sugar-mill-material-energy-balance
+cd cane-sugar-mill-material-energy-balance
 
 # create and activate a virtual environment
 python3 -m venv .venv
@@ -33,8 +33,8 @@ streamlit run streamlit_app.py
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/codyeaves78-bit/Material_Energy_Balance_OOP_python
-cd Material_Energy_Balance_OOP_python
+git clone https://github.com/codyeaves78-bit/cane-sugar-mill-material-energy-balance
+cd cane-sugar-mill-material-energy-balance
 
 # create and activate a virtual environment
 python -m venv .venv
