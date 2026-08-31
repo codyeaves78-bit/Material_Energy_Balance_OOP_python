@@ -803,19 +803,29 @@ def render_tab_pan():
         b_remelt = s2.number_input("B magma remelt (%)", value=20.0)
         syrup_grain = s3.number_input("Syrup to grain (%)", value=1.0)
         a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
-        s5, s6 = st.columns(2)
+        s5, s6, s7, s8 = st.columns(4)
         b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
         a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
+        b_top_off = s7.number_input("B mol top-off (%)", value=0.0)
+        c_top_off = s8.number_input("C mol top-off (%)", value=0.0)
+        if b_top_off or c_top_off:
+            st.caption("Molasses top-off recycles already-boiled molasses back through its own pan — "
+                       "usually undesirable, since the extra pass raises color.")
     elif is_3b:
         s1, s2, s3, s4 = st.columns(4)
         c_magma_A_footing = s1.number_input("C magma A footing (%)", value=40.0)
         c_magma_B_footing = s2.number_input("C magma B footing (%)", value=40.0)
         syrup_grain = s3.number_input("Syrup to grain (%)", value=1.0)
         a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
-        s5, s6 = st.columns(2)
+        s5, s6, s7, s8 = st.columns(4)
         b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
         a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
+        b_top_off = s7.number_input("B mol top-off (%)", value=0.0)
+        c_top_off = s8.number_input("C mol top-off (%)", value=0.0)
         st.caption(f"C magma remainder to remelt: {max(100.0 - c_magma_A_footing - c_magma_B_footing, 0.0):.1f}%")
+        if b_top_off or c_top_off:
+            st.caption("Molasses top-off recycles already-boiled molasses back through its own pan — "
+                       "usually undesirable, since the extra pass raises color.")
     else:  # Two Boiling
         s1, s2, s3, s4 = st.columns(4)
         c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
@@ -824,6 +834,10 @@ def render_tab_pan():
         a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
         s5, s6 = st.columns(2)
         a_top_off = s5.number_input("A mol top-off (%)", value=30.0)
+        c_top_off = s6.number_input("C mol top-off (%)", value=0.0)
+        if c_top_off:
+            st.caption("Molasses top-off recycles already-boiled molasses back through its own pan — "
+                       "usually undesirable, since the extra pass raises color.")
 
     if should_resolve("pan"):
         mark_resolved("pan")
@@ -854,6 +868,7 @@ def render_tab_pan():
                     C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
                     c_magma_remelt_pct=c_remelt, b_magma_remelt_pct=b_remelt, syrup_to_grain_pct=syrup_grain,
                     a_mol_to_grain_pct=a_to_grain, b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
+                    b_mol_top_off_pct=b_top_off, c_mol_top_off_pct=c_top_off,
                     b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
                     b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
                     injection_water_temp_F=pf_injection_water_temp_F,
@@ -869,6 +884,7 @@ def render_tab_pan():
                     c_magma_A_footing_pct=c_magma_A_footing, c_magma_B_footing_pct=c_magma_B_footing,
                     syrup_to_grain_pct=syrup_grain, a_mol_to_grain_pct=a_to_grain,
                     b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
+                    b_mol_top_off_pct=b_top_off, c_mol_top_off_pct=c_top_off,
                     c_magma_brix=pf_c_magma_brix, c_remelt_brix=pf_c_remelt_brix,
                     injection_water_temp_F=pf_injection_water_temp_F,
                     condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
@@ -881,7 +897,7 @@ def render_tab_pan():
                     A_centrifugals=cens["A"], C_centrifugals=cens["C"],
                     C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
                     c_magma_remelt_pct=c_remelt, syrup_to_grain_pct=syrup_grain, syrup_to_C_pct=syrup_to_C,
-                    a_mol_to_grain_pct=a_to_grain, a_mol_top_off_pct=a_top_off,
+                    a_mol_to_grain_pct=a_to_grain, a_mol_top_off_pct=a_top_off, c_mol_top_off_pct=c_top_off,
                     c_magma_brix=pf_c_magma_brix, c_remelt_brix=pf_c_remelt_brix,
                     injection_water_temp_F=pf_injection_water_temp_F,
                     condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
@@ -910,7 +926,9 @@ def render_tab_pan():
         st.divider()
 
         raw_sugar = pan_floor.total_raw_sugar
-        final_molasses = pan_floor.C_centrifugals.molasses_stream
+        # _final_molasses_out nets out any C top-off recycled back into the C pans; only
+        # present on schemes with the top-off feature (not FourBoilingDoubleMagma).
+        final_molasses = getattr(pan_floor, "_final_molasses_out", pan_floor.C_centrifugals.molasses_stream)
         final_molasses_gal_per_day = final_molasses.flow_lb_per_hr * 24 / (WATER_LB_PER_GAL * final_molasses.specific_gravity)
         st.markdown(
             """<style>

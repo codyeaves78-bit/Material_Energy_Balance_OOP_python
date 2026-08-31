@@ -51,8 +51,11 @@ class ThreeBoilingDoubleMagma:
             b_mol_to_grain_pct: float = 10,
             a_mol_top_off_pct: float = 30,
             a_mol_dilution_brix: float = 70,
+            b_mol_top_off_pct: float = 0,
             b_mol_dilution_brix: float = 70,
             b_magma_brix: float = 92,
+            c_mol_top_off_pct: float = 0,
+            c_mol_top_off_brix: float = 70,
             c_magma_brix: float = 92,
             b_remelt_brix: float = 65,
             c_remelt_brix: float = 65,
@@ -86,10 +89,13 @@ class ThreeBoilingDoubleMagma:
         self.a_mol_to_grain_pct = a_mol_to_grain_pct
         self.b_mol_to_grain_pct = b_mol_to_grain_pct
         self.a_mol_top_off_pct = a_mol_top_off_pct
+        self.b_mol_top_off_pct = b_mol_top_off_pct
+        self.c_mol_top_off_pct = c_mol_top_off_pct
         self.a_mol_B_pans_pct = 100.0 - a_mol_top_off_pct - a_mol_to_grain_pct
-        self.b_mol_C_pans_pct = 100.0 - b_mol_to_grain_pct
+        self.b_mol_C_pans_pct = 100.0 - b_mol_to_grain_pct - b_mol_top_off_pct
         self.a_mol_dilution_brix = a_mol_dilution_brix
         self.b_mol_dilution_brix = b_mol_dilution_brix
+        self.c_mol_top_off_brix = c_mol_top_off_brix
         self.b_magma_brix = b_magma_brix
         self.c_magma_brix = c_magma_brix
         self.b_remelt_brix = b_remelt_brix
@@ -166,6 +172,8 @@ class ThreeBoilingDoubleMagma:
         # NOTE: molasses_stream.temp_deg_F is fixed to _A_cen_cfg.molasses_temp (not computed
         # from the centrifugal thermodynamics), so temperature is constant across iterations.
         top_off_a_mol = SugarStream(brix=70, purity=70, flow_lb_per_hr=0, temp_deg_F=140)
+        top_off_b_mol = SugarStream(brix=70, purity=55, flow_lb_per_hr=0, temp_deg_F=140)
+        top_off_c_mol = SugarStream(brix=80, purity=35, flow_lb_per_hr=0, temp_deg_F=140)
 
         for _ in range(iterations):
             self.A_pans = self._rebuild_pan(
@@ -184,13 +192,16 @@ class ThreeBoilingDoubleMagma:
             a_mol_B_pans.flow_lb_per_hr = self.a_mol_B_pans_pct / 100 * a_mol_B_pans.flow_lb_per_hr
 
             self.B_pans = self._rebuild_pan(
-                self._B_pans_cfg, [c_magma_B_pans, a_mol_B_pans]
+                self._B_pans_cfg, [c_magma_B_pans, a_mol_B_pans, top_off_b_mol]
             )
             self.B_centrifugals = self._rebuild_centrifugal(
                 self._B_cen_cfg, self.B_pans.massecuite, self.B_pans.massecuite_flow_lb_hr
             )
 
             b_mol_diluted = dilute_molasses(self.B_centrifugals.molasses_stream, self.b_mol_dilution_brix)
+
+            top_off_b_mol = SugarStream.copy(b_mol_diluted)
+            top_off_b_mol.flow_lb_per_hr = self.b_mol_top_off_pct / 100 * top_off_b_mol.flow_lb_per_hr
 
             b_mol_grain = SugarStream.copy(b_mol_diluted)
             b_mol_grain.flow_lb_per_hr = self.b_mol_to_grain_pct / 100 * b_mol_grain.flow_lb_per_hr
@@ -218,7 +229,7 @@ class ThreeBoilingDoubleMagma:
             b_mol_C_pans.flow_lb_per_hr = self.b_mol_C_pans_pct / 100 * b_mol_C_pans.flow_lb_per_hr
 
             self.C_pans = self._rebuild_pan(
-                self._C_pans_cfg, [grain_massecuite, b_mol_C_pans]
+                self._C_pans_cfg, [grain_massecuite, b_mol_C_pans, top_off_c_mol]
             )
 
             # C massecuite: cooling crystallizer → reheater → centrifugals.
@@ -234,6 +245,14 @@ class ThreeBoilingDoubleMagma:
             self.C_centrifugals = self._rebuild_centrifugal(
                 self._C_cen_cfg, self.C_reheaters.massecuite_out, self.C_pans.massecuite_flow_lb_hr
             )
+
+            top_off_c_mol_non_dilute = self.C_centrifugals.molasses_stream
+            top_off_c_mol_non_dilute.flow_lb_per_hr = self.C_centrifugals.molasses_stream.flow_lb_per_hr * self.c_mol_top_off_pct / 100
+            top_off_c_mol = dilute_molasses(top_off_c_mol_non_dilute, self.c_mol_top_off_brix)
+
+            final_molasses_out = self.C_centrifugals.molasses_stream
+            final_molasses_out.flow_lb_per_hr = self.C_centrifugals.molasses_stream.flow_lb_per_hr - top_off_c_mol_non_dilute.flow_lb_per_hr
+            
 
             b_magma = make_magma(self.B_centrifugals.sugar_stream, mingler_brix=self.b_magma_brix)
             c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=self.c_magma_brix)
@@ -277,6 +296,9 @@ class ThreeBoilingDoubleMagma:
         self._c_remelt         = c_remelt
         self._a_mol_diluted    = a_mol_diluted
         self._b_mol_diluted    = b_mol_diluted
+        self._final_molasses_out = final_molasses_out
+        self._c_mol_top_off_non_dilute = top_off_c_mol_non_dilute
+        self._c_mol_top_off = top_off_c_mol
 
     @property
     def pan_condensers(self):
@@ -348,8 +370,9 @@ class ThreeBoilingDoubleMagma:
         c_rmlt_water = self._c_remelt.flow_lb_per_hr   - self._c_magma_to_rmlt.flow_lb_per_hr
         a_dil_water  = self._a_mol_diluted.flow_lb_per_hr - self.A_centrifugals.molasses_stream.flow_lb_per_hr
         b_dil_water  = self._b_mol_diluted.flow_lb_per_hr - self.B_centrifugals.molasses_stream.flow_lb_per_hr
+        c_top_off_dil_water = self._c_mol_top_off.flow_lb_per_hr - self._c_mol_top_off_non_dilute.flow_lb_per_hr
         total_lb_hr  = (cen_wash + b_mingler + c_mingler + b_rmlt_water + c_rmlt_water
-                        + a_dil_water + b_dil_water)
+                        + a_dil_water + b_dil_water + c_top_off_dil_water)
         return SugarStream(brix=0, purity=0, flow_lb_per_hr=total_lb_hr)
 
     def generate_pfd(self, show=True, save_path=None, include_table=True):
@@ -371,7 +394,7 @@ class ThreeBoilingDoubleMagma:
                                      remelt_table, syrup_recombination_table)
 
         a_sugar = self.A_centrifugals.sugar_stream
-        c_mol   = self.C_centrifugals.molasses_stream
+        c_mol   = self._final_molasses_out
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.B_pans.water_evaporated_lb_hr
                       + self.grain_pans.water_evaporated_lb_hr + self.C_pans.water_evaporated_lb_hr)
         pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
@@ -433,7 +456,7 @@ class ThreeBoilingDoubleMagma:
         dil_table(sw, self.A_centrifugals.molasses_stream, self._a_mol_diluted, "A Molasses")
 
         sw.section(f"B PANS  [{self.B_pans.name}]")
-        pan_table(sw, self.B_pans, ["C Magma", "A Molasses"])
+        pan_table(sw, self.B_pans, ["C Magma", "A Molasses", "B Molasses Top-off"])
         sw.section(f"B CENTRIFUGALS  [{self.B_centrifugals.name}]")
         cen_table(sw, self.B_centrifugals)
         sw.section(f"B MAGMA  (mingler target {self.b_magma_brix:.1f} Bx)")
@@ -453,7 +476,9 @@ class ThreeBoilingDoubleMagma:
         pan_table(sw, self.grain_pans, ["Syrup", "A Molasses", "B Molasses"])
 
         sw.section(f"C PANS  [{self.C_pans.name}]")
-        pan_table(sw, self.C_pans, ["Grain Massecuite", "B Molasses"])
+        pan_table(sw, self.C_pans, ["Grain Massecuite", "B Molasses", "C Molasses Top-off"])
+        sw.section(f"C MOLASSES TOP-OFF DILUTION  (target {self.c_mol_top_off_brix:.1f} Bx)")
+        dil_table(sw, self._c_mol_top_off_non_dilute, self._c_mol_top_off, "C Molasses Top-off")
         sw.section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]")
         heatx_table(sw, self.C_crystallizers, "Cooling Water")
         sw.section(f"C REHEATERS  [{self.C_reheaters.name}]")
@@ -634,7 +659,7 @@ class ThreeBoilingDoubleMagma:
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.B_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr)
         a_sugar  = self.A_centrifugals.sugar_stream
-        c_mol    = self.C_centrifugals.molasses_stream
+        c_mol    = self._final_molasses_out
         pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
 
         out = []
@@ -724,6 +749,12 @@ class ThreeBoilingDoubleMagma:
         out.append(_hdr())
         out.append("")
         out.extend(_pan_station(self.C_pans))
+
+        # ── C Molasses Top-off Dilution ────────────────────────────────────
+        out.append(_section(f"C MOLASSES TOP-OFF DILUTION  (target {self.c_mol_top_off_brix:.1f} Bx)"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_dil_station(self._c_mol_top_off_non_dilute, self._c_mol_top_off, "C Molasses Top-off"))
 
         # ── C Crystallizers ──────────────────────────────────────────────
         out.append(_section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]"))
@@ -844,12 +875,14 @@ if __name__ == "__main__":
         a_mol_to_grain_pct=3,
         b_mol_to_grain_pct=10,
         syrup_to_grain_pct=1,
-        a_mol_top_off_pct=0
+        a_mol_top_off_pct=0,
+        b_mol_top_off_pct=20,
+        c_mol_top_off_pct=20,
     )
 
     pan_floor.neat_display()
     pan_floor.A_pans.neat_display()
-    # pan_floor.generate_pfd(show=True, save_path=None)
+    pan_floor.generate_pfd(show=True, save_path=None)
 
     # Excel export demo — one workbook, this unit on its own sheet
     from excel_export import new_workbook

@@ -110,7 +110,10 @@ def _pan_rows(section, pan, feed_names):
 def _overall_rows(pan_floor, sugar_rows):
     """sugar_rows: [(label, stream), ...] — the raw sugar product(s) leaving the floor."""
     section = "Overall"
-    final_molasses = pan_floor.C_centrifugals.molasses_stream
+    # _final_molasses_out (final centrifugal molasses net of any C top-off recycled back
+    # to the C pans) is only present on schemes with the top-off feature; fall back to the
+    # raw centrifugal output for schemes (e.g. FourBoilingDoubleMagma) that lack it.
+    final_molasses = getattr(pan_floor, "_final_molasses_out", pan_floor.C_centrifugals.molasses_stream)
     pans = pan_floor._pans
     total_vapor = sum(p.water_evaporated_lb_hr for p in pans)
     vapor_temp = (sum(p.water_evaporated_lb_hr * p.massecuite.water_bp_surface for p in pans)
@@ -210,7 +213,7 @@ def three_boiling_rows(tb) -> list:
     rows.append(stream_row("A Station - A Molasses Distribution", "A Molasses to Grain", INTERNAL,
                             _scaled(tb._a_mol_diluted, tb.a_mol_to_grain_pct)))
 
-    rows += _pan_rows("B Station - Pans", tb.B_pans, ["C Magma", "A Molasses"])
+    rows += _pan_rows("B Station - Pans", tb.B_pans, ["C Magma", "A Molasses", "B Molasses Top-off"])
     rows += _cen_rows("B Station - Centrifugals", tb.B_centrifugals)
     rows += _magma_rows("B Station - B Mingler", tb.B_centrifugals.sugar_stream, tb._b_magma, "B")
     rows += _magma_split_rows("B Station - B Magma Distribution", tb._b_magma, [
@@ -223,13 +226,17 @@ def three_boiling_rows(tb) -> list:
                             _scaled(tb._b_mol_diluted, tb.b_mol_to_grain_pct)))
     rows.append(stream_row("B Station - B Molasses Distribution", "B Molasses to C Pans", INTERNAL,
                             _scaled(tb._b_mol_diluted, tb.b_mol_C_pans_pct)))
+    rows.append(stream_row("B Station - B Molasses Distribution", "B Molasses Top-off (to B Pans)", INTERNAL,
+                            _scaled(tb._b_mol_diluted, tb.b_mol_top_off_pct)))
 
     rows += _pan_rows("Grain Pans", tb.grain_pans, ["Syrup", "A Molasses", "B Molasses"])
 
-    rows += _pan_rows("C Station - Pans", tb.C_pans, ["Grain Massecuite", "B Molasses"])
+    rows += _pan_rows("C Station - Pans", tb.C_pans, ["Grain Massecuite", "B Molasses", "C Molasses Top-off"])
     rows += _heatx_rows("C Station - Crystallizers", tb.C_crystallizers)
     rows += _heatx_rows("C Station - Reheater", tb.C_reheaters)
     rows += _cen_rows("C Station - Centrifugals", tb.C_centrifugals)
+    rows += _dil_rows("C Station - C Molasses Top-off Dilution", tb._c_mol_top_off_non_dilute,
+                       tb._c_mol_top_off, "C Molasses Top-off")
     rows += _magma_rows("C Station - C Mingler", tb.C_centrifugals.sugar_stream, tb._c_magma, "C")
     rows += _magma_split_rows("C Station - C Magma Distribution", tb._c_magma, [
         ("C Magma to B Footing", tb._c_magma_B_pans),
@@ -270,7 +277,7 @@ def three_boiling_single_magma_rows(tb) -> list:
     rows.append(stream_row("A Station - A Molasses Distribution", "A Molasses to Grain", INTERNAL,
                             _scaled(tb._a_mol_diluted, tb.a_mol_to_grain_pct)))
 
-    rows += _pan_rows("B Station - Pans", tb.B_pans, ["C Magma (B Footing)", "A Molasses"])
+    rows += _pan_rows("B Station - Pans", tb.B_pans, ["C Magma (B Footing)", "A Molasses", "B Molasses Top-off"])
     rows += _cen_rows("B Station - Centrifugals", tb.B_centrifugals)
     rows += _dil_rows("B Station - Molasses Dilution", tb.B_centrifugals.molasses_stream,
                        tb._b_mol_diluted, "B Molasses")
@@ -278,13 +285,17 @@ def three_boiling_single_magma_rows(tb) -> list:
                             _scaled(tb._b_mol_diluted, tb.b_mol_to_grain_pct)))
     rows.append(stream_row("B Station - B Molasses Distribution", "B Molasses to C Pans", INTERNAL,
                             _scaled(tb._b_mol_diluted, tb.b_mol_C_pans_pct)))
+    rows.append(stream_row("B Station - B Molasses Distribution", "B Molasses Top-off (to B Pans)", INTERNAL,
+                            _scaled(tb._b_mol_diluted, tb.b_mol_top_off_pct)))
 
     rows += _pan_rows("Grain Pans", tb.grain_pans, ["Syrup", "A Molasses", "B Molasses"])
 
-    rows += _pan_rows("C Station - Pans", tb.C_pans, ["Grain Massecuite", "B Molasses"])
+    rows += _pan_rows("C Station - Pans", tb.C_pans, ["Grain Massecuite", "B Molasses", "C Molasses Top-off"])
     rows += _heatx_rows("C Station - Crystallizers", tb.C_crystallizers)
     rows += _heatx_rows("C Station - Reheater", tb.C_reheaters)
     rows += _cen_rows("C Station - Centrifugals", tb.C_centrifugals)
+    rows += _dil_rows("C Station - C Molasses Top-off Dilution", tb._c_mol_top_off_non_dilute,
+                       tb._c_mol_top_off, "C Molasses Top-off")
     rows += _magma_rows("C Station - C Mingler", tb.C_centrifugals.sugar_stream, tb._c_magma, "C")
     rows += _magma_split_rows("C Station - C Magma Distribution", tb._c_magma, [
         ("C Magma to A Footing", tb._c_magma_A_pans),
@@ -404,10 +415,12 @@ def two_boiling_rows(twb) -> list:
 
     rows += _pan_rows("Grain Pans", twb.grain_pans, ["Syrup", "A Molasses"])
 
-    rows += _pan_rows("C Station - Pans", twb.C_pans, ["Grain Massecuite", "A Molasses", "Syrup"])
+    rows += _pan_rows("C Station - Pans", twb.C_pans, ["Grain Massecuite", "A Molasses", "Syrup", "C Molasses Top-off"])
     rows += _heatx_rows("C Station - Crystallizers", twb.C_crystallizers)
     rows += _heatx_rows("C Station - Reheater", twb.C_reheaters)
     rows += _cen_rows("C Station - Centrifugals", twb.C_centrifugals)
+    rows += _dil_rows("C Station - C Molasses Top-off Dilution", twb._c_mol_top_off_non_dilute,
+                       twb._c_mol_top_off, "C Molasses Top-off")
     rows += _magma_rows("C Station - C Mingler", twb.C_centrifugals.sugar_stream, twb._c_magma, "C")
     rows += _magma_split_rows("C Station - C Magma Distribution", twb._c_magma, [
         ("C Magma to A Footing", twb._c_magma_A_pans),

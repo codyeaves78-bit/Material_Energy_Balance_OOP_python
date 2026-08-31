@@ -64,9 +64,12 @@ def _collect_streams(tb):
         (22, "C Magma",                 cmag.flow_lb_per_hr, cmag.brix, cmag.purity),
         (23, "C Magma to B Footing",    split(cmag, 100 - tb.c_magma_remelt_pct), cmag.brix, cmag.purity),
         (24, "C Magma to Remelt",       split(cmag, tb.c_magma_remelt_pct),       cmag.brix, cmag.purity),
-        (25, "C Final Molasses",        tb.C_centrifugals.molasses_stream.flow_lb_per_hr,
-                                        tb.C_centrifugals.molasses_stream.brix,
-                                        tb.C_centrifugals.molasses_stream.purity),
+        (25, "C Final Molasses",        tb._final_molasses_out.flow_lb_per_hr,
+                                        tb._final_molasses_out.brix,
+                                        tb._final_molasses_out.purity),
+        (26, "B Molasses Top-off to B Pans", split(bm, tb.b_mol_top_off_pct), bm.brix, bm.purity),
+        (27, "C Molasses Top-off to C Pans", tb._c_mol_top_off.flow_lb_per_hr,
+                                             tb._c_mol_top_off.brix, tb._c_mol_top_off.purity),
     ]
     return rows
 
@@ -89,9 +92,12 @@ def _collect_water(tb):
         ("B Remelt Water",           b_remelt),
         ("C Remelt Water",           c_remelt),
     ]
+    c_top_off_dil = tb._c_mol_top_off.flow_lb_per_hr - tb._c_mol_top_off_non_dilute.flow_lb_per_hr
+
     right = [
         ("A Molasses Dilution Water",   a_dil),
         ("B Molasses Dilution Water",   b_dil),
+        ("C Molasses Top-off Dilution Water", c_top_off_dil),
         ("A Pans Water Evaporated",     tb.A_pans.water_evaporated_lb_hr),
         ("B Pans Water Evaporated",     tb.B_pans.water_evaporated_lb_hr),
         ("Grain Pans Water Evaporated", tb.grain_pans.water_evaporated_lb_hr),
@@ -298,6 +304,15 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
     arr(18.4, 10.7, PX['C'] - 1.2, 10.7, MOLC)
     tag(18.4, 8.5, 18, MOLC)
 
+    # 26 B molasses top-off — taps the trunk right where it turns off the
+    # centrifugal and runs back up into B pan's side (mirrors 7/8's A
+    # top-off pattern; retraces part of the trunk's own down-leg like
+    # stream 8 does for A — harmless, same color/line).
+    dot(PX['B'] + 1.7, y3, MOLC)
+    seg([(PX['B'] + 1.7, y3), (PX['B'] + 1.7, 11.5)], MOLC)
+    arr(PX['B'] + 1.7, 11.5, PX['B'] + 1.2, 11.5, MOLC)
+    tag(PX['B'] + 1.7, 8.5, 26, MOLC)
+
     # 19 grain massecuite -> C pan
     seg([(PX['GR'], Y0), (PX['GR'], 9.0), (18.0, 9.0), (18.0, 11.3)], MASC)
     arr(18.0, 11.3, PX['C'] - 1.2, 11.3, MASC)
@@ -326,6 +341,14 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
     arr(PX['C'] + 0.85, 4.85, 23.8, 4.85, FINC, lw=2.2)
     lbl(23.6, 5.55, 'Final\nMolasses', fs=9.5, bold=True, color=FINC)
     tag(22.2, 4.85, 25, FINC)
+
+    # 27 C molasses top-off — taps the same point the final molasses leaves
+    # from and loops back up into C pan's right side, clear of the C-magma
+    # footing loop (tag 23), which runs further out at x=22.8.
+    dot(PX['C'] + 0.85, 4.85, MOLC)
+    seg([(PX['C'] + 0.85, 4.85), (21.6, 4.85), (21.6, 11.0)], MOLC)
+    arr(21.6, 11.0, PX['C'] + 1.2, 11.0, MOLC)
+    tag(21.6, 7.9, 27, MOLC)
 
     lbl(DW / 2, DH - 0.15, 'Three Boiling Double Magma — Pan Floor PFD',
         fs=15, bold=True)

@@ -46,6 +46,8 @@ class TwoBoiling:
                 a_mol_to_grain_pct: float = 5,
                 a_mol_top_off_pct: float = 30,
                 a_mol_dilution_brix: float = 70,
+                c_mol_top_off_pct: float = 0,
+                c_mol_top_off_brix: float = 70,
                 c_magma_brix: float = 92,
                 c_remelt_brix: float = 65,
                 injection_water_temp_F: float = 90,
@@ -88,6 +90,8 @@ class TwoBoiling:
         self.a_mol_top_off_pct = a_mol_top_off_pct
         self.a_mol_to_C_pans_pct = 100.0 - a_mol_top_off_pct - a_mol_to_grain_pct
         self.a_mol_dilution_brix = a_mol_dilution_brix
+        self.c_mol_top_off_pct = c_mol_top_off_pct
+        self.c_mol_top_off_brix = c_mol_top_off_brix
         self.c_magma_brix = c_magma_brix
         self.c_remelt_brix = c_remelt_brix
         self.syrup_to_A_pans_pct = 100.0 - self.syrup_to_grain_pct - self.syrup_to_C_pct
@@ -157,6 +161,7 @@ class TwoBoiling:
         # Dummy top-off A molasses — zero flow for the first A pan solve.
         # Overwritten each iteration from A centrifugals molasses_stream.
         top_off_a_mol = SugarStream(brix=70, purity=70, flow_lb_per_hr=0, temp_deg_F=140)
+        top_off_c_mol = SugarStream(brix=80, purity=35, flow_lb_per_hr=0, temp_deg_F=140)
 
         for _ in range(iterations):
             self.A_pans = self._rebuild_pan(
@@ -197,7 +202,7 @@ class TwoBoiling:
             )
 
             self.C_pans = self._rebuild_pan(
-                self._C_pans_cfg, [grain_massecuite, a_mol_C_pans, syrup_to_C]
+                self._C_pans_cfg, [grain_massecuite, a_mol_C_pans, syrup_to_C, top_off_c_mol]
             )
 
             # C massecuite: cooling crystallizer → reheater → centrifugals.
@@ -213,6 +218,13 @@ class TwoBoiling:
             self.C_centrifugals = self._rebuild_centrifugal(
                 self._C_cen_cfg, self.C_reheaters.massecuite_out, self.C_pans.massecuite_flow_lb_hr
             )
+
+            top_off_c_mol_non_dilute = self.C_centrifugals.molasses_stream
+            top_off_c_mol_non_dilute.flow_lb_per_hr = self.C_centrifugals.molasses_stream.flow_lb_per_hr * self.c_mol_top_off_pct / 100
+            top_off_c_mol = dilute_molasses(top_off_c_mol_non_dilute, self.c_mol_top_off_brix)
+
+            final_molasses_out = self.C_centrifugals.molasses_stream
+            final_molasses_out.flow_lb_per_hr = self.C_centrifugals.molasses_stream.flow_lb_per_hr - top_off_c_mol_non_dilute.flow_lb_per_hr
 
             c_magma = make_magma(self.C_centrifugals.sugar_stream, mingler_brix=self.c_magma_brix)
 
@@ -243,6 +255,9 @@ class TwoBoiling:
         self._c_magma_to_rmlt  = c_magma_to_rmlt
         self._c_remelt         = c_remelt
         self._a_mol_diluted    = a_mol_diluted
+        self._final_molasses_out = final_molasses_out
+        self._c_mol_top_off_non_dilute = top_off_c_mol_non_dilute
+        self._c_mol_top_off = top_off_c_mol
 
 
     @property
@@ -311,8 +326,9 @@ class TwoBoiling:
         c_mingler    = self._c_magma.flow_lb_per_hr    - self.C_centrifugals.sugar_stream.flow_lb_per_hr
         c_rmlt_water = self._c_remelt.flow_lb_per_hr   - self._c_magma_to_rmlt.flow_lb_per_hr
         a_dil_water  = self._a_mol_diluted.flow_lb_per_hr - self.A_centrifugals.molasses_stream.flow_lb_per_hr
+        c_top_off_dil_water = self._c_mol_top_off.flow_lb_per_hr - self._c_mol_top_off_non_dilute.flow_lb_per_hr
         total_lb_hr  = (cen_wash + c_mingler + c_rmlt_water
-                        + a_dil_water)
+                        + a_dil_water + c_top_off_dil_water)
         return SugarStream(brix=0, purity=0, flow_lb_per_hr=total_lb_hr)
 
     def generate_pfd(self, show=True, save_path=None, include_table=True):
@@ -331,7 +347,7 @@ class TwoBoiling:
         condensate totals. For the full station-by-station breakdown, use
         neat_display() or read each station object directly."""
         a_sugar = self.A_centrifugals.sugar_stream
-        c_mol   = self.C_centrifugals.molasses_stream
+        c_mol   = self._final_molasses_out
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr)
         pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
@@ -506,7 +522,7 @@ class TwoBoiling:
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr)
         a_sugar  = self.A_centrifugals.sugar_stream
-        c_mol    = self.C_centrifugals.molasses_stream
+        c_mol    = self._final_molasses_out
         pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
 
         out = []
@@ -579,6 +595,12 @@ class TwoBoiling:
         out.append("")
         out.extend(_pan_station(self.C_pans))
 
+        # ── C Molasses Top-off Dilution ────────────────────────────────────
+        out.append(_section(f"C MOLASSES TOP-OFF DILUTION  (target {self.c_mol_top_off_brix:.1f} Bx)"))
+        out.append(_hdr())
+        out.append("")
+        out.extend(_dil_station(self._c_mol_top_off_non_dilute, self._c_mol_top_off, "C Molasses Top-off"))
+
         # ── C Crystallizers ──────────────────────────────────────────────
         out.append(_section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]"))
         out.append(_hdr())
@@ -648,7 +670,7 @@ class TwoBoiling:
                                      remelt_table, syrup_recombination_table)
 
         a_sugar = self.A_centrifugals.sugar_stream
-        c_mol   = self.C_centrifugals.molasses_stream
+        c_mol   = self._final_molasses_out
         total_evap = (self.A_pans.water_evaporated_lb_hr + self.grain_pans.water_evaporated_lb_hr
                       + self.C_pans.water_evaporated_lb_hr)
         pol_extr = a_sugar.pol_flow / self.syrup.pol_flow * 100
@@ -714,7 +736,9 @@ class TwoBoiling:
         pan_table(sw, self.grain_pans, ["Syrup", "A Molasses"])
 
         sw.section(f"C PANS  [{self.C_pans.name}]")
-        pan_table(sw, self.C_pans, ["Grain Massecuite", "A Molasses", "Syrup"])
+        pan_table(sw, self.C_pans, ["Grain Massecuite", "A Molasses", "Syrup", "C Molasses Top-off"])
+        sw.section(f"C MOLASSES TOP-OFF DILUTION  (target {self.c_mol_top_off_brix:.1f} Bx)")
+        dil_table(sw, self._c_mol_top_off_non_dilute, self._c_mol_top_off, "C Molasses Top-off")
         sw.section(f"C CRYSTALLIZERS  [{self.C_crystallizers.name}]")
         heatx_table(sw, self.C_crystallizers, "Cooling Water")
         sw.section(f"C REHEATERS  [{self.C_reheaters.name}]")
@@ -828,17 +852,18 @@ if __name__ == "__main__":
         syrup_to_C_pct=5,
         a_mol_to_grain_pct=3,
         a_mol_top_off_pct=30,
+        c_mol_top_off_pct=20,
     )
 
     print(f"A Sugar: {pan_floor.A_centrifugals.sugar_stream.flow_lb_per_hr:,.0f} lb/hr "
           f"@ {pan_floor.A_centrifugals.sugar_stream.purity:.1f} purity")
-    print(f"C Final Molasses: {pan_floor.C_centrifugals.molasses_stream.flow_lb_per_hr:,.0f} lb/hr "
-          f"@ {pan_floor.C_centrifugals.molasses_stream.purity:.1f} purity")
+    print(f"C Final Molasses: {pan_floor._final_molasses_out.flow_lb_per_hr:,.0f} lb/hr "
+          f"@ {pan_floor._final_molasses_out.purity:.1f} purity")
     pol_extr = (pan_floor.A_centrifugals.sugar_stream.pol_flow
                 / pan_floor.syrup.pol_flow * 100)
     print(f"Pol % recovered in raw sugar: {pol_extr:.2f} %")
 
-    # pan_floor.generate_pfd(show=True, save_path=None)
+    pan_floor.generate_pfd(show=True, save_path=None)
 
     # Excel export demo — one workbook, this unit on its own sheet
     from excel_export import new_workbook
