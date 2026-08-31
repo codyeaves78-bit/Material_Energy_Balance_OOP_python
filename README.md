@@ -11,7 +11,7 @@ This repo has two purposes.
 To give other sugar mill engineers easy-to-use Python objects (classes) for material and energy balances — either around a single part of the factory, or chained together for a full-factory calculation.
 
 ## Reason 2
-To host an easy-to-use Streamlit application covering most of what cane sugar engineers in Louisiana need to calculate. The app is live here: [Material & Energy Balance app](https://materialenergybalanceooppython-5l9b6soqkfns37wsgf9wvf.streamlit.app/). You're also welcome to clone the repo and run it locally.
+To host an easy-to-use Streamlit application covering most of what cane sugar engineers in Louisiana need to calculate. The app is live here: https://cane-sugar-mill-material-energy-balance-fbl69dwu8opxateg3jsgnn.streamlit.app/ You're also welcome to clone the repo and run it locally.
 
 ## Installation
 
