@@ -1,6 +1,15 @@
-# Material & Energy Balance (OOP Python)
+# Cane Sugar Factory Material & Energy Balance
 
-Object-oriented material and energy balance tools for raw cane sugar factories, plus a Streamlit app for the calculations Louisiana cane sugar engineers reach for most.
+Python tools for calculating first-pass material and energy balances around a
+raw cane sugar factory — milling, clarification, multiple-effect evaporation,
+pan boiling, and steam/cogeneration — built with Louisiana mills in mind.
+
+Use it as an object-oriented library for your own calculations, or through the
+Streamlit app (linked below), which runs online or locally on your own machine.
+
+Built by a sugar mill engineer for sugar mill engineers. It's meant for
+screening and first-pass estimates — calibrate against your own plant data
+before trusting any single number.
 
 **Requires:** Python 3.12+
 Older versions may work, but I haven't tested them.
