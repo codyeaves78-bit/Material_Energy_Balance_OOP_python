@@ -29,9 +29,11 @@ from Crystallizer_and_Reheater import Crystallizer, Reheater
 from ThreeBoilingDoubleMagma import ThreeBoilingDoubleMagma
 from FourBoilingDoubleMagma import FourBoilingDoubleMagma
 from TwoBoiling import TwoBoiling
+from ThreeBoiling import ThreeBoiling
 from pan_floor_streamlit_table import (
     COLUMNS as PAN_FLOOR_TABLE_COLUMNS,
-    three_boiling_rows, four_boiling_rows, two_boiling_rows, steam_consumption_table,
+    three_boiling_rows, four_boiling_rows, two_boiling_rows,
+    three_boiling_single_magma_rows, steam_consumption_table,
     massecuite_summary_table,
 )
 from PreEvaporator import PreEvaporator
@@ -654,13 +656,15 @@ def render_tab_pan():
     st.subheader("Pan Floor")
     scheme = st.radio(
         "Boiling scheme",
-        ["FBDM (Four Boiling Double Magma)", "TBDM (Three Boiling Double Magma)", "2B (Two Boiling)"],
+        ["FBDM (Four Boiling Double Magma)", "TBDM (Three Boiling Double Magma)",
+         "3B (Three Boiling - Single Magma)", "2B (Two Boiling)"],
         horizontal=True,
     )
     is_fbdm = scheme.startswith("FBDM")
     is_tbdm = scheme.startswith("TBDM")
+    is_3b = scheme.startswith("3B")
     is_2b = scheme.startswith("2B")
-    scheme_key = "FBDM" if is_fbdm else ("TBDM" if is_tbdm else "2B")
+    scheme_key = "FBDM" if is_fbdm else ("TBDM" if is_tbdm else ("3B" if is_3b else "2B"))
 
     cj = resolve_cj()
     syrup_brix = st.number_input("Syrup brix", value=65.0, step=0.5, key="syrup_brix")
@@ -679,7 +683,7 @@ def render_tab_pan():
                                                      key="pf_cond_leg")
     pf_c_magma_brix = ad3.number_input("C magma brix", value=92.0, step=0.5, key="pf_c_magma_brix")
     pf_c_remelt_brix = ad4.number_input("C remelt brix", value=65.0, step=0.5, key="pf_c_remelt_brix")
-    if not is_2b:
+    if not is_2b and not is_3b:
         pf_b_magma_brix = ad5.number_input("B magma brix", value=92.0, step=0.5, key="pf_b_magma_brix")
         pf_b_remelt_brix = ad6.number_input("B remelt brix", value=65.0, step=0.5, key="pf_b_remelt_brix")
     else:
@@ -714,7 +718,7 @@ def render_tab_pan():
             dict(Grade="C", **{"Molasses Brix Out": 82.0, "Purity Rise": 0.0, "Sugar Purity": 82.0,
                                 "Sugar Moisture": 5.0, "Sugar Temp": 150.0, "Molasses Temp": 145.0}),
         ]
-    elif is_tbdm:
+    elif is_tbdm or is_3b:
         pan_defaults = [
             dict(Grade="A", **{"Heating Surface (ft²)": 22500.0, "Vacuum (in Hg)": 23.5, "Supersaturation": 1.2,
                                 "Head (ft)": 2.0, "Masse Brix": 92.0, "Mother Liquor Purity": 73.0,
@@ -802,6 +806,16 @@ def render_tab_pan():
         s5, s6 = st.columns(2)
         b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
         a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
+    elif is_3b:
+        s1, s2, s3, s4 = st.columns(4)
+        c_magma_A_footing = s1.number_input("C magma A footing (%)", value=40.0)
+        c_magma_B_footing = s2.number_input("C magma B footing (%)", value=40.0)
+        syrup_grain = s3.number_input("Syrup to grain (%)", value=1.0)
+        a_to_grain = s4.number_input("A mol to grain (%)", value=3.0)
+        s5, s6 = st.columns(2)
+        b_to_grain = s5.number_input("B mol to grain (%)", value=10.0)
+        a_top_off = s6.number_input("A mol top-off (%)", value=0.0)
+        st.caption(f"C magma remainder to remelt: {max(100.0 - c_magma_A_footing - c_magma_B_footing, 0.0):.1f}%")
     else:  # Two Boiling
         s1, s2, s3, s4 = st.columns(4)
         c_remelt = s1.number_input("C magma remelt (%)", value=20.0)
@@ -842,6 +856,20 @@ def render_tab_pan():
                     a_mol_to_grain_pct=a_to_grain, b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
                     b_magma_brix=pf_b_magma_brix, c_magma_brix=pf_c_magma_brix,
                     b_remelt_brix=pf_b_remelt_brix, c_remelt_brix=pf_c_remelt_brix,
+                    injection_water_temp_F=pf_injection_water_temp_F,
+                    condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
+                    iterations=PAN_SOLVER_ITERATIONS,
+                )
+            elif is_3b:
+                pan_floor = ThreeBoiling(
+                    syrup=syrup,
+                    A_pans=pans["A"], B_pans=pans["B"], C_pans=pans["C"], grain_pans=pans["Grain"],
+                    A_centrifugals=cens["A"], B_centrifugals=cens["B"], C_centrifugals=cens["C"],
+                    C_crystallizers=C_crystallizers, C_reheaters=C_reheaters,
+                    c_magma_A_footing_pct=c_magma_A_footing, c_magma_B_footing_pct=c_magma_B_footing,
+                    syrup_to_grain_pct=syrup_grain, a_mol_to_grain_pct=a_to_grain,
+                    b_mol_to_grain_pct=b_to_grain, a_mol_top_off_pct=a_top_off,
+                    c_magma_brix=pf_c_magma_brix, c_remelt_brix=pf_c_remelt_brix,
                     injection_water_temp_F=pf_injection_water_temp_F,
                     condenser_leg_temp_drop_F=pf_condenser_leg_temp_drop_F,
                     iterations=PAN_SOLVER_ITERATIONS,
@@ -916,6 +944,8 @@ def render_tab_pan():
             pan_floor_rows = four_boiling_rows(pan_floor)
         elif is_tbdm:
             pan_floor_rows = three_boiling_rows(pan_floor)
+        elif is_3b:
+            pan_floor_rows = three_boiling_single_magma_rows(pan_floor)
         else:
             pan_floor_rows = two_boiling_rows(pan_floor)
         pan_floor_df = pd.DataFrame(pan_floor_rows, columns=PAN_FLOOR_TABLE_COLUMNS)
@@ -1722,7 +1752,7 @@ def render_tab_cond():
                                       + pan_floor.A2_centrifugals.wash_water_lb_hr
                                       + pan_floor.B_centrifugals.wash_water_lb_hr
                                       + pan_floor.C_centrifugals.wash_water_lb_hr)
-        elif solved_pan_scheme == "TBDM":
+        elif solved_pan_scheme in ("TBDM", "3B"):
             cent_wash_water_lb_hr = (pan_floor.A_centrifugals.wash_water_lb_hr
                                       + pan_floor.B_centrifugals.wash_water_lb_hr
                                       + pan_floor.C_centrifugals.wash_water_lb_hr)

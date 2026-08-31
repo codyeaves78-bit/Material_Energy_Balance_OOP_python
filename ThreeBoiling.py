@@ -920,11 +920,11 @@ if __name__ == "__main__":
 
     pan_floor.neat_display()
     pan_floor.display_properties()
-    # pan_floor.generate_pfd(show=True, save_path=None)
+    pan_floor.generate_pfd(show=True, save_path=None)
 
     # Excel export demo — one workbook, this unit on its own sheet
     from excel_export import new_workbook
     wb = new_workbook()
     pan_floor.to_excel(wb)
-    wb.save("three_boiling_single_magma.xlsx")
-    print("\nSaved three_boiling_single_magma.xlsx")
+    wb.save("three_boiling.xlsx")
+    print("\nSaved three_boiling.xlsx")

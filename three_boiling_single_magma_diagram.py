@@ -95,7 +95,7 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
                        include_table: bool = True) -> plt.Figure:
     """Draw the three-boiling (single-magma) PFD, with a stream table below
     unless include_table=False (diagram only, e.g. for embedding in Excel)."""
-    DW, DH = 24.5, 16.6
+    DW, DH = 25.8, 16.6
 
     SYRC = '#1e8449'   # syrup / feed
     MASC = '#6c3483'   # massecuite
@@ -162,7 +162,7 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
                (cx + 0.45, y0), (cx - 0.45, y0)]
         ax.add_patch(mpatches.Polygon(pts, closed=True, facecolor=EQ_FC,
                                       edgecolor=EQ_EC, lw=1.8, zorder=2))
-        lbl(cx + 1.05, y0 + 0.62, name, fs=7.5, color=GRAY, ha='left')
+        lbl(cx, y0 + 0.62, name, fs=7.5, color=GRAY)
 
     def mingler(cx, cy, name):
         ax.add_patch(mpatches.Rectangle((cx - 0.8, cy - 0.25), 1.6, 0.5,
@@ -230,12 +230,12 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
         tag(x, 13.05, t, SYRC)
 
     # 20 C magma footing to A neck — long loop around the right + top
-    seg([(PX['C'], 2.6), (23.3, 2.6), (23.3, Y_AFOOT), (PX['A'] + 0.25, Y_AFOOT)], MAGC)
+    seg([(PX['C'], 2.6), (22.7, 2.6), (22.7, Y_AFOOT), (PX['A'] + 0.25, Y_AFOOT)], MAGC)
     arr(PX['A'] + 0.25, Y_AFOOT, PX['A'] + 0.25, NECK, MAGC)
     tag(13.5, Y_AFOOT, 20, MAGC)
 
     # 21 C magma footing to B neck — shorter loop around the right + top
-    seg([(PX['C'], 2.6), (22.8, 2.6), (22.8, Y_BFOOT), (PX['B'] + 0.35, Y_BFOOT)], MAGC)
+    seg([(PX['C'], 2.6), (22.2, 2.6), (22.2, Y_BFOOT), (PX['B'] + 0.35, Y_BFOOT)], MAGC)
     arr(PX['B'] + 0.35, Y_BFOOT, PX['B'] + 0.35, NECK, MAGC)
     tag(16.5, Y_BFOOT, 21, MAGC)
 
@@ -250,19 +250,24 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
     arr(PX['C'], 7.58, PX['C'], 6.95, MASC)
     arr(PX['C'], 6.05, PX['C'], 5.4, MASC)
 
-    # 6 A sugar -> raw sugar
-    seg([(PX['A'], CEN0), (PX['A'], 1.1), (2.2, 1.1)], SUGC, lw=2.0)
-    arr(2.2, 1.1, 2.2, 0.35, SUGC, lw=2.2)
+    # 6 A sugar -> raw sugar — jog above the remelt tank/return (stream 2)
+    # before dropping down, so the run doesn't cut through the tank or ride
+    # alongside stream 2's horizontal leg.
+    seg([(PX['A'], CEN0), (PX['A'], 2.5), (2.2, 2.5)], SUGC, lw=2.0)
+    arr(2.2, 2.5, 2.2, 0.35, SUGC, lw=2.2)
     lbl(2.2, 0.12, 'A Raw Sugar', fs=9.5, bold=True, color=SUGC)
-    tag(PX['A'], 3.0, 6, SUGC)
+    tag(PX['A'], 4.5, 6, SUGC)
 
     # 12 B sugar -> raw sugar (terminal product — no B magma stage)
-    # Vertical run crosses the A-molasses trunk at y=6.2 — keep the tag well
-    # clear of that crossing so it doesn't read as part of the molasses network.
-    seg([(PX['B'], CEN0), (PX['B'], 1.85), (6.6, 1.85)], SUGC, lw=2.0)
-    arr(6.6, 1.85, 6.6, 0.35, SUGC, lw=2.2)
+    # Same jog-above treatment as stream 6 — clears the remelt tank's top
+    # and crosses stream 2 cleanly instead of running through the tank.
+    # Vertical run also crosses the A-molasses trunk at y=6.2 — keep the
+    # tag well clear of that crossing so it doesn't read as part of the
+    # molasses network.
+    seg([(PX['B'], CEN0), (PX['B'], 2.5), (6.6, 2.5)], SUGC, lw=2.0)
+    arr(6.6, 2.5, 6.6, 0.35, SUGC, lw=2.2)
     lbl(6.6, 0.12, 'B Raw Sugar', fs=9.5, bold=True, color=SUGC)
-    tag(PX['B'], 4.2, 12, SUGC)
+    tag(PX['B'], 4.5, 12, SUGC)
 
     # 7..10 A molasses (diluted) splits: top-off to A, B, Grain
     y1 = 6.2
@@ -286,10 +291,9 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
     seg([(PX['B'] + 0.8, CEN0 + 0.45), (PX['B'] + 1.7, CEN0 + 0.45),
          (PX['B'] + 1.7, y3), (18.4, y3)], MOLC)
     tag(12.4, y3, 13, MOLC)
-    dot(13.0, y3, MOLC)                                 # -> Grain
-    seg([(13.0, y3), (13.0, 10.8)], MOLC)
-    arr(13.0, 10.8, PX['GR'] - 1.2, 10.8, MOLC)
-    tag(13.0, 7.5, 14, MOLC)
+    dot(14.3, y3, MOLC)                                 # -> Grain, enters pan bottom
+    arr(14.3, y3, 14.3, Y0, MOLC)
+    tag(14.3, 6.7, 14, MOLC)
     seg([(18.4, y3), (18.4, 10.7)], MOLC)               # -> C
     arr(18.4, 10.7, PX['C'] - 1.2, 10.7, MOLC)
     tag(18.4, 7.0, 15, MOLC)
@@ -309,10 +313,11 @@ def plot_three_boiling(tb, show: bool = True, save_path: str = None,
     arr(12.0, 1.65, 11.4, 1.65, MAGC)
     tag(15.5, 0.6, 22, MAGC)
 
-    # 23 final molasses out
-    arr(PX['C'] + 0.85, 4.85, 23.8, 4.85, FINC, lw=2.2)
-    lbl(23.6, 5.55, 'Final\nMolasses', fs=9.5, bold=True, color=FINC)
-    tag(22.2, 4.85, 23, FINC)
+    # 23 final molasses out — extended past the C-magma return loops (20, 21)
+    # so the line and label don't run through their verticals at x=22.2/22.7
+    arr(PX['C'] + 0.85, 4.85, 24.7, 4.85, FINC, lw=2.2)
+    lbl(24.9, 5.6, 'Final\nMolasses', fs=9.5, bold=True, color=FINC, ha='left')
+    tag(23.2, 4.85, 23, FINC)
 
     lbl(DW / 2, DH - 0.15, 'Three Boiling (Single Magma) — Pan Floor PFD',
         fs=15, bold=True)
