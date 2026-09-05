@@ -572,6 +572,7 @@ class FourBoilingDoubleMagma:
         LBL = 32
         NUM = 13
         VOL = 10
+        PCT = 8    # brix/purity/crystal content column width
 
         def _row(label, flow, solids, pol, water, brix=None, purity=None, vol_ft3_hr=None):
             b = f"{brix:6.1f}" if brix is not None else "     -"
@@ -699,6 +700,13 @@ class FourBoilingDoubleMagma:
                          f"{unit.water_temp_out_deg_F:.0f} F")
             return lines
 
+        def _masse_row(label, vol, brix, purity, cc):
+            v = f"{vol:{VOL},.0f}" if vol is not None else " " * (VOL - 1) + "-"
+            b = f"{brix:{PCT}.1f}"    if brix    is not None else f"{'-':>{PCT}}"
+            p = f"{purity:{PCT}.1f}"  if purity  is not None else f"{'-':>{PCT}}"
+            c = f"{cc:{PCT}.1f}"      if cc      is not None else f"{'-':>{PCT}}"
+            return f"  {label:<{LBL}} {v} {b} {p} {c}"
+
         # ── Totals ────────────────────────────────────────────────────────
         total_evap = (
             self.A1_pans.water_evaporated_lb_hr
@@ -765,6 +773,35 @@ class FourBoilingDoubleMagma:
         out.append(_row("  Net (In - Out)", in_flow - out_flow, in_solids - out_solids,
                                             in_pol  - out_pol,  in_water  - out_water))
         out.append(f"  {'Pol% Recovered in Raw Sugar (A1+A2 / feed):':<{LBL+NUM}} {pol_extr:6.2f} %")
+        out.append("")
+
+        # ── Massecuite Volumetric Flow Summary ─────────────────────────────
+        a1_masse_vol    = self.A1_pans.massecuite_flow_lb_hr / self.A1_pans.massecuite.density
+        a2_masse_vol    = self.A2_pans.massecuite_flow_lb_hr / self.A2_pans.massecuite.density
+        b_masse_vol     = self.B_pans.massecuite_flow_lb_hr / self.B_pans.massecuite.density
+        grain_masse_vol = self.grain_pans.massecuite_flow_lb_hr / self.grain_pans.massecuite.density
+        c_masse_vol     = self.C_pans.massecuite_flow_lb_hr / self.C_pans.massecuite.density
+        total_masse_vol = a1_masse_vol + a2_masse_vol + b_masse_vol + c_masse_vol
+        out.append(_section("MASSECUITE VOLUMETRIC FLOW SUMMARY"))
+        out.append(f"  {'Massecuite':<{LBL}} {'ft3/hr':>{VOL}} {'Brix%':>{PCT}} {'Pur%':>{PCT}} {'CC%':>{PCT}}")
+        out.append("")
+        out.append(_masse_row("A1 Massecuite", a1_masse_vol,
+                               self.A1_pans.massecuite.masse_brix, self.A1_pans.massecuite.masse_purity,
+                               self.A1_pans.massecuite.crystal_content))
+        out.append(_masse_row("A2 Massecuite", a2_masse_vol,
+                               self.A2_pans.massecuite.masse_brix, self.A2_pans.massecuite.masse_purity,
+                               self.A2_pans.massecuite.crystal_content))
+        out.append(_masse_row("B Massecuite", b_masse_vol,
+                               self.B_pans.massecuite.masse_brix, self.B_pans.massecuite.masse_purity,
+                               self.B_pans.massecuite.crystal_content))
+        out.append(_masse_row("Grain Massecuite (feeds C Pans)", grain_masse_vol,
+                               self.grain_pans.massecuite.masse_brix, self.grain_pans.massecuite.masse_purity,
+                               self.grain_pans.massecuite.crystal_content))
+        out.append(_masse_row("C Massecuite", c_masse_vol,
+                               self.C_pans.massecuite.masse_brix, self.C_pans.massecuite.masse_purity,
+                               self.C_pans.massecuite.crystal_content))
+        out.append(LIGHT)
+        out.append(_masse_row("Total Massecuite (A1 + A2 + B + C)", total_masse_vol, None, None, None))
         out.append("")
 
         # ── A1 Pans ───────────────────────────────────────────────────────

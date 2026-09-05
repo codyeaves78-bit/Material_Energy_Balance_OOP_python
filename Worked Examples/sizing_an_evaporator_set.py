@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # so this runs standalone from any cwd
+
 from EvaporatorSet import EvaporatorSet, EvaporatorSetSciPy
 from SugarStream import SugarStream
 from SteamStream import EvaporatorSteam

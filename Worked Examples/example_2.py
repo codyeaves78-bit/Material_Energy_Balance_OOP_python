@@ -1,16 +1,23 @@
 """
-Example 1
+Example 2
 NOTE: all specific details to each station will be listed INSIDE each station
         the main parameters are given here
-A cane sugar factory is running 13000 tons of cane
-They have 6 mills in a single tandem, using 30% imbibition
-They have primary heaters only running on V1
-They have 2 sets of evaporators, both quadruple sets
+A more efficient version of Example 1's factory, same 13000 tons of cane, same
+grinding rate (6 mills, single tandem, 30% imbibition).
+Live steam generated: 500 psig, 300 F of superheat above saturation - fed straight
+    to the turbines (no governor throttling modeled)
+Exhaust pressure used: 14 psig
+Evaporators run as a single quintuple effect set, with 2 vapor bleeds:
+    V2 (1 psig) is bled off effect 2 -> feeds the Primary Juice Heaters and C Pans
+    V1 (7 psig) is bled off effect 1 -> feeds the Secondary Juice Heaters, A Pans,
+        B Pans, and Grain Pans
+Two juice heaters in series ahead of the clarifier: Primary Heater (V2) brings the
+    limed juice from cold up to 170 F, Secondary Heater (V1) finishes it off to the
+    clarifier's design hot temperature (220 F)
+Effect areas below were hand-tuned (via adjust_pressure_profile_scipy) so effect 1
+    and effect 2 land close to the specified V1/V2 pressures
 The sugar boiling scheme used is 3 boiling double magma
-Live steam pressure generated: 200 psig, at turbines: 175 psig
-Exhaust pressure used: 18 psig
-V1 pressure used in calcs: 7 psig (can update upon solving evaporators
-Worked exmaples only showcase the neat_display() functions
+Worked examples only showcase the neat_display() functions
 """
 import sys
 from pathlib import Path
@@ -42,21 +49,31 @@ clarifiers = Clarification(mixed_juice_stream=mills.mixed_juice_stream, cane_tpd
                            name='Clarification and Mud Filters')
 clarifiers.neat_display()
 
-# we now feed JuiceHeaterShellTube the outputs from clarifiers and a SteamStream object
+# Two juice heaters in series, fed off the evaporator vapor bleeds instead of exhaust
 from JuiceHeater import JuiceHeaterShellTube
 from SteamStream import SteamStream
 
-exhaust_psia = 18 + 14.7 # psia
-V1_psia = 7 + 14.7 # psia
+exhaust_psia = 14 + 14.7   # psia
+V1_psia      = 7 + 14.7    # psia
+V2_psia      = 1 + 14.7    # psia
 
-juice_heaters = JuiceHeaterShellTube(
-    cold_stream=clarifiers.limed_juice_cold_stream, # feeding it the stream created in clarification
-    hot_stream=SteamStream(P=V1_psia, x=1), # creating a steam object based on out V1 pressure
-    name='Limed Juice Heaters',
-    juice_out_temp_degF=clarifiers.limed_juice_hot_temp_f, # another parameter defined in clarification
-    U_btu_per_ft2_degF=220, installed_area_ft2=10000, steam_type=1 # 1 means V1 used, 0 means exhaust
+primary_juice_heaters = JuiceHeaterShellTube(
+    cold_stream=clarifiers.limed_juice_cold_stream,   # stream leaving clarification, before heating
+    hot_stream=SteamStream(P=V2_psia, x=1),           # V2 vapor
+    name='Primary Juice Heaters',
+    juice_out_temp_degF=170,
+    U_btu_per_ft2_degF=220, installed_area_ft2=6000, steam_type=2   # 2 means V2 used
 )
-juice_heaters.neat_display()
+primary_juice_heaters.neat_display()
+
+secondary_juice_heaters = JuiceHeaterShellTube(
+    cold_stream=primary_juice_heaters.juice_out,      # feeding it the Primary Heater's outlet
+    hot_stream=SteamStream(P=V1_psia, x=1),           # V1 vapor
+    name='Secondary Juice Heaters',
+    juice_out_temp_degF=clarifiers.limed_juice_hot_temp_f,   # clarifier's design hot temp
+    U_btu_per_ft2_degF=220, installed_area_ft2=6000, steam_type=1   # 1 means V1 used
+)
+secondary_juice_heaters.neat_display()
 
 # Next we will solve the Pan floor, this balance must be solved so EvaporatorSet has bleed flowrates
 # First we create a syrup object to feed the Pans
@@ -71,17 +88,16 @@ from Pan import Pan
 from Centrifugal import Centrifugal
 from Crystallizer_and_Reheater import Crystallizer, Reheater
 
-# Exhaust will be used on the entire Pan Floor
+# V1 is used on A Pans, B Pans, and Grain Pans; V2 is used on C Pans
 # for feed_stream, use None, the ThreeBoilingDoubleMagma object handles rebuilding and feeding it the right streams
 # Same for centrifugals, massecuite=None, the master object handles
-# NOTE: this section handles the largest amount of inputs, so it is highly recommended to use this as boiler plate
 pan_floor = ThreeBoilingDoubleMagma(
     syrup=syrup,
     A_pans=Pan(
         feed_streams=None, heating_surface_ft2=12000, inches_vacuum=23.5,
         supersaturation=1.2, head_ft=2, masse_brix=92, ml_purity=70, # mother liquor purity
-        calandria_pressure_psia=exhaust_psia, heat_loss_factor=0.02,
-        name='A Pans', steam_type=0 # meaning exhaust
+        calandria_pressure_psia=V1_psia, heat_loss_factor=0.02,
+        name='A Pans', steam_type=1 # meaning V1
         ),
     A_centrifugals=Centrifugal(
         massecuite=None, massecuite_flow_lb_hr=0, # master object updates this flow
@@ -91,8 +107,8 @@ pan_floor = ThreeBoilingDoubleMagma(
     B_pans=Pan(
         feed_streams=None, heating_surface_ft2=5000, inches_vacuum=25,
         supersaturation=1.2, head_ft=2, masse_brix=94, ml_purity=48,
-        calandria_pressure_psia=exhaust_psia, heat_loss_factor=0.05,
-        name='B Pans', steam_type=0
+        calandria_pressure_psia=V1_psia, heat_loss_factor=0.05,
+        name='B Pans', steam_type=1
         ),
     B_centrifugals=Centrifugal(
         massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=2,
@@ -102,14 +118,14 @@ pan_floor = ThreeBoilingDoubleMagma(
     grain_pans=Pan(
         feed_streams=None, heating_surface_ft2=2000, inches_vacuum=25.5,
         supersaturation=1.2, head_ft=2, masse_brix=88, ml_purity=39,
-        calandria_pressure_psia=exhaust_psia, heat_loss_factor=0.05,
-        name='Grain Pans', steam_type=0
+        calandria_pressure_psia=V1_psia, heat_loss_factor=0.05,
+        name='Grain Pans', steam_type=1
     ),
     C_pans=Pan(
         feed_streams=None, heating_surface_ft2=5000, inches_vacuum=26.5,
         supersaturation=1.2, head_ft=2, masse_brix=95.5, ml_purity=33,
-        calandria_pressure_psia=exhaust_psia, heat_loss_factor=0.05,
-        name='C Pans', steam_type=0
+        calandria_pressure_psia=V2_psia, heat_loss_factor=0.05,
+        name='C Pans', steam_type=2 # meaning V2
     ),
     C_centrifugals=Centrifugal(
         massecuite=None, massecuite_flow_lb_hr=0, target_molasses_brix=82, purity_rise=4,
@@ -147,19 +163,23 @@ pan_floor = ThreeBoilingDoubleMagma(
 )
 pan_floor.neat_display()
 
-V1_demand = juice_heaters.steam_required_lb_per_hr if juice_heaters.steam_type == 1 else 0
+# V1/V2 demand needed before solving the evaporator set's vapor bleeds
+V1_demand = secondary_juice_heaters.steam_required_lb_per_hr + pan_floor.total_V1_steam_lb_hr
+V2_demand = primary_juice_heaters.steam_required_lb_per_hr + pan_floor.total_V2_steam_lb_hr
 
-from EvaporatorSet import EvaporatorSet, EvaporatorSetSciPy # this is the Object with a better solver
+from EvaporatorSet import EvaporatorSet, EvaporatorSetSciPy
 from SteamStream import EvaporatorSteam
 
-# it will be assumed that this set which is 2 quads ran in parrallel, that one large set will be
-#    sufficient for modeling purposes
-# no juice heater for clarified juice is used
+# Single quintuple effect set - no juice heater used ahead of it, matches example 1's approach
+# effect areas hand-tuned (relative sizing sets the pressure profile, overall scale sets U ratio
+# to ~1.0 against the Dessin coefficient) so effect 1 vapor lands at V1 (21.7 psia) and effect 2
+# lands close to V2 (15.7 psia)
 evaporators = EvaporatorSetSciPy(
     juice_in=clarifiers.clarified_juice_stream, supply_steam=EvaporatorSteam(P_psia=exhaust_psia),
-    last_effect_pressure_psia=2.4, target_brix_out=syrup.brix, effect_areas_ft2=[40000, 24000, 24000, 24000],
-    vapor_bleeds=[V1_demand, 0, 0], dessin_coefficient=18000, liquid_level_ft=2, injection_water_temp_F=90,
-    condenser_leg_temp_drop_F=8, name="Evaporator Set"
+    last_effect_pressure_psia=2.4, target_brix_out=syrup.brix,
+    effect_areas_ft2=[64000, 36500, 23800, 23800, 23800],
+    vapor_bleeds=[V1_demand, V2_demand, 0, 0], dessin_coefficient=18000, liquid_level_ft=2,
+    injection_water_temp_F=90, condenser_leg_temp_drop_F=8, name="Evaporator Set"
 )
 evaporators.adjust_pressure_profile_scipy()
 evaporators.neat_display()
@@ -168,6 +188,7 @@ evaporators.neat_display()
 # past this point will cover the live steam consumption of the factory, live steam available, and deaerators
 
 from Deaerator import Deaerator
+
 deareator = Deaerator(
     deaerator_psig=10, # NOTE this is psig, not psia
     water_in_deg_F=205,
@@ -177,18 +198,22 @@ deareator = Deaerator(
 
 deareator.display_properties() # no neat display available
 
-# Total exhaust Consumption
+# Total exhaust Consumption - neither juice heaters nor pans are on exhaust anymore,
+# so this is essentially just the evaporators' supply steam + deaerator + losses
+juice_heaters_exhaust = 0  # both heaters run on V1/V2 now
 exhaust_consumption_total = (
-    juice_heaters.steam_required_lb_per_hr if juice_heaters.steam_type == 0 else 0
-    + pan_floor.total_exhaust_steam_lb_hr
+    juice_heaters_exhaust
+    + pan_floor.total_exhaust_steam_lb_hr  # 0, all pans on V1/V2
     + evaporators.supply_steam.flow_lb_per_hr
     + deareator.steam_flow_lb_hr
     + 30000 # assumed losses ~3-5%
 )
 
-print(f"\nExhaust for Heaters: {juice_heaters.steam_required_lb_per_hr if juice_heaters.steam_type == 0 else 0 :,.0f}")
+print(f"\nExhaust for Heaters: {juice_heaters_exhaust:,.0f}")
 print(f"Exhaust for Evaporators: {evaporators.supply_steam.flow_lb_per_hr:,.0f}")
 print(f"Exhaust for Pans: {pan_floor.total_exhaust_steam_lb_hr:,.0f}")
+print(f"V1 Demand (Secondary Heaters + A/B/Grain Pans): {V1_demand:,.0f}")
+print(f"V2 Demand (Primary Heaters + C Pans): {V2_demand:,.0f}")
 print(f"Assumed Exhaust Losses: {30000:,.0f}")
 print(f"Total Exhaust Required: {exhaust_consumption_total:,.0f}\n")
 
@@ -197,8 +222,8 @@ from MillTurbines import MillTurbines
 from CanePrepTurbines import CanePrepTurbines
 from AuxillaryTurbines import AuxillaryTurbines
 
-generated_steam = SteamStream(P=(200 + 14.7), x=1) # 200 psig sat steam
-turbine_steam = SteamStream(P=(175 + 14.7), h=generated_steam.h) # 175 psig steam, same enthalpy as generated
+boiler_sat_steam = SteamStream(P=(500 + 14.7), x=1) # saturation reference at 500 psig
+turbine_steam = SteamStream(P=(500 + 14.7), T=boiler_sat_steam.T + 300) # 500 psig, 300 F superheat
 tons_fiber_hr = mills.cane_fiber_pct / 100 * mills.cane_tph
 
 # assumes 2 sets of knives
@@ -264,10 +289,10 @@ from Boiler import Boiler
 boilers = Boiler(
     bagasse=mills.bagasse_stream,
     efficiency=65,
-    pressure_psig=200, # matches the live steam generated pressure
-    deg_superheat=0, # saturated
+    pressure_psig=500,   # matches the turbine live steam pressure
+    deg_superheat=300,   # matches the turbine live steam superheat
     feed_water_temp=deareator.water_out.T,
-    capacity=850_000, # assumed rated capacity, can update upon solving
+    capacity=700_000, # assumed rated capacity, can update upon solving
     name="All Boilers"
 )
 boilers.neat_display()
@@ -275,6 +300,3 @@ boilers.neat_display()
 bagasse_steam_surplus = boilers.steam_availabe_lb_hr - total_live_steam_required
 print(f"\nBagasse Steam Available: {boilers.steam_availabe_lb_hr:,.0f} lb/hr")
 print(f"Bagasse Steam Surplus/(Deficit): {bagasse_steam_surplus:,.0f} lb/hr")
-
-
-
